@@ -1,19 +1,22 @@
 #[cfg(test)]
 mod tests;
 
-use std::io::{self, Read};
+use std::io;
 
 use pulldown_cmark::{Event, HeadingLevel, Parser, Tag};
 use time::{macros::format_description, Date};
 use url::Url;
 
-use crate::collection::{Entity, Label};
+use crate::collection::{Collection, Entity, Id, Label};
 
 #[derive(Debug)]
 enum ErrorImpl {
     Io(io::Error),
     UrlParse(url::ParseError),
     TimeParse(time::error::Parse),
+    MissingName,
+    MissingUrl,
+    MissingDate,
 }
 
 #[derive(Debug)]
@@ -33,6 +36,9 @@ impl std::fmt::Display for Error {
             ErrorImpl::Io(err) => write!(f, "IO error: {}", err),
             ErrorImpl::UrlParse(err) => write!(f, "URL parse error: {}", err),
             ErrorImpl::TimeParse(err) => write!(f, "Time parse error: {}", err),
+            ErrorImpl::MissingName => write!(f, "Missing name"),
+            ErrorImpl::MissingUrl => write!(f, "Missing URL"),
+            ErrorImpl::MissingDate => write!(f, "Missing date"),
         }
     }
 }
@@ -55,14 +61,13 @@ impl From<time::error::Parse> for Error {
     }
 }
 
-pub fn parse(reader: &mut impl Read) -> Result<Vec<Entity>, Error> {
-    let mut buffer = String::new();
-    let _bytes_read = reader.read_to_string(&mut buffer)?;
-    let parser = Parser::new(&buffer);
+pub fn parse(input: &str) -> Result<Collection, Error> {
+    let parser = Parser::new(input);
 
     let date_format = format_description!("[month repr:long] [day padding:none], [year]");
 
-    let mut ret = Vec::new();
+    let mut ret = Collection::new();
+
     let mut name: Option<String> = None;
     let mut date: Option<Date> = None;
     let mut url: Option<Url> = None;
@@ -70,7 +75,8 @@ pub fn parse(reader: &mut impl Read) -> Result<Vec<Entity>, Error> {
 
     let mut curr_tag: Option<Tag> = None;
     let mut curr_heading_level: HeadingLevel = HeadingLevel::H1;
-    let mut _curr_link_level: usize = 0;
+    let mut last_id: Option<Id> = None;
+    let mut parents: Vec<Id> = Vec::new();
 
     for event in parser {
         match event {
@@ -87,8 +93,10 @@ pub fn parse(reader: &mut impl Read) -> Result<Vec<Entity>, Error> {
                 curr_tag = Some(tag.to_owned());
             }
             Event::Start(tag @ Tag::List(_)) => {
-                _curr_link_level += 1;
                 curr_tag = Some(tag);
+                if let Some(last_id) = last_id {
+                    parents.push(last_id);
+                }
             }
             Event::Start(ref tag @ Tag::Link(_, ref link, ref title)) => {
                 curr_tag = Some(tag.to_owned());
@@ -114,17 +122,19 @@ pub fn parse(reader: &mut impl Read) -> Result<Vec<Entity>, Error> {
             },
             // End
             Event::End(Tag::List(_)) => {
-                _curr_link_level -= 1;
+                let _ = parents.pop();
             }
             Event::End(Tag::Link(_, _, _)) => {
-                let entity = Entity::new(
-                    name.take().unwrap(),
-                    url.take().unwrap(),
-                    date.unwrap().clone(),
-                    Vec::new(),
-                    labels.clone(),
-                );
-                ret.push(entity);
+                let name = name.take().ok_or(Error::new(ErrorImpl::MissingName))?;
+                let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
+                let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
+                let entity = Entity::new(name, url, date, Vec::new(), labels.clone());
+                let id = ret.add_node(entity);
+                if let Some(parent) = parents.last() {
+                    ret.add_edge(*parent, id);
+                    ret.add_edge(id, *parent);
+                }
+                last_id = Some(id);
             }
             _ => {}
         }

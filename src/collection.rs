@@ -31,6 +31,18 @@ impl Label {
     }
 }
 
+impl From<&str> for Label {
+    fn from(name: &str) -> Self {
+        Self(name.to_string())
+    }
+}
+
+impl From<String> for Label {
+    fn from(name: String) -> Self {
+        Self(name)
+    }
+}
+
 /// An [`Entity`] is a page in the collection.
 #[derive(Debug)]
 pub struct Entity {
@@ -121,10 +133,39 @@ impl Collection {
             panic!("Index out of bounds");
         }
     }
+
+    pub fn node(&self, idx: usize) -> Option<&Entity> {
+        self.nodes.get(idx)
+    }
+
+    pub fn edges(&self, idx: usize) -> Option<&[Id]> {
+        self.edges.get(idx).map(|vec| vec.as_slice())
+    }
 }
 
 impl Default for Collection {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl IntoIterator for Collection {
+    type Item = Entity;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.nodes.into_iter()
+    }
+}
+
+impl std::ops::Index<usize> for Collection {
+    type Output = Entity;
+
+    fn index(&self, idx: usize) -> &Self::Output {
+        if let Some(entity) = self.node(idx) {
+            entity
+        } else {
+            panic!("Index out of bounds");
+        }
     }
 }
