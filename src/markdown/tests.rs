@@ -99,7 +99,7 @@ fn test_no_title() {
     assert_eq!(collection.len(), 1);
 
     let expected = Entity::new(
-        Some("https://foo.com".to_string()),
+        None,
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 11 - 15),
         Vec::new(),
@@ -739,7 +739,7 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            Some("https://bar.com".to_string()),
+            None,
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar")],
@@ -805,7 +805,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            Some("https://bar.com".to_string()),
+            None,
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -851,7 +851,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            Some("https://baz.com".to_string()),
+            None,
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),

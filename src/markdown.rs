@@ -3,7 +3,7 @@ mod tests;
 
 use std::io;
 
-use pulldown_cmark::{Event, HeadingLevel, Parser, Tag};
+use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag};
 use time::{macros::format_description, Date};
 use url::Url;
 
@@ -15,7 +15,6 @@ enum ErrorImpl {
     Io(String),
     UrlParse(url::ParseError),
     TimeParse(time::error::Parse),
-    MissingName,
     MissingUrl,
     MissingDate,
 }
@@ -39,7 +38,6 @@ impl std::fmt::Display for Error {
             ErrorImpl::Io(err) => write!(f, "IO error: {}", err),
             ErrorImpl::UrlParse(err) => write!(f, "URL parse error: {}", err),
             ErrorImpl::TimeParse(err) => write!(f, "Time parse error: {}", err),
-            ErrorImpl::MissingName => write!(f, "Missing name"),
             ErrorImpl::MissingUrl => write!(f, "Missing URL"),
             ErrorImpl::MissingDate => write!(f, "Missing date"),
         }
@@ -101,8 +99,14 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     parents.push(last_id);
                 }
             }
-            Event::Start(ref tag @ Tag::Link(_, ref link, ref title)) => {
+            Event::Start(ref tag @ Tag::Link(LinkType::Inline, ref link, ref title)) => {
                 current_tag = Some(tag.to_owned());
+                url = Some(Url::parse(link)?);
+                assert!(title.is_empty());
+            }
+            Event::Start(ref tag @ Tag::Link(LinkType::Autolink, ref link, ref title)) => {
+                current_tag = Some(tag.to_owned());
+                name = None;
                 url = Some(Url::parse(link)?);
                 assert!(title.is_empty());
             }
@@ -118,7 +122,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     let label = Label::new(text.to_string());
                     labels.push(label);
                 }
-                (Some(Tag::Link(_, _, _)), _) => {
+                (Some(Tag::Link(LinkType::Inline, _, _)), _) => {
                     name = Some(text.to_string());
                 }
                 _ => {}
@@ -129,10 +133,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
             }
             Event::End(Tag::Link(_, _, _)) => {
-                let name = name.take().ok_or(Error::new(ErrorImpl::MissingName))?;
                 let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
                 let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
-                let entity = Entity::new(Some(name), url, date, labels.clone());
+                let entity = Entity::new(name.to_owned(), url, date, labels.clone());
                 let id = ret.add_node(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edge(*parent, id);
