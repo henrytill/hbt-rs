@@ -10,8 +10,9 @@ use url::Url;
 use crate::collection::{Collection, Entity, Id, Label};
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 enum ErrorImpl {
-    Io(io::Error),
+    Io(String),
     UrlParse(url::ParseError),
     TimeParse(time::error::Parse),
     MissingName,
@@ -20,6 +21,8 @@ enum ErrorImpl {
 }
 
 #[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+
 pub struct Error {
     inner: Box<ErrorImpl>,
 }
@@ -45,7 +48,7 @@ impl std::fmt::Display for Error {
 
 impl From<io::Error> for Error {
     fn from(err: io::Error) -> Self {
-        Self::new(ErrorImpl::Io(err))
+        Self::new(ErrorImpl::Io(err.to_string()))
     }
 }
 
@@ -73,41 +76,41 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
     let mut url: Option<Url> = None;
     let mut labels: Vec<Label> = Vec::new();
 
-    let mut curr_tag: Option<Tag> = None;
-    let mut curr_heading_level: HeadingLevel = HeadingLevel::H1;
-    let mut last_id: Option<Id> = None;
+    let mut current_tag: Option<Tag> = None;
+    let mut current_heading_level: HeadingLevel = HeadingLevel::H1;
+    let mut maybe_parent: Option<Id> = None;
     let mut parents: Vec<Id> = Vec::new();
 
     for event in parser {
         match event {
             // Start
             Event::Start(tag @ Tag::Heading(HeadingLevel::H1, _, _)) => {
-                assert_eq!(curr_heading_level, HeadingLevel::H1);
+                assert_eq!(current_heading_level, HeadingLevel::H1);
                 assert_eq!(labels.len(), 0);
-                curr_heading_level = HeadingLevel::H1;
-                curr_tag = Some(tag);
+                current_heading_level = HeadingLevel::H1;
+                current_tag = Some(tag);
             }
             Event::Start(ref tag @ Tag::Heading(ref heading_level, _, _)) => {
                 labels.truncate(*heading_level as usize - 2); // let's not do this
-                curr_heading_level = *heading_level;
-                curr_tag = Some(tag.to_owned());
+                current_heading_level = *heading_level;
+                current_tag = Some(tag.to_owned());
             }
             Event::Start(tag @ Tag::List(_)) => {
-                curr_tag = Some(tag);
-                if let Some(last_id) = last_id {
+                current_tag = Some(tag);
+                if let Some(last_id) = maybe_parent {
                     parents.push(last_id);
                 }
             }
             Event::Start(ref tag @ Tag::Link(_, ref link, ref title)) => {
-                curr_tag = Some(tag.to_owned());
+                current_tag = Some(tag.to_owned());
                 url = Some(Url::parse(link)?);
                 assert!(title.is_empty());
             }
             Event::Start(tag) => {
-                curr_tag = Some(tag);
+                current_tag = Some(tag);
             }
             // Text
-            Event::Text(text) => match (&curr_tag, curr_heading_level) {
+            Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading(_, _, _)), HeadingLevel::H1) => {
                     date = Some(Date::parse(text.as_ref(), date_format)?);
                 }
@@ -123,6 +126,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // End
             Event::End(Tag::List(_)) => {
                 let _ = parents.pop();
+                maybe_parent = None;
             }
             Event::End(Tag::Link(_, _, _)) => {
                 let name = name.take().ok_or(Error::new(ErrorImpl::MissingName))?;
@@ -134,7 +138,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     ret.add_edge(*parent, id);
                     ret.add_edge(id, *parent);
                 }
-                last_id = Some(id);
+                maybe_parent = Some(id);
             }
             _ => {}
         }
