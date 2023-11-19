@@ -46,7 +46,7 @@ impl From<String> for Label {
 /// An [`Entity`] is a page in the collection.
 #[derive(Debug, PartialEq, Eq)]
 pub struct Entity {
-    name: String,
+    name: Option<String>,
     url: Url,
     created_at: Date,
     updated_at: Vec<Date>,
@@ -54,7 +54,7 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub const fn new(name: String, url: Url, created_at: Date, labels: Vec<Label>) -> Self {
+    pub const fn new(name: Option<String>, url: Url, created_at: Date, labels: Vec<Label>) -> Self {
         let updated_at = Vec::new();
         Self {
             name,
@@ -70,8 +70,8 @@ impl Entity {
         self.labels = labels;
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn name(&self) -> Option<&str> {
+        self.name.as_deref()
     }
 
     pub fn url(&self) -> &Url {

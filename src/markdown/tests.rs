@@ -53,7 +53,7 @@ fn test_no_labels() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -64,7 +64,7 @@ fn test_no_labels() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -99,7 +99,7 @@ fn test_no_title() {
     assert_eq!(collection.len(), 1);
 
     let expected = Entity::new(
-        "https://foo.com".to_string(),
+        Some("https://foo.com".to_string()),
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 11 - 15),
         Vec::new(),
@@ -121,7 +121,7 @@ fn test_indented() {
     assert_eq!(collection.len(), 1);
 
     let expected = Entity::new(
-        "Foo".to_string(),
+        Some("Foo".to_string()),
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 11 - 15),
         Vec::new(),
@@ -158,7 +158,7 @@ fn test_parent() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -174,7 +174,7 @@ fn test_parent() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -206,7 +206,7 @@ fn test_parents() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -222,7 +222,7 @@ fn test_parents() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -238,7 +238,7 @@ fn test_parents() {
 
     {
         let expected = Entity::new(
-            "Baz".to_string(),
+            Some("Baz".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -270,7 +270,7 @@ fn test_parents_indented() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -286,7 +286,7 @@ fn test_parents_indented() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -302,7 +302,7 @@ fn test_parents_indented() {
 
     {
         let expected = Entity::new(
-            "Baz".to_string(),
+            Some("Baz".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -335,7 +335,7 @@ fn test_single_parent() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -351,7 +351,7 @@ fn test_single_parent() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -367,7 +367,7 @@ fn test_single_parent() {
 
     {
         let expected = Entity::new(
-            "Baz".to_string(),
+            Some("Baz".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -383,7 +383,7 @@ fn test_single_parent() {
 
     {
         let expected = Entity::new(
-            "Quux".to_string(),
+            Some("Quux".to_string()),
             Url::parse("https://quux.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -414,7 +414,7 @@ fn test_no_parent() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -429,7 +429,7 @@ fn test_no_parent() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -460,7 +460,7 @@ fn test_inverted_parents() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -475,7 +475,7 @@ fn test_inverted_parents() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -490,7 +490,7 @@ fn test_inverted_parents() {
 
     {
         let expected = Entity::new(
-            "Baz".to_string(),
+            Some("Baz".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             Vec::new(),
@@ -523,7 +523,7 @@ fn test_label() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -537,7 +537,7 @@ fn test_label() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -574,7 +574,7 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -588,7 +588,7 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -604,7 +604,7 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            "Baz".to_string(),
+            Some("Baz".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -618,7 +618,7 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            "Quux".to_string(),
+            Some("Quux".to_string()),
             Url::parse("https://quux.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -656,7 +656,7 @@ fn test_multiple_labels() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             vec![Label::from("Foo")],
@@ -670,7 +670,7 @@ fn test_multiple_labels() {
 
     {
         let expected = Entity::new(
-            "Bar".to_string(),
+            Some("Bar".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar")],
@@ -684,7 +684,7 @@ fn test_multiple_labels() {
 
     {
         let expected = Entity::new(
-            "Baz".to_string(),
+            Some("Baz".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar"), Label::from("Baz")],
@@ -724,7 +724,7 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             vec![Label::from("Foo")],
@@ -739,7 +739,7 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            "https://bar.com".to_string(),
+            Some("https://bar.com".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar")],
@@ -754,7 +754,7 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            "Hello, world!".to_string(),
+            Some("Hello, world!".to_string()),
             Url::parse("https://example.com").unwrap(),
             expected_date,
             vec![Label::from("Misc")],
@@ -790,7 +790,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            "Foo".to_string(),
+            Some("Foo".to_string()),
             Url::parse("https://foo.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -805,7 +805,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            "https://bar.com".to_string(),
+            Some("https://bar.com".to_string()),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -820,7 +820,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            "Hello, world!".to_string(),
+            Some("Hello, world!".to_string()),
             Url::parse("https://example.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -835,7 +835,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            "Quux".to_string(),
+            Some("Quux".to_string()),
             Url::parse("https://quux.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
@@ -851,7 +851,7 @@ fn test_nested() {
 
     {
         let expected = Entity::new(
-            "https://baz.com".to_string(),
+            Some("https://baz.com".to_string()),
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             expected_labels.to_owned(),
