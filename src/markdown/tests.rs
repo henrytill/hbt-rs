@@ -1,6 +1,12 @@
+use std::vec;
+
 use time::macros::date;
 
 use super::*;
+
+fn convert_edges(edges: &[Id]) -> Vec<usize> {
+    edges.iter().cloned().map(Into::into).collect()
+}
 
 const TEST_EMPTY: &str = "";
 
@@ -45,19 +51,27 @@ fn test_no_labels() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        assert_eq!(&expected, &collection[0]);
+    }
+
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[1]);
+    }
 }
 
 const TEST_NO_URL: &str = "\
@@ -81,16 +95,17 @@ const TEST_NO_TITLE: &str = "\
 #[test]
 fn test_no_title() {
     let collection = parse(TEST_NO_TITLE).unwrap();
+
     assert_eq!(collection.len(), 1);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected = Entity::new(
+        "https://foo.com".to_string(),
+        Url::parse("https://foo.com").unwrap(),
+        date!(2023 - 11 - 15),
+        Vec::new(),
+    );
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "https://foo.com");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    assert_eq!(&expected, &collection[0]);
 }
 
 const TEST_INDENTED: &str = "\
@@ -102,16 +117,17 @@ const TEST_INDENTED: &str = "\
 #[test]
 fn test_indented() {
     let collection = parse(TEST_INDENTED).unwrap();
+
     assert_eq!(collection.len(), 1);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected = Entity::new(
+        "Foo".to_string(),
+        Url::parse("https://foo.com").unwrap(),
+        date!(2023 - 11 - 15),
+        Vec::new(),
+    );
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    assert_eq!(&expected, &collection[0]);
 }
 
 const TEST_INDENTED_DOUBLE: &str = "\
@@ -140,29 +156,37 @@ fn test_parent() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 1);
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![1]);
+    }
 
-    let edges = collection.edges(1).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 0);
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[1]);
+
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![0]);
+    }
 }
 
 const TEST_PARENTS: &str = "\
@@ -180,42 +204,53 @@ fn test_parents() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 1);
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![1]);
+    }
 
-    let edges = collection.edges(1).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 2);
-    assert_eq!(edges[0], 0);
-    assert_eq!(edges[1], 2);
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Baz");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        assert_eq!(&expected, &collection[1]);
 
-    let edges = collection.edges(2).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 1);
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 2);
+        assert_eq!(edges, vec![0, 2]);
+    }
+
+    {
+        let expected = Entity::new(
+            "Baz".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![1]);
+    }
 }
 
 const TEST_PARENTS_INDENTED: &str = "\
@@ -233,42 +268,53 @@ fn test_parents_indented() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 1);
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![1]);
+    }
 
-    let edges = collection.edges(1).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 2);
-    assert_eq!(edges[0], 0);
-    assert_eq!(edges[1], 2);
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Baz");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        assert_eq!(&expected, &collection[1]);
 
-    let edges = collection.edges(2).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 1);
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 2);
+        assert_eq!(edges, vec![0, 2]);
+    }
+
+    {
+        let expected = Entity::new(
+            "Baz".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![1]);
+    }
 }
 
 const TEST_SINGLE_PARENT: &str = "\
@@ -287,55 +333,69 @@ fn test_single_parent() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 3);
-    assert_eq!(edges[0], 1);
-    assert_eq!(edges[1], 2);
-    assert_eq!(edges[2], 3);
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 3);
+        assert_eq!(edges, vec![1, 2, 3]);
+    }
 
-    let edges = collection.edges(1).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 0);
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Baz");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        assert_eq!(&expected, &collection[1]);
 
-    let edges = collection.edges(2).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 0);
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![0]);
+    }
 
-    let entity = &collection[3];
-    assert_eq!(entity.name(), "Quux");
-    assert_eq!(entity.url().as_str(), "https://quux.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Baz".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(3).unwrap();
-    let edges = convert_edges(edges);
-    assert_eq!(edges.len(), 1);
-    assert_eq!(edges[0], 0);
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![0]);
+    }
+
+    {
+        let expected = Entity::new(
+            "Quux".to_string(),
+            Url::parse("https://quux.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[3]);
+
+        let edges = collection.edges(3).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(edges.len(), 1);
+        assert_eq!(edges, vec![0]);
+    }
 }
 
 const TEST_INVERTED_PARENT: &str = "\
@@ -352,25 +412,35 @@ fn test_no_parent() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    assert!(edges.is_empty());
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
 
-    let edges = collection.edges(1).unwrap();
-    assert!(edges.is_empty());
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[1]);
+
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
 }
 
 const TEST_INVERTED_SINGLE_PARENT: &str = "\
@@ -388,35 +458,50 @@ fn test_inverted_parents() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    assert!(edges.is_empty());
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
 
-    let edges = collection.edges(1).unwrap();
-    assert!(edges.is_empty());
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Baz");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert!(entity.labels().is_empty());
+        assert_eq!(&expected, &collection[1]);
 
-    let edges = collection.edges(2).unwrap();
-    assert!(edges.is_empty());
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
+
+    {
+        let expected = Entity::new(
+            "Baz".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            Vec::new(),
+        );
+
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
 }
 
 const TEST_LABEL: &str = "\
@@ -434,25 +519,35 @@ fn test_label() {
     assert_eq!(collection.len(), 2);
 
     let expected_date = date!(2023 - 11 - 15);
-    let expected_labels = &[Label::from("Foo")];
+    let expected_labels = vec![Label::from("Foo")];
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), expected_labels);
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    assert!(edges.is_empty());
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), expected_labels);
+        let edges = collection.edges(0).unwrap();
+        assert!(edges.is_empty());
+    }
 
-    let edges = collection.edges(1).unwrap();
-    assert!(edges.is_empty());
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
+
+        assert_eq!(&expected, &collection[1]);
+
+        let edges = collection.edges(1).unwrap();
+        assert!(edges.is_empty());
+    }
 }
 
 const TEST_LABELS: &str = "\
@@ -475,45 +570,65 @@ fn test_labels() {
     assert_eq!(collection.len(), 4);
 
     let expected_date = date!(2023 - 11 - 15);
-    let expected_labels = &[Label::from("Foo")];
+    let expected_labels = vec![Label::from("Foo")];
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), expected_labels);
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    assert!(edges.is_empty());
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), expected_labels);
+        let edges = collection.edges(0).unwrap();
+        assert!(edges.is_empty());
+    }
 
-    let edges = collection.edges(1).unwrap();
-    assert!(edges.is_empty());
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let expected_labels = &[Label::from("Baz")];
+        assert_eq!(&expected, &collection[1]);
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Baz");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), expected_labels);
+        let edges = collection.edges(1).unwrap();
+        assert!(edges.is_empty());
+    }
 
-    let edges = collection.edges(2).unwrap();
-    assert!(edges.is_empty());
+    let expected_labels = vec![Label::from("Baz")];
 
-    let entity = &collection[3];
-    assert_eq!(entity.name(), "Quux");
-    assert_eq!(entity.url().as_str(), "https://quux.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), expected_labels);
+    {
+        let expected = Entity::new(
+            "Baz".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let edges = collection.edges(3).unwrap();
-    assert!(edges.is_empty());
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        assert!(edges.is_empty());
+    }
+
+    {
+        let expected = Entity::new(
+            "Quux".to_string(),
+            Url::parse("https://quux.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
+
+        assert_eq!(&expected, &collection[3]);
+
+        let edges = collection.edges(3).unwrap();
+        assert!(edges.is_empty());
+    }
 }
 
 const TEST_MULTIPLE_LABELS: &str = "\
@@ -539,35 +654,47 @@ fn test_multiple_labels() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            vec![Label::from("Foo")],
+        );
 
-    let edges = collection.edges(0).unwrap();
-    assert!(edges.is_empty());
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "Bar");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(entity.labels(), &[Label::from("Foo"), Label::from("Bar")]);
+        let edges = collection.edges(0).unwrap();
+        assert!(edges.is_empty());
+    }
 
-    let edges = collection.edges(1).unwrap();
-    assert!(edges.is_empty());
+    {
+        let expected = Entity::new(
+            "Bar".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            vec![Label::from("Foo"), Label::from("Bar")],
+        );
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Baz");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert_eq!(
-        entity.labels(),
-        &[Label::from("Foo"), Label::from("Bar"), Label::from("Baz")]
-    );
+        assert_eq!(&expected, &collection[1]);
 
-    let edges = collection.edges(2).unwrap();
-    assert!(edges.is_empty());
+        let edges = collection.edges(1).unwrap();
+        assert!(edges.is_empty());
+    }
+
+    {
+        let expected = Entity::new(
+            "Baz".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            vec![Label::from("Foo"), Label::from("Bar"), Label::from("Baz")],
+        );
+
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        assert!(edges.is_empty());
+    }
 }
 
 // Original tests below
@@ -595,26 +722,50 @@ fn test_basic() {
 
     let expected_date = date!(2023 - 11 - 16);
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            vec![Label::from("Foo")],
+        );
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "https://bar.com");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo"), Label::from("Bar")]);
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Hello, world!");
-    assert_eq!(entity.url().as_str(), "https://example.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Misc")]);
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
+
+    {
+        let expected = Entity::new(
+            "https://bar.com".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            vec![Label::from("Foo"), Label::from("Bar")],
+        );
+
+        assert_eq!(&expected, &collection[1]);
+
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
+
+    {
+        let expected = Entity::new(
+            "Hello, world!".to_string(),
+            Url::parse("https://example.com").unwrap(),
+            expected_date,
+            vec![Label::from("Misc")],
+        );
+
+        assert_eq!(&expected, &collection[2]);
+
+        let edges = collection.edges(2).unwrap();
+        let edges = convert_edges(edges);
+        assert!(edges.is_empty());
+    }
 }
 
 const TEST_NESTED: &str = "\
@@ -629,74 +780,87 @@ const TEST_NESTED: &str = "\
   - <https://baz.com>
 ";
 
-fn convert_edges(edges: &[Id]) -> Vec<usize> {
-    edges.iter().cloned().map(Into::into).collect()
-}
-
 #[test]
 fn test_nested() {
     let collection = parse(TEST_NESTED).unwrap();
     assert_eq!(collection.len(), 5);
 
     let expected_date = date!(2023 - 11 - 17);
+    let expected_labels = vec![Label::from("Foo")];
 
-    let entity = &collection[0];
-    assert_eq!(entity.name(), "Foo");
-    assert_eq!(entity.url().as_str(), "https://foo.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+    {
+        let expected = Entity::new(
+            "Foo".to_string(),
+            Url::parse("https://foo.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let edges = collection.edges(0).unwrap();
-    let expected: Vec<usize> = vec![1, 2, 4];
-    let actual: Vec<usize> = convert_edges(edges);
-    assert_eq!(expected, actual);
+        assert_eq!(&expected, &collection[0]);
 
-    let entity = &collection[1];
-    assert_eq!(entity.name(), "https://bar.com");
-    assert_eq!(entity.url().as_str(), "https://bar.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+        let edges = collection.edges(0).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(vec![1, 2, 4], edges);
+    }
 
-    let edges = collection.edges(1).unwrap();
-    let expected: Vec<usize> = vec![0];
-    let actual: Vec<usize> = convert_edges(edges);
-    assert_eq!(expected, actual);
+    {
+        let expected = Entity::new(
+            "https://bar.com".to_string(),
+            Url::parse("https://bar.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let entity = &collection[2];
-    assert_eq!(entity.name(), "Hello, world!");
-    assert_eq!(entity.url().as_str(), "https://example.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+        assert_eq!(&expected, &collection[1]);
 
-    let edges = collection.edges(2).unwrap();
-    let expected: Vec<usize> = vec![0, 3];
-    let actual: Vec<usize> = convert_edges(edges);
-    assert_eq!(expected, actual);
+        let edges = collection.edges(1).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(vec![0], edges);
+    }
 
-    let entity = &collection[3];
-    assert_eq!(entity.name(), "Quux");
-    assert_eq!(entity.url().as_str(), "https://quux.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+    {
+        let expected = Entity::new(
+            "Hello, world!".to_string(),
+            Url::parse("https://example.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
 
-    let edges = collection.edges(3).unwrap();
-    let expected: Vec<usize> = vec![2];
-    let actual: Vec<usize> = convert_edges(edges);
-    assert_eq!(expected, actual);
+        assert_eq!(&expected, &collection[2]);
 
-    let entity = &collection[4];
-    assert_eq!(entity.name(), "https://baz.com");
-    assert_eq!(entity.url().as_str(), "https://baz.com/");
-    assert_eq!(entity.created_at(), &expected_date);
-    assert!(entity.updated_at().is_empty());
-    assert_eq!(entity.labels(), &[Label::from("Foo")]);
+        let edges = collection.edges(2).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(vec![0, 3], edges);
+    }
 
-    let edges = collection.edges(4).unwrap();
-    let expected: Vec<usize> = vec![0];
-    let actual: Vec<usize> = convert_edges(edges);
-    assert_eq!(expected, actual);
+    {
+        let expected = Entity::new(
+            "Quux".to_string(),
+            Url::parse("https://quux.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
+
+        assert_eq!(&expected, &collection[3]);
+
+        let edges = collection.edges(3).unwrap();
+        let actual: Vec<usize> = convert_edges(edges);
+        let expected: Vec<usize> = vec![2];
+        assert_eq!(expected, actual);
+    }
+
+    {
+        let expected = Entity::new(
+            "https://baz.com".to_string(),
+            Url::parse("https://baz.com").unwrap(),
+            expected_date,
+            expected_labels.to_owned(),
+        );
+
+        assert_eq!(&expected, &collection[4]);
+
+        let edges = collection.edges(4).unwrap();
+        let edges = convert_edges(edges);
+        assert_eq!(vec![0], edges);
+    }
 }

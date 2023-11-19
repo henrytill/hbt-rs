@@ -132,7 +132,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 let name = name.take().ok_or(Error::new(ErrorImpl::MissingName))?;
                 let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
                 let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
-                let entity = Entity::new(name, url, date, Vec::new(), labels.clone());
+                let entity = Entity::new(name, url, date, labels.clone());
                 let id = ret.add_node(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edge(*parent, id);
