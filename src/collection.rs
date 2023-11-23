@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use time::Date;
 use url::Url;
 
@@ -99,13 +101,19 @@ impl Entity {
 pub struct Collection {
     nodes: Vec<Entity>,
     edges: Vec<Vec<Id>>,
+    sites: HashMap<Url, Id>,
 }
 
 impl Collection {
     pub fn new() -> Self {
         let nodes = Vec::new();
         let edges = Vec::new();
-        Self { nodes, edges }
+        let sites = HashMap::new();
+        Self {
+            nodes,
+            edges,
+            sites,
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -122,6 +130,8 @@ impl Collection {
         let id = Id::new(self.len());
         self.nodes.push(entity);
         self.edges.push(Vec::new());
+        let url = self.nodes[usize::from(id)].url().to_owned();
+        self.sites.insert(url, id);
         id
     }
 
@@ -162,7 +172,7 @@ impl std::ops::Index<usize> for Collection {
     type Output = Entity;
 
     fn index(&self, idx: usize) -> &Self::Output {
-        if let Some(entity) = self.node(idx) {
+        if let Some(entity) = self.nodes.get(idx) {
             entity
         } else {
             panic!("Index out of bounds");
