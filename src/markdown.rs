@@ -137,7 +137,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
                 let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
                 let entity = Entity::new(names, url, date, labels.clone());
-                let id = ret.add_node(entity);
+                let id = ret.merge(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edge(*parent, id);
                     ret.add_edge(id, *parent);

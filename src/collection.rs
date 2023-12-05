@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use time::Date;
 use url::Url;
 
+const INDEX_OUT_OF_BOUNDS: &str = "Index out of bounds";
+
 /// A [`Id`] is a unique identifier for an [`Entity`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Id(usize);
@@ -46,7 +48,7 @@ impl From<String> for Label {
 }
 
 /// An [`Entity`] is a page in the collection.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entity {
     names: Vec<String>,
     url: Url,
@@ -67,9 +69,15 @@ impl Entity {
         }
     }
 
-    pub fn update(&mut self, updated_at: Date, labels: Vec<Label>) {
+    pub fn update(&mut self, updated_at: Date, names: &[String], labels: &[Label]) -> &mut Self {
         self.updated_at.push(updated_at);
-        self.labels = labels;
+        self.names.extend_from_slice(names);
+        self.labels.extend_from_slice(labels);
+        self
+    }
+
+    pub fn merge(&mut self, other: &Self) -> &mut Self {
+        self.update(other.created_at, &other.names, &other.labels)
     }
 
     pub fn names(&self) -> &[String] {
@@ -126,7 +134,15 @@ impl Collection {
         self.len() == 0
     }
 
-    pub fn add_node(&mut self, entity: Entity) -> Id {
+    pub fn contains(&self, url: &Url) -> bool {
+        self.sites.contains_key(url)
+    }
+
+    pub fn id(&self, url: &Url) -> Option<Id> {
+        self.sites.get(url).copied()
+    }
+
+    pub fn add(&mut self, entity: Entity) -> Id {
         let id = Id::new(self.len());
         self.nodes.push(entity);
         self.edges.push(Vec::new());
@@ -135,21 +151,38 @@ impl Collection {
         id
     }
 
-    pub fn add_edge(&mut self, from: Id, to: Id) {
-        let idx = usize::from(from);
-        if let Some(vec) = self.edges.get_mut(idx) {
-            vec.push(to);
+    pub fn merge(&mut self, other: Entity) -> Id {
+        let id = if let Some(id) = self.id(other.url()) {
+            id
         } else {
-            panic!("Index out of bounds");
+            return self.add(other);
+        };
+        let entity = self.entity_mut(id).expect(INDEX_OUT_OF_BOUNDS);
+        entity.merge(&other);
+        id
+    }
+
+    pub fn add_edge(&mut self, from: Id, to: Id) {
+        let from_edges = self
+            .edges
+            .get_mut(usize::from(from))
+            .expect(INDEX_OUT_OF_BOUNDS);
+        if from_edges.contains(&to) {
+            return;
         }
+        from_edges.push(to);
     }
 
-    pub fn node(&self, idx: usize) -> Option<&Entity> {
-        self.nodes.get(idx)
+    pub fn entity<A: Into<usize>>(&self, idx: A) -> Option<&Entity> {
+        self.nodes.get(idx.into())
     }
 
-    pub fn edges(&self, idx: usize) -> Option<&[Id]> {
-        self.edges.get(idx).map(|vec| vec.as_slice())
+    pub fn entity_mut<A: Into<usize>>(&mut self, idx: A) -> Option<&mut Entity> {
+        self.nodes.get_mut(idx.into())
+    }
+
+    pub fn edges<A: Into<usize>>(&self, idx: A) -> Option<&[Id]> {
+        self.edges.get(idx.into()).map(|vec| vec.as_slice())
     }
 }
 
@@ -172,10 +205,6 @@ impl std::ops::Index<usize> for Collection {
     type Output = Entity;
 
     fn index(&self, idx: usize) -> &Self::Output {
-        if let Some(entity) = self.nodes.get(idx) {
-            entity
-        } else {
-            panic!("Index out of bounds");
-        }
+        self.nodes.get(idx).expect(INDEX_OUT_OF_BOUNDS)
     }
 }

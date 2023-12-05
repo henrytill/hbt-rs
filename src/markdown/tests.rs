@@ -166,7 +166,7 @@ fn test_parent() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -182,7 +182,7 @@ fn test_parent() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -214,7 +214,7 @@ fn test_parents() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -230,7 +230,7 @@ fn test_parents() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 2);
         assert_eq!(edges, vec![0, 2]);
@@ -246,7 +246,7 @@ fn test_parents() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -278,7 +278,7 @@ fn test_parents_indented() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -294,7 +294,7 @@ fn test_parents_indented() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 2);
         assert_eq!(edges, vec![0, 2]);
@@ -310,7 +310,7 @@ fn test_parents_indented() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -343,7 +343,7 @@ fn test_single_parent() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 3);
         assert_eq!(edges, vec![1, 2, 3]);
@@ -359,7 +359,7 @@ fn test_single_parent() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -375,7 +375,7 @@ fn test_single_parent() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -391,7 +391,7 @@ fn test_single_parent() {
 
         assert_eq!(&expected, &collection[3]);
 
-        let edges = collection.edges(3).unwrap();
+        let edges = collection.edges(3usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -422,7 +422,7 @@ fn test_no_parent() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -437,7 +437,7 @@ fn test_no_parent() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -468,7 +468,7 @@ fn test_inverted_parents() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -483,7 +483,7 @@ fn test_inverted_parents() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -498,7 +498,7 @@ fn test_inverted_parents() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -531,7 +531,7 @@ fn test_label() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -545,7 +545,7 @@ fn test_label() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         assert!(edges.is_empty());
     }
 }
@@ -582,7 +582,7 @@ fn test_labels() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -596,7 +596,7 @@ fn test_labels() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -612,7 +612,7 @@ fn test_labels() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -626,7 +626,7 @@ fn test_labels() {
 
         assert_eq!(&expected, &collection[3]);
 
-        let edges = collection.edges(3).unwrap();
+        let edges = collection.edges(3usize).unwrap();
         assert!(edges.is_empty());
     }
 }
@@ -664,7 +664,7 @@ fn test_multiple_labels() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -678,7 +678,7 @@ fn test_multiple_labels() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -692,7 +692,7 @@ fn test_multiple_labels() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         assert!(edges.is_empty());
     }
 }
@@ -732,7 +732,7 @@ fn test_basic() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -747,7 +747,7 @@ fn test_basic() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -762,7 +762,7 @@ fn test_basic() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -798,7 +798,7 @@ fn test_nested() {
 
         assert_eq!(&expected, &collection[0]);
 
-        let edges = collection.edges(0).unwrap();
+        let edges = collection.edges(0usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![1, 2, 4], edges);
     }
@@ -813,7 +813,7 @@ fn test_nested() {
 
         assert_eq!(&expected, &collection[1]);
 
-        let edges = collection.edges(1).unwrap();
+        let edges = collection.edges(1usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![0], edges);
     }
@@ -828,7 +828,7 @@ fn test_nested() {
 
         assert_eq!(&expected, &collection[2]);
 
-        let edges = collection.edges(2).unwrap();
+        let edges = collection.edges(2usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![0, 3], edges);
     }
@@ -843,7 +843,7 @@ fn test_nested() {
 
         assert_eq!(&expected, &collection[3]);
 
-        let edges = collection.edges(3).unwrap();
+        let edges = collection.edges(3usize).unwrap();
         let actual: Vec<usize> = convert_edges(edges);
         let expected: Vec<usize> = vec![2];
         assert_eq!(expected, actual);
@@ -859,7 +859,7 @@ fn test_nested() {
 
         assert_eq!(&expected, &collection[4]);
 
-        let edges = collection.edges(4).unwrap();
+        let edges = collection.edges(4usize).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![0], edges);
     }
