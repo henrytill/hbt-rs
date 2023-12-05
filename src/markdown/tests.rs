@@ -5,7 +5,7 @@ use time::macros::date;
 use super::*;
 
 fn convert_edges(edges: &[Id]) -> Vec<usize> {
-    edges.iter().cloned().map(Into::into).collect()
+    edges.iter().copied().map(Into::into).collect()
 }
 
 const TEST_EMPTY: &str = "";
