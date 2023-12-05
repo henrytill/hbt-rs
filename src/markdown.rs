@@ -62,6 +62,27 @@ impl From<time::error::Parse> for Error {
     }
 }
 
+struct HeadingLevelExt(HeadingLevel);
+
+impl From<HeadingLevel> for HeadingLevelExt {
+    fn from(level: HeadingLevel) -> Self {
+        Self(level)
+    }
+}
+
+impl From<HeadingLevelExt> for usize {
+    fn from(level: HeadingLevelExt) -> Self {
+        match level.0 {
+            HeadingLevel::H1 => 1,
+            HeadingLevel::H2 => 2,
+            HeadingLevel::H3 => 3,
+            HeadingLevel::H4 => 4,
+            HeadingLevel::H5 => 5,
+            HeadingLevel::H6 => 6,
+        }
+    }
+}
+
 pub fn parse(input: &str) -> Result<Collection, Error> {
     let parser = Parser::new(input);
 
@@ -89,9 +110,11 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 current_tag = Some(tag);
             }
             Event::Start(ref tag @ Tag::Heading(ref heading_level, _, _)) => {
-                labels.truncate(*heading_level as usize - 2); // let's not do this
+                assert!(*heading_level >= HeadingLevel::H2);
                 current_heading_level = *heading_level;
                 current_tag = Some(tag.to_owned());
+                let level = usize::from(HeadingLevelExt::from(*heading_level));
+                labels.truncate(level - 2);
             }
             Event::Start(tag @ Tag::List(_)) => {
                 current_tag = Some(tag);
