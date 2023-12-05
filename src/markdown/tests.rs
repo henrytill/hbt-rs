@@ -164,9 +164,10 @@ fn test_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -180,9 +181,10 @@ fn test_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -212,9 +214,10 @@ fn test_parents() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -228,9 +231,10 @@ fn test_parents() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 2);
         assert_eq!(edges, vec![0, 2]);
@@ -244,9 +248,10 @@ fn test_parents() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -276,9 +281,10 @@ fn test_parents_indented() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -292,9 +298,10 @@ fn test_parents_indented() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 2);
         assert_eq!(edges, vec![0, 2]);
@@ -308,9 +315,10 @@ fn test_parents_indented() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![1]);
@@ -341,9 +349,10 @@ fn test_single_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 3);
         assert_eq!(edges, vec![1, 2, 3]);
@@ -357,9 +366,10 @@ fn test_single_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -373,9 +383,10 @@ fn test_single_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -389,9 +400,10 @@ fn test_single_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[3]);
+        let idx = 3;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(3usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(edges.len(), 1);
         assert_eq!(edges, vec![0]);
@@ -420,9 +432,10 @@ fn test_no_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -435,9 +448,10 @@ fn test_no_parent() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -466,9 +480,10 @@ fn test_inverted_parents() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -481,9 +496,10 @@ fn test_inverted_parents() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -496,9 +512,10 @@ fn test_inverted_parents() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -529,9 +546,10 @@ fn test_label() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -543,9 +561,10 @@ fn test_label() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 }
@@ -580,9 +599,10 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -594,9 +614,10 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -610,9 +631,10 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -624,9 +646,10 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[3]);
+        let idx = 3;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(3usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 }
@@ -662,9 +685,10 @@ fn test_multiple_labels() {
             vec![Label::from("Foo")],
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -676,9 +700,10 @@ fn test_multiple_labels() {
             vec![Label::from("Foo"), Label::from("Bar")],
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 
@@ -690,9 +715,10 @@ fn test_multiple_labels() {
             vec![Label::from("Foo"), Label::from("Bar"), Label::from("Baz")],
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         assert!(edges.is_empty());
     }
 }
@@ -730,9 +756,10 @@ fn test_basic() {
             vec![Label::from("Foo")],
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -745,9 +772,10 @@ fn test_basic() {
             vec![Label::from("Foo"), Label::from("Bar")],
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -760,9 +788,10 @@ fn test_basic() {
             vec![Label::from("Misc")],
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert!(edges.is_empty());
     }
@@ -796,9 +825,10 @@ fn test_nested() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[0]);
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(0usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![1, 2, 4], edges);
     }
@@ -811,9 +841,10 @@ fn test_nested() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[1]);
+        let idx = 1;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(1usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![0], edges);
     }
@@ -826,9 +857,10 @@ fn test_nested() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[2]);
+        let idx = 2;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(2usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![0, 3], edges);
     }
@@ -841,9 +873,10 @@ fn test_nested() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[3]);
+        let idx = 3;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(3usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let actual: Vec<usize> = convert_edges(edges);
         let expected: Vec<usize> = vec![2];
         assert_eq!(expected, actual);
@@ -857,9 +890,10 @@ fn test_nested() {
             expected_labels.to_owned(),
         );
 
-        assert_eq!(&expected, &collection[4]);
+        let idx = 4;
+        assert_eq!(&expected, &collection[idx]);
 
-        let edges = collection.edges(4usize).unwrap();
+        let edges = collection.edges(idx).unwrap();
         let edges = convert_edges(edges);
         assert_eq!(vec![0], edges);
     }
