@@ -104,15 +104,19 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
         match event {
             // Start
             Event::Start(tag @ Tag::Heading(HeadingLevel::H1, _, _)) => {
-                assert_eq!(current_heading_level, HeadingLevel::H1);
-                assert_eq!(labels.len(), 0);
-                current_heading_level = HeadingLevel::H1;
+                name = None;
+                date = None;
+                url = None;
+                labels.clear();
                 current_tag = Some(tag);
+                current_heading_level = HeadingLevel::H1;
+                maybe_parent = None;
+                parents.clear();
             }
             Event::Start(ref tag @ Tag::Heading(ref heading_level, _, _)) => {
                 assert!(*heading_level >= HeadingLevel::H2);
-                current_heading_level = *heading_level;
                 current_tag = Some(tag.to_owned());
+                current_heading_level = *heading_level;
                 let level = usize::from(HeadingLevelExt::from(*heading_level));
                 labels.truncate(level - 2);
             }
