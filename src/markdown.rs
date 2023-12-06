@@ -14,7 +14,7 @@ use crate::collection::{Collection, Entity, Id, Label};
 enum ErrorImpl {
     Io(String),
     UrlParse(url::ParseError),
-    TimeParse(time::error::Parse),
+    TimeParse(time::error::Parse, String),
     MissingUrl,
     MissingDate,
 }
@@ -37,7 +37,7 @@ impl std::fmt::Display for Error {
         match &*self.inner {
             ErrorImpl::Io(err) => write!(f, "IO error: {}", err),
             ErrorImpl::UrlParse(err) => write!(f, "URL parse error: {}", err),
-            ErrorImpl::TimeParse(err) => write!(f, "Time parse error: {}", err),
+            ErrorImpl::TimeParse(err, str) => write!(f, "Time parse error: {}: {}", err, str),
             ErrorImpl::MissingUrl => write!(f, "Missing URL"),
             ErrorImpl::MissingDate => write!(f, "Missing date"),
         }
@@ -56,11 +56,7 @@ impl From<url::ParseError> for Error {
     }
 }
 
-impl From<time::error::Parse> for Error {
-    fn from(err: time::error::Parse) -> Self {
-        Self::new(ErrorImpl::TimeParse(err))
-    }
-}
+impl std::error::Error for Error {}
 
 struct HeadingLevelExt(HeadingLevel);
 
@@ -143,7 +139,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // Text
             Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading(_, _, _)), HeadingLevel::H1) => {
-                    date = Some(Date::parse(text.as_ref(), date_format)?);
+                    let parsed = Date::parse(text.as_ref(), date_format)
+                        .map_err(|err| Error::new(ErrorImpl::TimeParse(err, text.to_string())))?;
+                    date = Some(parsed);
                 }
                 (Some(Tag::Heading(_, _, _)), _) => {
                     let label = Label::new(text.to_string());
