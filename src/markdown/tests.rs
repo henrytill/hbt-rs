@@ -723,6 +723,44 @@ fn test_multiple_labels() {
     }
 }
 
+const TEST_UPDATE: &str = "\
+# December 5, 2023
+
+## Foo
+
+- [Foo](https://foo.com)
+
+# December 6, 2023
+
+## Bar
+
+- [Bar](https://foo.com)
+";
+
+#[test]
+fn test_update() {
+    let collection = parse(TEST_UPDATE).unwrap();
+    assert_eq!(collection.len(), 1);
+
+    {
+        let mut expected = Entity::new(
+            vec!["Foo".to_string()],
+            Url::parse("https://foo.com").unwrap(),
+            date!(2023 - 12 - 5),
+            vec![Label::from("Foo")],
+        );
+
+        expected.update(
+            date!(2023 - 12 - 6),
+            &["Bar".to_string()],
+            &[Label::from("Bar")],
+        );
+
+        let idx = 0;
+        assert_eq!(&expected, &collection[idx]);
+    }
+}
+
 // Original tests below
 
 const TEST_BASIC: &str = "\
