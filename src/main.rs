@@ -2,7 +2,7 @@ use std::{env, fs};
 
 use anyhow::Result;
 
-use mdmu::markdown;
+use hbt::markdown;
 
 #[derive(Debug)]
 enum Error {
