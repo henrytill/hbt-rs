@@ -11,7 +11,7 @@ enum Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &*self {
+        match self {
             Error::Usage(exe) => write!(f, "Usage: {} <file>", exe),
         }
     }
@@ -23,7 +23,7 @@ fn main() -> Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         let exe = args[0].to_owned();
-        return Err(Error::Usage(exe)).map_err(Into::into);
+        return Err(Into::into(Error::Usage(exe)));
     }
     let file = &args[1];
     let contents = fs::read_to_string(file)?;
