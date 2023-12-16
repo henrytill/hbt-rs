@@ -170,6 +170,7 @@ impl Collection {
     }
 
     pub fn add(&mut self, entity: Entity) -> Id {
+        assert_eq!(self.nodes.len(), self.edges.len());
         let id = Id::new(self.len());
         self.nodes.push(entity);
         self.edges.push(Vec::new());
