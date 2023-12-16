@@ -71,7 +71,12 @@ impl Entity {
     }
 
     pub fn update(&mut self, updated_at: Date, names: &[String], labels: &[Label]) -> &mut Self {
-        self.updated_at.push(updated_at);
+        if updated_at < self.created_at {
+            self.updated_at.push(self.created_at);
+            self.created_at = updated_at;
+        } else {
+            self.updated_at.push(updated_at);
+        }
         self.names.extend_from_slice(names);
         self.labels.extend_from_slice(labels);
         self

@@ -687,6 +687,99 @@ fn test_update() {
     }
 }
 
+const TEST_DESCENDING_DATES: &str = "\
+# December 6, 2023
+
+## Foo
+
+- [Foo](https://foo.com)
+
+# December 5, 2023
+
+## Bar
+
+- [Bar](https://foo.com)
+";
+
+#[test]
+fn test_descending_dates() {
+    let collection = parse(TEST_DESCENDING_DATES).unwrap();
+    assert_eq!(collection.len(), 1);
+
+    let mut expected = Entity::new(
+        vec![String::from("Foo")],
+        Url::parse("https://foo.com").unwrap(),
+        date!(2023 - 12 - 6),
+        vec![Label::from("Foo")],
+    );
+
+    expected.update(
+        date!(2023 - 12 - 5),
+        &[String::from("Bar")],
+        &[Label::from("Bar")],
+    );
+
+    let id = collection.id(expected.url()).unwrap();
+    let actual = collection.entity(id);
+    assert_eq!(&expected, actual);
+    assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
+    assert_eq!(actual.updated_at(), &[date!(2023 - 12 - 6)]);
+}
+
+const TEST_MIXED_DATES: &str = "\
+# December 6, 2023
+
+## Foo
+
+- [Foo](https://foo.com)
+
+# December 5, 2023
+
+## Bar
+
+- [Bar](https://foo.com)
+
+# December 7, 2023
+
+## Baz
+
+- [Baz](https://foo.com)
+";
+
+#[test]
+fn test_mixed_dates() {
+    let collection = parse(TEST_MIXED_DATES).unwrap();
+    assert_eq!(collection.len(), 1);
+
+    let mut expected = Entity::new(
+        vec![String::from("Foo")],
+        Url::parse("https://foo.com").unwrap(),
+        date!(2023 - 12 - 6),
+        vec![Label::from("Foo")],
+    );
+
+    expected.update(
+        date!(2023 - 12 - 5),
+        &[String::from("Bar")],
+        &[Label::from("Bar")],
+    );
+
+    expected.update(
+        date!(2023 - 12 - 7),
+        &[String::from("Baz")],
+        &[Label::from("Baz")],
+    );
+
+    let id = collection.id(expected.url()).unwrap();
+    let actual = collection.entity(id);
+    assert_eq!(&expected, actual);
+    assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
+    assert_eq!(
+        actual.updated_at(),
+        &[date!(2023 - 12 - 6), date!(2023 - 12 - 7)]
+    );
+}
+
 // Original tests below
 
 const TEST_BASIC: &str = "\
