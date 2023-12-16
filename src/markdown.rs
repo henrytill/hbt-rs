@@ -109,11 +109,10 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
                 parents.clear();
             }
-            Event::Start(ref tag @ Tag::Heading(ref heading_level, _, _)) => {
-                assert!(*heading_level >= HeadingLevel::H2);
+            Event::Start(ref tag @ Tag::Heading(heading_level, _, _)) => {
                 current_tag = Some(tag.to_owned());
-                current_heading_level = *heading_level;
-                let level = usize::from(HeadingLevelExt::from(*heading_level));
+                current_heading_level = heading_level;
+                let level = usize::from(HeadingLevelExt::from(heading_level));
                 labels.truncate(level - 2);
             }
             Event::Start(tag @ Tag::List(_)) => {
