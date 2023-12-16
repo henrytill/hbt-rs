@@ -157,10 +157,11 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
             }
             Event::End(Tag::Link(_, _, _)) => {
-                let names = name.take().into_iter().collect();
                 let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
                 let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
-                let entity = Entity::new(names, url, date, labels.clone());
+                let names = name.take().into_iter().collect();
+                let labels = labels.iter().cloned().collect();
+                let entity = Entity::new(url, date, names, labels);
                 let id = ret.merge(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edge(*parent, id);

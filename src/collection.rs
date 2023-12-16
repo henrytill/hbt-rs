@@ -1,5 +1,6 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
+    hash::{Hash, Hasher},
     ops::{Index, IndexMut},
 };
 
@@ -36,6 +37,12 @@ impl Label {
     }
 }
 
+impl Hash for Label {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
 impl From<&str> for Label {
     fn from(name: &str) -> Self {
         Self(name.to_string())
@@ -51,43 +58,44 @@ impl From<String> for Label {
 /// An [`Entity`] is a page in the collection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Entity {
-    names: Vec<String>,
     url: Url,
     created_at: Date,
-    updated_at: Vec<Date>,
-    labels: Vec<Label>,
+    updated_at: HashSet<Date>,
+    names: HashSet<String>,
+    labels: HashSet<Label>,
 }
 
 impl Entity {
-    pub const fn new(names: Vec<String>, url: Url, created_at: Date, labels: Vec<Label>) -> Self {
-        let updated_at = Vec::new();
+    pub fn new(url: Url, created_at: Date, names: HashSet<String>, labels: HashSet<Label>) -> Self {
+        let updated_at = HashSet::new();
         Self {
-            names,
             url,
             created_at,
             updated_at,
+            names,
             labels,
         }
     }
 
-    pub fn update(&mut self, updated_at: Date, names: &[String], labels: &[Label]) -> &mut Self {
+    pub fn update(
+        &mut self,
+        updated_at: Date,
+        names: HashSet<String>,
+        labels: HashSet<Label>,
+    ) -> &mut Self {
         if updated_at < self.created_at {
-            self.updated_at.push(self.created_at);
+            self.updated_at.insert(self.created_at);
             self.created_at = updated_at;
         } else {
-            self.updated_at.push(updated_at);
+            self.updated_at.insert(updated_at);
         }
-        self.names.extend_from_slice(names);
-        self.labels.extend_from_slice(labels);
+        self.names.extend(names);
+        self.labels.extend(labels);
         self
     }
 
-    pub fn merge(&mut self, other: &Self) -> &mut Self {
-        self.update(other.created_at, &other.names, &other.labels)
-    }
-
-    pub fn names(&self) -> &[String] {
-        &self.names
+    pub fn merge(&mut self, other: Self) -> &mut Self {
+        self.update(other.created_at, other.names, other.labels)
     }
 
     pub fn url(&self) -> &Url {
@@ -98,11 +106,15 @@ impl Entity {
         &self.created_at
     }
 
-    pub fn updated_at(&self) -> &[Date] {
+    pub fn updated_at(&self) -> &HashSet<Date> {
         &self.updated_at
     }
 
-    pub fn labels(&self) -> &[Label] {
+    pub fn names(&self) -> &HashSet<String> {
+        &self.names
+    }
+
+    pub fn labels(&self) -> &HashSet<Label> {
         &self.labels
     }
 }
@@ -193,7 +205,7 @@ impl Collection {
             return self.add(other);
         };
         let entity = &mut self.nodes[id];
-        entity.merge(&other);
+        entity.merge(other);
         id
     }
 

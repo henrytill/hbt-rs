@@ -1,4 +1,4 @@
-use std::vec;
+use std::{collections::HashSet, vec};
 
 use time::macros::date;
 
@@ -49,10 +49,10 @@ fn test_no_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Foo")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -60,10 +60,10 @@ fn test_no_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Bar")],
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Bar")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -95,10 +95,10 @@ fn test_no_title() {
     assert_eq!(collection.len(), 1);
 
     let expected = Entity::new(
-        Vec::new(),
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 11 - 15),
-        Vec::new(),
+        Default::default(),
+        Default::default(),
     );
     let id = collection.id(expected.url()).unwrap();
     assert_eq!(&expected, collection.entity(id));
@@ -117,10 +117,10 @@ fn test_indented() {
     assert_eq!(collection.len(), 1);
 
     let expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 11 - 15),
-        Vec::new(),
+        [String::from("Foo")].into_iter().collect(),
+        Default::default(),
     );
     let id = collection.id(expected.url()).unwrap();
     assert_eq!(&expected, collection.entity(id));
@@ -153,10 +153,10 @@ fn test_parent() {
     let expected_date = date!(2023 - 11 - 15);
 
     let foo_expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Foo")].into_iter().collect(),
+        Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
     assert_eq!(&foo_expected, collection.entity(foo_id));
@@ -164,10 +164,10 @@ fn test_parent() {
     assert_eq!(foo_edges.len(), 1);
 
     let bar_expected = Entity::new(
-        vec![String::from("Bar")],
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Bar")].into_iter().collect(),
+        Default::default(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
     assert_eq!(&bar_expected, collection.entity(bar_id));
@@ -194,10 +194,10 @@ fn test_parents() {
     let expected_date = date!(2023 - 11 - 15);
 
     let foo_expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Foo")].into_iter().collect(),
+        Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
     assert_eq!(&foo_expected, collection.entity(foo_id));
@@ -205,10 +205,10 @@ fn test_parents() {
     assert_eq!(foo_edges.len(), 1);
 
     let bar_expected = Entity::new(
-        vec![String::from("Bar")],
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Bar")].into_iter().collect(),
+        Default::default(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
     assert_eq!(&bar_expected, collection.entity(bar_id));
@@ -216,10 +216,10 @@ fn test_parents() {
     assert_eq!(bar_edges.len(), 2);
 
     let baz_expected = Entity::new(
-        vec![String::from("Baz")],
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Baz")].into_iter().collect(),
+        Default::default(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
     assert_eq!(&baz_expected, collection.entity(baz_id));
@@ -247,10 +247,10 @@ fn test_parents_indented() {
     let expected_date = date!(2023 - 11 - 15);
 
     let foo_expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Foo")].into_iter().collect(),
+        Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
     assert_eq!(&foo_expected, collection.entity(foo_id));
@@ -258,10 +258,10 @@ fn test_parents_indented() {
     assert_eq!(foo_edges.len(), 1);
 
     let bar_expected = Entity::new(
-        vec![String::from("Bar")],
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Bar")].into_iter().collect(),
+        Default::default(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
     assert_eq!(&bar_expected, collection.entity(bar_id));
@@ -269,10 +269,10 @@ fn test_parents_indented() {
     assert_eq!(bar_edges.len(), 2);
 
     let baz_expected = Entity::new(
-        vec![String::from("Baz")],
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Baz")].into_iter().collect(),
+        Default::default(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
     assert_eq!(&baz_expected, collection.entity(baz_id));
@@ -301,10 +301,10 @@ fn test_single_parent() {
     let expected_date = date!(2023 - 11 - 15);
 
     let foo_expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Foo")].into_iter().collect(),
+        Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
     assert_eq!(&foo_expected, collection.entity(foo_id));
@@ -312,10 +312,10 @@ fn test_single_parent() {
     assert_eq!(foo_edges.len(), 3);
 
     let bar_expected = Entity::new(
-        vec![String::from("Bar")],
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Bar")].into_iter().collect(),
+        Default::default(),
     );
 
     let bar_id = collection.id(bar_expected.url()).unwrap();
@@ -324,10 +324,10 @@ fn test_single_parent() {
     assert_eq!(bar_edges.len(), 1);
 
     let baz_expected = Entity::new(
-        vec![String::from("Baz")],
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Baz")].into_iter().collect(),
+        Default::default(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
     assert_eq!(&baz_expected, collection.entity(baz_id));
@@ -335,10 +335,10 @@ fn test_single_parent() {
     assert_eq!(baz_edges.len(), 1);
 
     let quux_expected = Entity::new(
-        vec![String::from("Quux")],
         Url::parse("https://quux.com").unwrap(),
         expected_date,
-        Vec::new(),
+        [String::from("Quux")].into_iter().collect(),
+        Default::default(),
     );
     let quux_id = collection.id(quux_expected.url()).unwrap();
     assert_eq!(&quux_expected, collection.entity(quux_id));
@@ -367,10 +367,10 @@ fn test_no_parent() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Foo")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -379,10 +379,10 @@ fn test_no_parent() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Bar")],
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Bar")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -407,10 +407,10 @@ fn test_inverted_parents() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Foo")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -419,10 +419,10 @@ fn test_inverted_parents() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Bar")],
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Bar")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -431,10 +431,10 @@ fn test_inverted_parents() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Baz")],
             Url::parse("https://baz.com").unwrap(),
             expected_date,
-            Vec::new(),
+            [String::from("Baz")].into_iter().collect(),
+            Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -461,10 +461,10 @@ fn test_label() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            expected_labels.to_owned(),
+            [String::from("Foo")].into_iter().collect(),
+            expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -473,10 +473,10 @@ fn test_label() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Bar")],
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            expected_labels.to_owned(),
+            [String::from("Bar")].into_iter().collect(),
+            expected_labels.into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -508,10 +508,10 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            expected_labels.to_owned(),
+            [String::from("Foo")].into_iter().collect(),
+            expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -520,10 +520,10 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Bar")],
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            expected_labels.to_owned(),
+            [String::from("Bar")].into_iter().collect(),
+            expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -534,10 +534,10 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Baz")],
             Url::parse("https://baz.com").unwrap(),
             expected_date,
-            expected_labels.to_owned(),
+            [String::from("Baz")].into_iter().collect(),
+            expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -546,10 +546,10 @@ fn test_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Quux")],
             Url::parse("https://quux.com").unwrap(),
             expected_date,
-            expected_labels.to_owned(),
+            [String::from("Quux")].into_iter().collect(),
+            expected_labels.into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -582,10 +582,10 @@ fn test_multiple_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            vec![Label::from("Foo")],
+            [String::from("Foo")].into_iter().collect(),
+            [Label::from("Foo")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -594,10 +594,12 @@ fn test_multiple_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Bar")],
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            vec![Label::from("Foo"), Label::from("Bar")],
+            [String::from("Bar")].into_iter().collect(),
+            [Label::from("Foo"), Label::from("Bar")]
+                .into_iter()
+                .collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -606,10 +608,12 @@ fn test_multiple_labels() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Baz")],
             Url::parse("https://baz.com").unwrap(),
             expected_date,
-            vec![Label::from("Foo"), Label::from("Bar"), Label::from("Baz")],
+            [String::from("Baz")].into_iter().collect(),
+            [Label::from("Foo"), Label::from("Bar"), Label::from("Baz")]
+                .into_iter()
+                .collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -638,16 +642,16 @@ fn test_update() {
 
     {
         let mut expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             date!(2023 - 12 - 5),
-            vec![Label::from("Foo")],
+            [String::from("Foo")].into_iter().collect(),
+            [Label::from("Foo")].into_iter().collect(),
         );
 
         expected.update(
             date!(2023 - 12 - 6),
-            &[String::from("Bar")],
-            &[Label::from("Bar")],
+            [String::from("Bar")].into_iter().collect(),
+            [Label::from("Bar")].into_iter().collect(),
         );
 
         let id = collection.id(expected.url()).unwrap();
@@ -675,23 +679,26 @@ fn test_descending_dates() {
     assert_eq!(collection.len(), 1);
 
     let mut expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 12 - 6),
-        vec![Label::from("Foo")],
+        [String::from("Foo")].into_iter().collect(),
+        [Label::from("Foo")].into_iter().collect(),
     );
 
     expected.update(
         date!(2023 - 12 - 5),
-        &[String::from("Bar")],
-        &[Label::from("Bar")],
+        [String::from("Bar")].into_iter().collect(),
+        [Label::from("Bar")].into_iter().collect(),
     );
 
     let id = collection.id(expected.url()).unwrap();
     let actual = collection.entity(id);
     assert_eq!(&expected, actual);
     assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
-    assert_eq!(actual.updated_at(), &[date!(2023 - 12 - 6)]);
+    assert_eq!(
+        *actual.updated_at(),
+        HashSet::from_iter([date!(2023 - 12 - 6)].into_iter())
+    );
 }
 
 const TEST_MIXED_DATES: &str = "\
@@ -720,22 +727,22 @@ fn test_mixed_dates() {
     assert_eq!(collection.len(), 1);
 
     let mut expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 12 - 6),
-        vec![Label::from("Foo")],
+        [String::from("Foo")].into_iter().collect(),
+        [Label::from("Foo")].into_iter().collect(),
     );
 
     expected.update(
         date!(2023 - 12 - 5),
-        &[String::from("Bar")],
-        &[Label::from("Bar")],
+        [String::from("Bar")].into_iter().collect(),
+        [Label::from("Bar")].into_iter().collect(),
     );
 
     expected.update(
         date!(2023 - 12 - 7),
-        &[String::from("Baz")],
-        &[Label::from("Baz")],
+        [String::from("Baz")].into_iter().collect(),
+        [Label::from("Baz")].into_iter().collect(),
     );
 
     let id = collection.id(expected.url()).unwrap();
@@ -743,8 +750,8 @@ fn test_mixed_dates() {
     assert_eq!(&expected, actual);
     assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
     assert_eq!(
-        actual.updated_at(),
-        &[date!(2023 - 12 - 6), date!(2023 - 12 - 7)]
+        *actual.updated_at(),
+        HashSet::from_iter([date!(2023 - 12 - 6), date!(2023 - 12 - 7)].into_iter())
     );
 }
 
@@ -775,10 +782,10 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Foo")],
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            vec![Label::from("Foo")],
+            [String::from("Foo")].into_iter().collect(),
+            [Label::from("Foo")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -787,10 +794,12 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            Vec::new(),
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            vec![Label::from("Foo"), Label::from("Bar")],
+            Default::default(),
+            [Label::from("Foo"), Label::from("Bar")]
+                .into_iter()
+                .collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -799,10 +808,10 @@ fn test_basic() {
 
     {
         let expected = Entity::new(
-            vec![String::from("Hello, world!")],
             Url::parse("https://example.com").unwrap(),
             expected_date,
-            vec![Label::from("Misc")],
+            [String::from("Hello, world!")].into_iter().collect(),
+            [Label::from("Misc")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -831,10 +840,10 @@ fn test_nested() {
     let expected_labels = vec![Label::from("Foo")];
 
     let foo_expected = Entity::new(
-        vec![String::from("Foo")],
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        expected_labels.to_owned(),
+        [String::from("Foo")].into_iter().collect(),
+        expected_labels.iter().cloned().collect(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
     assert_eq!(&foo_expected, collection.entity(foo_id));
@@ -842,10 +851,10 @@ fn test_nested() {
     assert_eq!(foo_edges.len(), 3);
 
     let bar_expected = Entity::new(
-        Vec::new(),
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        expected_labels.to_owned(),
+        Default::default(),
+        expected_labels.iter().cloned().collect(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
     assert_eq!(&bar_expected, collection.entity(bar_id));
@@ -853,10 +862,10 @@ fn test_nested() {
     assert_eq!(bar_edges.len(), 1);
 
     let hello_expected = Entity::new(
-        vec![String::from("Hello, world!")],
         Url::parse("https://example.com").unwrap(),
         expected_date,
-        expected_labels.to_owned(),
+        [String::from("Hello, world!")].into_iter().collect(),
+        expected_labels.iter().cloned().collect(),
     );
     let hello_id = collection.id(hello_expected.url()).unwrap();
     assert_eq!(&hello_expected, collection.entity(hello_id));
@@ -864,10 +873,10 @@ fn test_nested() {
     assert_eq!(hello_edges.len(), 2);
 
     let quux_expected = Entity::new(
-        vec![String::from("Quux")],
         Url::parse("https://quux.com").unwrap(),
         expected_date,
-        expected_labels.to_owned(),
+        [String::from("Quux")].into_iter().collect(),
+        expected_labels.iter().cloned().collect(),
     );
     let quux_id = collection.id(quux_expected.url()).unwrap();
     assert_eq!(&quux_expected, collection.entity(quux_id));
@@ -875,10 +884,10 @@ fn test_nested() {
     assert_eq!(quux_edges.len(), 1);
 
     let baz_expected = Entity::new(
-        Vec::new(),
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        expected_labels.to_owned(),
+        Default::default(),
+        expected_labels.into_iter().collect(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
     assert_eq!(&baz_expected, collection.entity(baz_id));
