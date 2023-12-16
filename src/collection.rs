@@ -1,9 +1,11 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    ops::{Index, IndexMut},
+    slice::SliceIndex,
+};
 
 use time::Date;
 use url::Url;
-
-const INDEX_OUT_OF_BOUNDS: &str = "Index out of bounds";
 
 /// A [`Id`] is a unique identifier for an [`Entity`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -101,6 +103,8 @@ impl Entity {
     }
 }
 
+pub type Edges = Vec<Id>;
+
 /// A collection of entities.
 ///
 /// This is a graph structure where a nodes are represented by a vector of entities and edges are
@@ -108,8 +112,36 @@ impl Entity {
 #[derive(Debug)]
 pub struct Collection {
     nodes: Vec<Entity>,
-    edges: Vec<Vec<Id>>,
+    edges: Vec<Edges>,
     sites: HashMap<Url, Id>,
+}
+
+impl Index<Id> for Vec<Entity> {
+    type Output = Entity;
+
+    fn index(&self, id: Id) -> &Self::Output {
+        &self[id.0]
+    }
+}
+
+impl IndexMut<Id> for Vec<Entity> {
+    fn index_mut(&mut self, id: Id) -> &mut Self::Output {
+        &mut self[id.0]
+    }
+}
+
+impl Index<Id> for Vec<Edges> {
+    type Output = Edges;
+
+    fn index(&self, id: Id) -> &Self::Output {
+        &self[id.0]
+    }
+}
+
+impl IndexMut<Id> for Vec<Edges> {
+    fn index_mut(&mut self, id: Id) -> &mut Self::Output {
+        &mut self[id.0]
+    }
 }
 
 impl Collection {
@@ -157,54 +189,43 @@ impl Collection {
         } else {
             return self.add(other);
         };
-        let entity = self.entity_mut(id).expect(INDEX_OUT_OF_BOUNDS);
+        let entity = &mut self.nodes[id];
         entity.merge(&other);
         id
     }
 
     pub fn add_edge(&mut self, from: Id, to: Id) {
-        let from_edges = self
-            .edges
-            .get_mut(usize::from(from))
-            .expect(INDEX_OUT_OF_BOUNDS);
+        let from_edges = &mut self.edges[from];
         if from_edges.contains(&to) {
             return;
         }
         from_edges.push(to);
     }
 
-    pub fn entity<A: Into<usize>>(&self, idx: A) -> Option<&Entity> {
-        self.nodes.get(idx.into())
+    pub fn entity<I>(&self, index: I) -> Option<&Entity>
+    where
+        I: SliceIndex<[Entity], Output = Entity>,
+    {
+        self.nodes.get(index)
     }
 
-    pub fn entity_mut<A: Into<usize>>(&mut self, idx: A) -> Option<&mut Entity> {
-        self.nodes.get_mut(idx.into())
+    pub fn entity_mut<I>(&mut self, index: I) -> Option<&mut Entity>
+    where
+        I: SliceIndex<[Entity], Output = Entity>,
+    {
+        self.nodes.get_mut(index)
     }
 
-    pub fn edges<A: Into<usize>>(&self, idx: A) -> Option<&[Id]> {
-        self.edges.get(idx.into()).map(|vec| vec.as_slice())
+    pub fn edges<I>(&self, index: I) -> Option<&[Id]>
+    where
+        I: SliceIndex<[Vec<Id>], Output = Vec<Id>>,
+    {
+        self.edges.get(index).map(|vec| vec.as_slice())
     }
 }
 
 impl Default for Collection {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-impl IntoIterator for Collection {
-    type Item = Entity;
-    type IntoIter = std::vec::IntoIter<Self::Item>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.nodes.into_iter()
-    }
-}
-
-impl std::ops::Index<usize> for Collection {
-    type Output = Entity;
-
-    fn index(&self, idx: usize) -> &Self::Output {
-        self.nodes.get(idx).expect(INDEX_OUT_OF_BOUNDS)
     }
 }
