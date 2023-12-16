@@ -4,10 +4,6 @@ use time::macros::date;
 
 use super::*;
 
-fn convert_edges(edges: &[Id]) -> Vec<usize> {
-    edges.iter().copied().map(Into::into).collect()
-}
-
 const TEST_EMPTY: &str = "";
 
 #[test]
@@ -59,7 +55,8 @@ fn test_no_labels() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, collection.entity(0).unwrap());
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
     }
 
     {
@@ -70,7 +67,8 @@ fn test_no_labels() {
             Vec::new(),
         );
 
-        assert_eq!(&expected, collection.entity(1).unwrap());
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
     }
 }
 
@@ -105,7 +103,8 @@ fn test_no_title() {
         Vec::new(),
     );
 
-    assert_eq!(&expected, collection.entity(0).unwrap());
+    let id = collection.id(expected.url()).unwrap();
+    assert_eq!(&expected, collection.entity(id));
 }
 
 const TEST_INDENTED: &str = "\
@@ -127,7 +126,8 @@ fn test_indented() {
         Vec::new(),
     );
 
-    assert_eq!(&expected, collection.entity(0).unwrap());
+    let id = collection.id(expected.url()).unwrap();
+    assert_eq!(&expected, collection.entity(id));
 }
 
 const TEST_INDENTED_DOUBLE: &str = "\
@@ -156,39 +156,30 @@ fn test_parent() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    {
-        let expected = Entity::new(
-            vec!["Foo".to_string()],
-            Url::parse("https://foo.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
+    let foo_expected = Entity::new(
+        vec!["Foo".to_string()],
+        Url::parse("https://foo.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let foo_id = collection.id(foo_expected.url()).unwrap();
+    assert_eq!(&foo_expected, collection.entity(foo_id));
+    let foo_edges = collection.edges(foo_id);
+    assert_eq!(foo_edges.len(), 1);
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let bar_expected = Entity::new(
+        vec!["Bar".to_string()],
+        Url::parse("https://bar.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let bar_id = collection.id(bar_expected.url()).unwrap();
+    assert_eq!(&bar_expected, collection.entity(bar_id));
+    let bar_edges = collection.edges(bar_id);
+    assert_eq!(bar_edges.len(), 1);
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![1]);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Bar".to_string()],
-            Url::parse("https://bar.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![0]);
-    }
+    assert_eq!(foo_edges, vec![bar_id]);
+    assert_eq!(bar_edges, vec![foo_id]);
 }
 
 const TEST_PARENTS: &str = "\
@@ -206,56 +197,42 @@ fn test_parents() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    {
-        let expected = Entity::new(
-            vec!["Foo".to_string()],
-            Url::parse("https://foo.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
+    let foo_expected = Entity::new(
+        vec!["Foo".to_string()],
+        Url::parse("https://foo.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let foo_id = collection.id(foo_expected.url()).unwrap();
+    assert_eq!(&foo_expected, collection.entity(foo_id));
+    let foo_edges = collection.edges(foo_id);
+    assert_eq!(foo_edges.len(), 1);
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let bar_expected = Entity::new(
+        vec!["Bar".to_string()],
+        Url::parse("https://bar.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let bar_id = collection.id(bar_expected.url()).unwrap();
+    assert_eq!(&bar_expected, collection.entity(bar_id));
+    let bar_edges = collection.edges(bar_id);
+    assert_eq!(bar_edges.len(), 2);
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![1]);
-    }
+    let baz_expected = Entity::new(
+        vec!["Baz".to_string()],
+        Url::parse("https://baz.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let baz_id = collection.id(baz_expected.url()).unwrap();
+    assert_eq!(&baz_expected, collection.entity(baz_id));
+    let baz_edges = collection.edges(baz_id);
+    assert_eq!(baz_edges.len(), 1);
 
-    {
-        let expected = Entity::new(
-            vec!["Bar".to_string()],
-            Url::parse("https://bar.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 2);
-        assert_eq!(edges, vec![0, 2]);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Baz".to_string()],
-            Url::parse("https://baz.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![1]);
-    }
+    assert_eq!(foo_edges, vec![bar_id]);
+    assert_eq!(bar_edges, vec![foo_id, baz_id]);
+    assert_eq!(baz_edges, vec![bar_id]);
 }
 
 const TEST_PARENTS_INDENTED: &str = "\
@@ -273,56 +250,42 @@ fn test_parents_indented() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    {
-        let expected = Entity::new(
-            vec!["Foo".to_string()],
-            Url::parse("https://foo.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
+    let foo_expected = Entity::new(
+        vec!["Foo".to_string()],
+        Url::parse("https://foo.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let foo_id = collection.id(foo_expected.url()).unwrap();
+    assert_eq!(&foo_expected, collection.entity(foo_id));
+    let foo_edges = collection.edges(foo_id);
+    assert_eq!(foo_edges.len(), 1);
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let bar_expected = Entity::new(
+        vec!["Bar".to_string()],
+        Url::parse("https://bar.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let bar_id = collection.id(bar_expected.url()).unwrap();
+    assert_eq!(&bar_expected, collection.entity(bar_id));
+    let bar_edges = collection.edges(bar_id);
+    assert_eq!(bar_edges.len(), 2);
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![1]);
-    }
+    let baz_expected = Entity::new(
+        vec!["Baz".to_string()],
+        Url::parse("https://baz.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let baz_id = collection.id(baz_expected.url()).unwrap();
+    assert_eq!(&baz_expected, collection.entity(baz_id));
+    let baz_edges = collection.edges(baz_id);
+    assert_eq!(baz_edges.len(), 1);
 
-    {
-        let expected = Entity::new(
-            vec!["Bar".to_string()],
-            Url::parse("https://bar.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 2);
-        assert_eq!(edges, vec![0, 2]);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Baz".to_string()],
-            Url::parse("https://baz.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![1]);
-    }
+    assert_eq!(foo_edges, vec![bar_id]);
+    assert_eq!(bar_edges, vec![foo_id, baz_id]);
+    assert_eq!(baz_edges, vec![bar_id]);
 }
 
 const TEST_SINGLE_PARENT: &str = "\
@@ -341,73 +304,55 @@ fn test_single_parent() {
 
     let expected_date = date!(2023 - 11 - 15);
 
-    {
-        let expected = Entity::new(
-            vec!["Foo".to_string()],
-            Url::parse("https://foo.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
+    let foo_expected = Entity::new(
+        vec!["Foo".to_string()],
+        Url::parse("https://foo.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let foo_id = collection.id(foo_expected.url()).unwrap();
+    assert_eq!(&foo_expected, collection.entity(foo_id));
+    let foo_edges = collection.edges(foo_id);
+    assert_eq!(foo_edges.len(), 3);
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let bar_expected = Entity::new(
+        vec!["Bar".to_string()],
+        Url::parse("https://bar.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 3);
-        assert_eq!(edges, vec![1, 2, 3]);
-    }
+    let bar_id = collection.id(bar_expected.url()).unwrap();
+    assert_eq!(&bar_expected, collection.entity(bar_id));
+    let bar_edges = collection.edges(bar_id);
+    assert_eq!(bar_edges.len(), 1);
 
-    {
-        let expected = Entity::new(
-            vec!["Bar".to_string()],
-            Url::parse("https://bar.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
+    let baz_expected = Entity::new(
+        vec!["Baz".to_string()],
+        Url::parse("https://baz.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let baz_id = collection.id(baz_expected.url()).unwrap();
+    assert_eq!(&baz_expected, collection.entity(baz_id));
+    let baz_edges = collection.edges(baz_id);
+    assert_eq!(baz_edges.len(), 1);
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let quux_expected = Entity::new(
+        vec!["Quux".to_string()],
+        Url::parse("https://quux.com").unwrap(),
+        expected_date,
+        Vec::new(),
+    );
+    let quux_id = collection.id(quux_expected.url()).unwrap();
+    assert_eq!(&quux_expected, collection.entity(quux_id));
+    let quux_edges = collection.edges(quux_id);
+    assert_eq!(quux_edges.len(), 1);
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![0]);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Baz".to_string()],
-            Url::parse("https://baz.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![0]);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Quux".to_string()],
-            Url::parse("https://quux.com").unwrap(),
-            expected_date,
-            Vec::new(),
-        );
-
-        let idx = 3;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(edges.len(), 1);
-        assert_eq!(edges, vec![0]);
-    }
+    assert_eq!(foo_edges, vec![bar_id, baz_id, quux_id]);
+    assert_eq!(bar_edges, vec![foo_id]);
+    assert_eq!(baz_edges, vec![foo_id]);
+    assert_eq!(quux_edges, vec![foo_id]);
 }
 
 const TEST_INVERTED_PARENT: &str = "\
@@ -432,11 +377,9 @@ fn test_no_parent() {
             Vec::new(),
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -448,11 +391,9 @@ fn test_no_parent() {
             Vec::new(),
         );
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 }
@@ -480,11 +421,9 @@ fn test_inverted_parents() {
             Vec::new(),
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -496,11 +435,9 @@ fn test_inverted_parents() {
             Vec::new(),
         );
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -512,11 +449,9 @@ fn test_inverted_parents() {
             Vec::new(),
         );
 
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 }
@@ -546,10 +481,9 @@ fn test_label() {
             expected_labels.to_owned(),
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -561,10 +495,9 @@ fn test_label() {
             expected_labels.to_owned(),
         );
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 }
@@ -599,10 +532,9 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -614,10 +546,9 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -631,10 +562,9 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -646,10 +576,9 @@ fn test_labels() {
             expected_labels.to_owned(),
         );
 
-        let idx = 3;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 }
@@ -685,10 +614,9 @@ fn test_multiple_labels() {
             vec![Label::from("Foo")],
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -700,10 +628,9 @@ fn test_multiple_labels() {
             vec![Label::from("Foo"), Label::from("Bar")],
         );
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -715,10 +642,9 @@ fn test_multiple_labels() {
             vec![Label::from("Foo"), Label::from("Bar"), Label::from("Baz")],
         );
 
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 }
@@ -756,8 +682,8 @@ fn test_update() {
             &[Label::from("Bar")],
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
     }
 }
 
@@ -794,11 +720,9 @@ fn test_basic() {
             vec![Label::from("Foo")],
         );
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -810,11 +734,9 @@ fn test_basic() {
             vec![Label::from("Foo"), Label::from("Bar")],
         );
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 
@@ -826,11 +748,9 @@ fn test_basic() {
             vec![Label::from("Misc")],
         );
 
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
+        let id = collection.id(expected.url()).unwrap();
+        assert_eq!(&expected, collection.entity(id));
+        let edges = collection.edges(id);
         assert!(edges.is_empty());
     }
 }
@@ -855,84 +775,64 @@ fn test_nested() {
     let expected_date = date!(2023 - 11 - 17);
     let expected_labels = vec![Label::from("Foo")];
 
-    {
-        let expected = Entity::new(
-            vec!["Foo".to_string()],
-            Url::parse("https://foo.com").unwrap(),
-            expected_date,
-            expected_labels.to_owned(),
-        );
+    let foo_expected = Entity::new(
+        vec!["Foo".to_string()],
+        Url::parse("https://foo.com").unwrap(),
+        expected_date,
+        expected_labels.to_owned(),
+    );
+    let foo_id = collection.id(foo_expected.url()).unwrap();
+    assert_eq!(&foo_expected, collection.entity(foo_id));
+    let foo_edges = collection.edges(foo_id);
+    assert_eq!(foo_edges.len(), 3);
 
-        let idx = 0;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let bar_expected = Entity::new(
+        Vec::new(),
+        Url::parse("https://bar.com").unwrap(),
+        expected_date,
+        expected_labels.to_owned(),
+    );
+    let bar_id = collection.id(bar_expected.url()).unwrap();
+    assert_eq!(&bar_expected, collection.entity(bar_id));
+    let bar_edges = collection.edges(bar_id);
+    assert_eq!(bar_edges.len(), 1);
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(vec![1, 2, 4], edges);
-    }
+    let hello_expected = Entity::new(
+        vec!["Hello, world!".to_string()],
+        Url::parse("https://example.com").unwrap(),
+        expected_date,
+        expected_labels.to_owned(),
+    );
+    let hello_id = collection.id(hello_expected.url()).unwrap();
+    assert_eq!(&hello_expected, collection.entity(hello_id));
+    let hello_edges = collection.edges(hello_id);
+    assert_eq!(hello_edges.len(), 2);
 
-    {
-        let expected = Entity::new(
-            Vec::new(),
-            Url::parse("https://bar.com").unwrap(),
-            expected_date,
-            expected_labels.to_owned(),
-        );
+    let quux_expected = Entity::new(
+        vec!["Quux".to_string()],
+        Url::parse("https://quux.com").unwrap(),
+        expected_date,
+        expected_labels.to_owned(),
+    );
+    let quux_id = collection.id(quux_expected.url()).unwrap();
+    assert_eq!(&quux_expected, collection.entity(quux_id));
+    let quux_edges = collection.edges(quux_id);
+    assert_eq!(quux_edges.len(), 1);
 
-        let idx = 1;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
+    let baz_expected = Entity::new(
+        Vec::new(),
+        Url::parse("https://baz.com").unwrap(),
+        expected_date,
+        expected_labels.to_owned(),
+    );
+    let baz_id = collection.id(baz_expected.url()).unwrap();
+    assert_eq!(&baz_expected, collection.entity(baz_id));
+    let baz_edges = collection.edges(baz_id);
+    assert_eq!(baz_edges.len(), 1);
 
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(vec![0], edges);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Hello, world!".to_string()],
-            Url::parse("https://example.com").unwrap(),
-            expected_date,
-            expected_labels.to_owned(),
-        );
-
-        let idx = 2;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(vec![0, 3], edges);
-    }
-
-    {
-        let expected = Entity::new(
-            vec!["Quux".to_string()],
-            Url::parse("https://quux.com").unwrap(),
-            expected_date,
-            expected_labels.to_owned(),
-        );
-
-        let idx = 3;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let actual: Vec<usize> = convert_edges(edges);
-        let expected: Vec<usize> = vec![2];
-        assert_eq!(expected, actual);
-    }
-
-    {
-        let expected = Entity::new(
-            Vec::new(),
-            Url::parse("https://baz.com").unwrap(),
-            expected_date,
-            expected_labels.to_owned(),
-        );
-
-        let idx = 4;
-        assert_eq!(&expected, collection.entity(idx).unwrap());
-
-        let edges = collection.edges(idx).unwrap();
-        let edges = convert_edges(edges);
-        assert_eq!(vec![0], edges);
-    }
+    assert_eq!(foo_edges, vec![bar_id, hello_id, baz_id]);
+    assert_eq!(bar_edges, vec![foo_id]);
+    assert_eq!(hello_edges, vec![foo_id, quux_id]);
+    assert_eq!(quux_edges, vec![hello_id]);
+    assert_eq!(baz_edges, vec![foo_id]);
 }

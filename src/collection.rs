@@ -1,13 +1,12 @@
 use std::{
     collections::HashMap,
     ops::{Index, IndexMut},
-    slice::SliceIndex,
 };
 
 use time::Date;
 use url::Url;
 
-/// A [`Id`] is a unique identifier for an [`Entity`].
+/// An [`Id`] is a unique identifier for an [`Entity`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Id(usize);
 
@@ -198,25 +197,16 @@ impl Collection {
         from_edges.push(to);
     }
 
-    pub fn entity<I>(&self, index: I) -> Option<&Entity>
-    where
-        I: SliceIndex<[Entity], Output = Entity>,
-    {
-        self.nodes.get(index)
+    pub fn entity(&self, id: Id) -> &Entity {
+        &self.nodes[id]
     }
 
-    pub fn entity_mut<I>(&mut self, index: I) -> Option<&mut Entity>
-    where
-        I: SliceIndex<[Entity], Output = Entity>,
-    {
-        self.nodes.get_mut(index)
+    pub fn entity_mut(&mut self, id: Id) -> &mut Entity {
+        &mut self.nodes[id]
     }
 
-    pub fn edges<I>(&self, index: I) -> Option<&[Id]>
-    where
-        I: SliceIndex<[Vec<Id>], Output = Vec<Id>>,
-    {
-        self.edges.get(index).map(|vec| vec.as_slice())
+    pub fn edges(&self, id: Id) -> &[Id] {
+        &self.edges[id]
     }
 }
 
