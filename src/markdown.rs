@@ -7,7 +7,7 @@ use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag};
 use time::{macros::format_description, Date};
 use url::Url;
 
-use crate::collection::{Collection, Entity, Id, Label};
+use crate::collection::{Collection, Entity, Id, Label, Name};
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -86,7 +86,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
 
     let mut ret = Collection::new();
 
-    let mut name: Option<String> = None;
+    let mut name: Option<Name> = None;
     let mut date: Option<Date> = None;
     let mut url: Option<Url> = None;
     let mut labels: Vec<Label> = Vec::new();
@@ -147,7 +147,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     labels.push(label);
                 }
                 (Some(Tag::Link(LinkType::Inline, _, _)), _) => {
-                    name = Some(text.to_string());
+                    name = Some(Name::new(text.to_string()));
                 }
                 _ => {}
             },

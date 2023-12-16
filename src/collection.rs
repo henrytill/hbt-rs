@@ -23,6 +23,38 @@ impl From<Id> for usize {
     }
 }
 
+/// A [`Name`] describes an [`Entity`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Name(String);
+
+impl Name {
+    pub const fn new(name: String) -> Self {
+        Self(name)
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl Hash for Name {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl From<&str> for Name {
+    fn from(name: &str) -> Self {
+        Self(name.to_string())
+    }
+}
+
+impl From<String> for Name {
+    fn from(name: String) -> Self {
+        Self(name)
+    }
+}
+
 /// A [`Label`] is a label that can be attached to an [`Entity`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Label(String);
@@ -61,12 +93,12 @@ pub struct Entity {
     url: Url,
     created_at: Date,
     updated_at: HashSet<Date>,
-    names: HashSet<String>,
+    names: HashSet<Name>,
     labels: HashSet<Label>,
 }
 
 impl Entity {
-    pub fn new(url: Url, created_at: Date, names: HashSet<String>, labels: HashSet<Label>) -> Self {
+    pub fn new(url: Url, created_at: Date, names: HashSet<Name>, labels: HashSet<Label>) -> Self {
         let updated_at = HashSet::new();
         Self {
             url,
@@ -80,7 +112,7 @@ impl Entity {
     pub fn update(
         &mut self,
         updated_at: Date,
-        names: HashSet<String>,
+        names: HashSet<Name>,
         labels: HashSet<Label>,
     ) -> &mut Self {
         if updated_at < self.created_at {
@@ -110,7 +142,7 @@ impl Entity {
         &self.updated_at
     }
 
-    pub fn names(&self) -> &HashSet<String> {
+    pub fn names(&self) -> &HashSet<Name> {
         &self.names
     }
 
