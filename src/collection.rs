@@ -173,7 +173,7 @@ impl Collection {
         let id = Id::new(self.len());
         self.nodes.push(entity);
         self.edges.push(Vec::new());
-        let url = self.nodes[usize::from(id)].url().to_owned();
+        let url = self.nodes[id].url().to_owned();
         self.urls.insert(url, id);
         id
     }
