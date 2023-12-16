@@ -113,7 +113,7 @@ pub type Edges = Vec<Id>;
 pub struct Collection {
     nodes: Vec<Entity>,
     edges: Vec<Edges>,
-    sites: HashMap<Url, Id>,
+    urls: HashMap<Url, Id>,
 }
 
 impl Index<Id> for Vec<Entity> {
@@ -148,12 +148,8 @@ impl Collection {
     pub fn new() -> Self {
         let nodes = Vec::new();
         let edges = Vec::new();
-        let sites = HashMap::new();
-        Self {
-            nodes,
-            edges,
-            sites,
-        }
+        let urls = HashMap::new();
+        Self { nodes, edges, urls }
     }
 
     pub fn len(&self) -> usize {
@@ -167,11 +163,11 @@ impl Collection {
     }
 
     pub fn contains(&self, url: &Url) -> bool {
-        self.sites.contains_key(url)
+        self.urls.contains_key(url)
     }
 
     pub fn id(&self, url: &Url) -> Option<Id> {
-        self.sites.get(url).copied()
+        self.urls.get(url).copied()
     }
 
     pub fn add(&mut self, entity: Entity) -> Id {
@@ -179,7 +175,7 @@ impl Collection {
         self.nodes.push(entity);
         self.edges.push(Vec::new());
         let url = self.nodes[usize::from(id)].url().to_owned();
-        self.sites.insert(url, id);
+        self.urls.insert(url, id);
         id
     }
 
