@@ -54,7 +54,6 @@ fn test_no_labels() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
     }
@@ -66,7 +65,6 @@ fn test_no_labels() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
     }
@@ -102,7 +100,6 @@ fn test_no_title() {
         date!(2023 - 11 - 15),
         Vec::new(),
     );
-
     let id = collection.id(expected.url()).unwrap();
     assert_eq!(&expected, collection.entity(id));
 }
@@ -125,7 +122,6 @@ fn test_indented() {
         date!(2023 - 11 - 15),
         Vec::new(),
     );
-
     let id = collection.id(expected.url()).unwrap();
     assert_eq!(&expected, collection.entity(id));
 }
@@ -376,11 +372,9 @@ fn test_no_parent() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -390,11 +384,9 @@ fn test_no_parent() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 }
 
@@ -420,11 +412,9 @@ fn test_inverted_parents() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -434,11 +424,9 @@ fn test_inverted_parents() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -448,11 +436,9 @@ fn test_inverted_parents() {
             expected_date,
             Vec::new(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 }
 
@@ -480,11 +466,9 @@ fn test_label() {
             expected_date,
             expected_labels.to_owned(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -494,11 +478,9 @@ fn test_label() {
             expected_date,
             expected_labels.to_owned(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 }
 
@@ -531,11 +513,9 @@ fn test_labels() {
             expected_date,
             expected_labels.to_owned(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -545,11 +525,9 @@ fn test_labels() {
             expected_date,
             expected_labels.to_owned(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     let expected_labels = vec![Label::from("Baz")];
@@ -561,11 +539,9 @@ fn test_labels() {
             expected_date,
             expected_labels.to_owned(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -575,11 +551,9 @@ fn test_labels() {
             expected_date,
             expected_labels.to_owned(),
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 }
 
@@ -613,11 +587,9 @@ fn test_multiple_labels() {
             expected_date,
             vec![Label::from("Foo")],
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -627,11 +599,9 @@ fn test_multiple_labels() {
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar")],
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -641,11 +611,9 @@ fn test_multiple_labels() {
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar"), Label::from("Baz")],
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 }
 
@@ -812,11 +780,9 @@ fn test_basic() {
             expected_date,
             vec![Label::from("Foo")],
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -826,11 +792,9 @@ fn test_basic() {
             expected_date,
             vec![Label::from("Foo"), Label::from("Bar")],
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 
     {
@@ -840,11 +804,9 @@ fn test_basic() {
             expected_date,
             vec![Label::from("Misc")],
         );
-
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
-        let edges = collection.edges(id);
-        assert!(edges.is_empty());
+        assert!(collection.edges(id).is_empty());
     }
 }
 
