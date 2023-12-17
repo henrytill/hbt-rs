@@ -51,7 +51,7 @@ fn test_no_labels() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -62,7 +62,7 @@ fn test_no_labels() {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            [Name::from("Bar")].into_iter().collect(),
+            Some(Name::from("Bar")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -119,7 +119,7 @@ fn test_indented() {
     let expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 11 - 15),
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         Default::default(),
     );
     let id = collection.id(expected.url()).unwrap();
@@ -155,7 +155,7 @@ fn test_parent() {
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
@@ -166,7 +166,7 @@ fn test_parent() {
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        [Name::from("Bar")].into_iter().collect(),
+        Some(Name::from("Bar")),
         Default::default(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
@@ -196,7 +196,7 @@ fn test_parents() {
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
@@ -207,7 +207,7 @@ fn test_parents() {
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        [Name::from("Bar")].into_iter().collect(),
+        Some(Name::from("Bar")),
         Default::default(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
@@ -218,7 +218,7 @@ fn test_parents() {
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        [Name::from("Baz")].into_iter().collect(),
+        Some(Name::from("Baz")),
         Default::default(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
@@ -249,7 +249,7 @@ fn test_parents_indented() {
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
@@ -260,7 +260,7 @@ fn test_parents_indented() {
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        [Name::from("Bar")].into_iter().collect(),
+        Some(Name::from("Bar")),
         Default::default(),
     );
     let bar_id = collection.id(bar_expected.url()).unwrap();
@@ -271,7 +271,7 @@ fn test_parents_indented() {
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        [Name::from("Baz")].into_iter().collect(),
+        Some(Name::from("Baz")),
         Default::default(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
@@ -303,7 +303,7 @@ fn test_single_parent() {
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         Default::default(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
@@ -314,7 +314,7 @@ fn test_single_parent() {
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
         expected_date,
-        [Name::from("Bar")].into_iter().collect(),
+        Some(Name::from("Bar")),
         Default::default(),
     );
 
@@ -326,7 +326,7 @@ fn test_single_parent() {
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
         expected_date,
-        [Name::from("Baz")].into_iter().collect(),
+        Some(Name::from("Baz")),
         Default::default(),
     );
     let baz_id = collection.id(baz_expected.url()).unwrap();
@@ -337,7 +337,7 @@ fn test_single_parent() {
     let quux_expected = Entity::new(
         Url::parse("https://quux.com").unwrap(),
         expected_date,
-        [Name::from("Quux")].into_iter().collect(),
+        Some(Name::from("Quux")),
         Default::default(),
     );
     let quux_id = collection.id(quux_expected.url()).unwrap();
@@ -369,7 +369,7 @@ fn test_no_parent() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -381,7 +381,7 @@ fn test_no_parent() {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            [Name::from("Bar")].into_iter().collect(),
+            Some(Name::from("Bar")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -409,7 +409,7 @@ fn test_inverted_parents() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -421,7 +421,7 @@ fn test_inverted_parents() {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            [Name::from("Bar")].into_iter().collect(),
+            Some(Name::from("Bar")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -433,7 +433,7 @@ fn test_inverted_parents() {
         let expected = Entity::new(
             Url::parse("https://baz.com").unwrap(),
             expected_date,
-            [Name::from("Baz")].into_iter().collect(),
+            Some(Name::from("Baz")),
             Default::default(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -463,7 +463,7 @@ fn test_label() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -475,7 +475,7 @@ fn test_label() {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            [Name::from("Bar")].into_iter().collect(),
+            Some(Name::from("Bar")),
             expected_labels.into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -510,7 +510,7 @@ fn test_labels() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -522,7 +522,7 @@ fn test_labels() {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            [Name::from("Bar")].into_iter().collect(),
+            Some(Name::from("Bar")),
             expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -536,7 +536,7 @@ fn test_labels() {
         let expected = Entity::new(
             Url::parse("https://baz.com").unwrap(),
             expected_date,
-            [Name::from("Baz")].into_iter().collect(),
+            Some(Name::from("Baz")),
             expected_labels.iter().cloned().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -548,7 +548,7 @@ fn test_labels() {
         let expected = Entity::new(
             Url::parse("https://quux.com").unwrap(),
             expected_date,
-            [Name::from("Quux")].into_iter().collect(),
+            Some(Name::from("Quux")),
             expected_labels.into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -584,7 +584,7 @@ fn test_multiple_labels() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             [Label::from("Foo")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -596,7 +596,7 @@ fn test_multiple_labels() {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
             expected_date,
-            [Name::from("Bar")].into_iter().collect(),
+            Some(Name::from("Bar")),
             [Label::from("Foo"), Label::from("Bar")]
                 .into_iter()
                 .collect(),
@@ -610,7 +610,7 @@ fn test_multiple_labels() {
         let expected = Entity::new(
             Url::parse("https://baz.com").unwrap(),
             expected_date,
-            [Name::from("Baz")].into_iter().collect(),
+            Some(Name::from("Baz")),
             [Label::from("Foo"), Label::from("Bar"), Label::from("Baz")]
                 .into_iter()
                 .collect(),
@@ -644,7 +644,7 @@ fn test_update() {
         let mut expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             date!(2023 - 12 - 5),
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             [Label::from("Foo")].into_iter().collect(),
         );
 
@@ -681,7 +681,7 @@ fn test_descending_dates() {
     let mut expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 12 - 6),
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         [Label::from("Foo")].into_iter().collect(),
     );
 
@@ -729,7 +729,7 @@ fn test_mixed_dates() {
     let mut expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         date!(2023 - 12 - 6),
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         [Label::from("Foo")].into_iter().collect(),
     );
 
@@ -784,7 +784,7 @@ fn test_basic() {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
             expected_date,
-            [Name::from("Foo")].into_iter().collect(),
+            Some(Name::from("Foo")),
             [Label::from("Foo")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -810,7 +810,7 @@ fn test_basic() {
         let expected = Entity::new(
             Url::parse("https://example.com").unwrap(),
             expected_date,
-            [Name::from("Hello, world!")].into_iter().collect(),
+            Some(Name::from("Hello, world!")),
             [Label::from("Misc")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
@@ -842,7 +842,7 @@ fn test_nested() {
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
         expected_date,
-        [Name::from("Foo")].into_iter().collect(),
+        Some(Name::from("Foo")),
         expected_labels.iter().cloned().collect(),
     );
     let foo_id = collection.id(foo_expected.url()).unwrap();
@@ -864,7 +864,7 @@ fn test_nested() {
     let hello_expected = Entity::new(
         Url::parse("https://example.com").unwrap(),
         expected_date,
-        [Name::from("Hello, world!")].into_iter().collect(),
+        Some(Name::from("Hello, world!")),
         expected_labels.iter().cloned().collect(),
     );
     let hello_id = collection.id(hello_expected.url()).unwrap();
@@ -875,7 +875,7 @@ fn test_nested() {
     let quux_expected = Entity::new(
         Url::parse("https://quux.com").unwrap(),
         expected_date,
-        [Name::from("Quux")].into_iter().collect(),
+        Some(Name::from("Quux")),
         expected_labels.iter().cloned().collect(),
     );
     let quux_id = collection.id(quux_expected.url()).unwrap();

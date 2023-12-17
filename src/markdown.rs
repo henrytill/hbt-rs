@@ -159,9 +159,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             Event::End(Tag::Link(_, _, _)) => {
                 let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
                 let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
-                let names = name.take().into_iter().collect();
+                let name = name.take();
                 let labels = labels.iter().cloned().collect();
-                let entity = Entity::new(url, date, names, labels);
+                let entity = Entity::new(url, date, name, labels);
                 let id = ret.merge(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edge(*parent, id);

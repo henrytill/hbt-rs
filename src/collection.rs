@@ -98,8 +98,14 @@ pub struct Entity {
 }
 
 impl Entity {
-    pub fn new(url: Url, created_at: Date, names: HashSet<Name>, labels: HashSet<Label>) -> Self {
+    pub fn new(
+        url: Url,
+        created_at: Date,
+        maybe_name: Option<Name>,
+        labels: HashSet<Label>,
+    ) -> Self {
         let updated_at = HashSet::new();
+        let names = maybe_name.into_iter().collect();
         Self {
             url,
             created_at,
