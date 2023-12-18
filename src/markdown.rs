@@ -34,7 +34,7 @@ impl Error {
 
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match &*self.inner {
+        match self.inner.as_ref() {
             ErrorImpl::Io(err) => write!(f, "IO error: {}", err),
             ErrorImpl::UrlParse(err) => write!(f, "URL parse error: {}", err),
             ErrorImpl::TimeParse(err, str) => write!(f, "Time parse error: {}: {}", err, str),
