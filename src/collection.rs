@@ -226,7 +226,7 @@ impl Collection {
         self.urls.get(url).copied()
     }
 
-    pub fn add(&mut self, entity: Entity) -> Id {
+    pub fn insert(&mut self, entity: Entity) -> Id {
         assert_eq!(self.nodes.len(), self.edges.len());
         let id = Id::new(self.len());
         self.nodes.push(entity);
@@ -236,11 +236,11 @@ impl Collection {
         id
     }
 
-    pub fn merge(&mut self, other: Entity) -> Id {
+    pub fn upsert(&mut self, other: Entity) -> Id {
         let id = if let Some(id) = self.id(other.url()) {
             id
         } else {
-            return self.add(other);
+            return self.insert(other);
         };
         let entity = &mut self.nodes[id];
         entity.merge(other);

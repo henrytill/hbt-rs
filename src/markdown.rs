@@ -162,7 +162,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 let name = name.take();
                 let labels = labels.iter().cloned().collect();
                 let entity = Entity::new(url, date, name, labels);
-                let id = ret.merge(entity);
+                let id = ret.upsert(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edge(*parent, id);
                     ret.add_edge(id, *parent);
