@@ -1,4 +1,4 @@
-use std::{collections::HashSet, vec};
+use std::vec;
 
 use time::macros::date;
 
@@ -695,10 +695,7 @@ fn test_descending_dates() {
     let actual = collection.entity(id);
     assert_eq!(&expected, actual);
     assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
-    assert_eq!(
-        *actual.updated_at(),
-        HashSet::from_iter([date!(2023 - 12 - 6)].into_iter())
-    );
+    assert_eq!(actual.updated_at(), &[date!(2023 - 12 - 6)]);
 }
 
 const TEST_MIXED_DATES: &str = "\
@@ -750,8 +747,8 @@ fn test_mixed_dates() {
     assert_eq!(&expected, actual);
     assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
     assert_eq!(
-        *actual.updated_at(),
-        HashSet::from_iter([date!(2023 - 12 - 6), date!(2023 - 12 - 7)].into_iter())
+        actual.updated_at(),
+        &[date!(2023 - 12 - 6), date!(2023 - 12 - 7)]
     );
 }
 

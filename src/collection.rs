@@ -92,7 +92,7 @@ impl From<String> for Label {
 pub struct Entity {
     url: Url,
     created_at: Date,
-    updated_at: HashSet<Date>,
+    updated_at: Vec<Date>,
     names: HashSet<Name>,
     labels: HashSet<Label>,
 }
@@ -104,7 +104,7 @@ impl Entity {
         maybe_name: Option<Name>,
         labels: HashSet<Label>,
     ) -> Self {
-        let updated_at = HashSet::new();
+        let updated_at = Vec::new();
         let names = maybe_name.into_iter().collect();
         Self {
             url,
@@ -122,10 +122,10 @@ impl Entity {
         labels: HashSet<Label>,
     ) -> &mut Self {
         if updated_at < self.created_at {
-            self.updated_at.insert(self.created_at);
+            self.updated_at.push(self.created_at);
             self.created_at = updated_at;
         } else {
-            self.updated_at.insert(updated_at);
+            self.updated_at.push(updated_at);
         }
         self.names.extend(names);
         self.labels.extend(labels);
@@ -144,7 +144,7 @@ impl Entity {
         &self.created_at
     }
 
-    pub fn updated_at(&self) -> &HashSet<Date> {
+    pub fn updated_at(&self) -> &[Date] {
         &self.updated_at
     }
 
