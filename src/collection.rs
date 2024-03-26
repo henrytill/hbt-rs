@@ -18,8 +18,8 @@ impl Id {
 }
 
 impl From<Id> for usize {
-    fn from(handle: Id) -> Self {
-        handle.0
+    fn from(id: Id) -> Self {
+        id.0
     }
 }
 
@@ -33,7 +33,7 @@ impl Name {
     }
 
     pub fn as_str(&self) -> &str {
-        &self.0
+        self.0.as_str()
     }
 }
 
@@ -65,7 +65,7 @@ impl Label {
     }
 
     pub fn as_str(&self) -> &str {
-        &self.0
+        self.0.as_str()
     }
 }
 
