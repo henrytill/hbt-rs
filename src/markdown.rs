@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::io;
+use std::{io, fmt};
 
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag};
 use time::{macros::format_description, Date};
@@ -32,8 +32,8 @@ impl Error {
     }
 }
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.inner.as_ref() {
             ErrorImpl::Io(err) => write!(f, "IO error: {}", err),
             ErrorImpl::UrlParse(err) => write!(f, "URL parse error: {}", err),
