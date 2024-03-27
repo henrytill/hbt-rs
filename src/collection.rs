@@ -214,7 +214,7 @@ impl Collection {
 
     pub fn is_empty(&self) -> bool {
         let is_empty = self.nodes.is_empty();
-        assert!(self.edges.is_empty());
+        assert_eq!(is_empty, self.edges.is_empty());
         is_empty
     }
 
