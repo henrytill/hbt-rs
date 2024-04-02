@@ -45,7 +45,7 @@ impl Hash for Name {
 
 impl From<&str> for Name {
     fn from(name: &str) -> Self {
-        Self(name.to_string())
+        Self(name.into())
     }
 }
 
@@ -77,7 +77,7 @@ impl Hash for Label {
 
 impl From<&str> for Label {
     fn from(name: &str) -> Self {
-        Self(name.to_string())
+        Self(name.into())
     }
 }
 
