@@ -12,13 +12,13 @@ use url::Url;
 pub struct Id(usize);
 
 impl Id {
-    const fn new(id: usize) -> Self {
-        Self(id)
+    const fn new(id: usize) -> Id {
+        Id(id)
     }
 }
 
 impl From<Id> for usize {
-    fn from(id: Id) -> Self {
+    fn from(id: Id) -> usize {
         id.0
     }
 }
@@ -28,8 +28,8 @@ impl From<Id> for usize {
 pub struct Name(String);
 
 impl Name {
-    pub const fn new(name: String) -> Self {
-        Self(name)
+    pub const fn new(name: String) -> Name {
+        Name(name)
     }
 
     pub fn as_str(&self) -> &str {
@@ -44,14 +44,14 @@ impl Hash for Name {
 }
 
 impl From<&str> for Name {
-    fn from(name: &str) -> Self {
-        Self(name.into())
+    fn from(name: &str) -> Name {
+        Name(name.into())
     }
 }
 
 impl From<String> for Name {
-    fn from(name: String) -> Self {
-        Self(name)
+    fn from(name: String) -> Name {
+        Name(name)
     }
 }
 
@@ -60,8 +60,8 @@ impl From<String> for Name {
 pub struct Label(String);
 
 impl Label {
-    pub const fn new(name: String) -> Self {
-        Self(name)
+    pub const fn new(name: String) -> Label {
+        Label(name)
     }
 
     pub fn as_str(&self) -> &str {
@@ -76,14 +76,14 @@ impl Hash for Label {
 }
 
 impl From<&str> for Label {
-    fn from(name: &str) -> Self {
-        Self(name.into())
+    fn from(name: &str) -> Label {
+        Label(name.into())
     }
 }
 
 impl From<String> for Label {
-    fn from(name: String) -> Self {
-        Self(name)
+    fn from(name: String) -> Label {
+        Label(name)
     }
 }
 
@@ -103,10 +103,10 @@ impl Entity {
         created_at: Date,
         maybe_name: Option<Name>,
         labels: HashSet<Label>,
-    ) -> Self {
+    ) -> Entity {
         let updated_at = Vec::new();
         let names = maybe_name.into_iter().collect();
-        Self {
+        Entity {
             url,
             created_at,
             updated_at,
@@ -120,7 +120,7 @@ impl Entity {
         updated_at: Date,
         names: HashSet<Name>,
         labels: HashSet<Label>,
-    ) -> &mut Self {
+    ) -> &mut Entity {
         if updated_at < self.created_at {
             self.updated_at.push(self.created_at);
             self.created_at = updated_at;
@@ -132,7 +132,7 @@ impl Entity {
         self
     }
 
-    pub fn merge(&mut self, other: Self) -> &mut Self {
+    pub fn merge(&mut self, other: Entity) -> &mut Entity {
         self.update(other.created_at, other.names, other.labels)
     }
 
@@ -199,11 +199,11 @@ impl IndexMut<Id> for Vec<Edges> {
 }
 
 impl Collection {
-    pub fn new() -> Self {
+    pub fn new() -> Collection {
         let nodes = Vec::new();
         let edges = Vec::new();
         let urls = HashMap::new();
-        Self { nodes, edges, urls }
+        Collection { nodes, edges, urls }
     }
 
     pub fn len(&self) -> usize {
@@ -269,7 +269,7 @@ impl Collection {
 }
 
 impl Default for Collection {
-    fn default() -> Self {
-        Self::new()
+    fn default() -> Collection {
+        Collection::new()
     }
 }

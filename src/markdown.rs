@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::{io, fmt};
+use std::{fmt, io};
 
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag};
 use time::{macros::format_description, Date};
@@ -26,9 +26,9 @@ pub struct Error {
 }
 
 impl Error {
-    fn new(inner: ErrorImpl) -> Self {
+    fn new(inner: ErrorImpl) -> Error {
         let inner = Box::new(inner);
-        Self { inner }
+        Error { inner }
     }
 }
 
@@ -45,14 +45,14 @@ impl fmt::Display for Error {
 }
 
 impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Self {
-        Self::new(ErrorImpl::Io(err.to_string()))
+    fn from(err: io::Error) -> Error {
+        Error::new(ErrorImpl::Io(err.to_string()))
     }
 }
 
 impl From<url::ParseError> for Error {
-    fn from(err: url::ParseError) -> Self {
-        Self::new(ErrorImpl::UrlParse(err))
+    fn from(err: url::ParseError) -> Error {
+        Error::new(ErrorImpl::UrlParse(err))
     }
 }
 
@@ -61,13 +61,13 @@ impl std::error::Error for Error {}
 struct HeadingLevelExt(HeadingLevel);
 
 impl From<HeadingLevel> for HeadingLevelExt {
-    fn from(level: HeadingLevel) -> Self {
-        Self(level)
+    fn from(level: HeadingLevel) -> HeadingLevelExt {
+        HeadingLevelExt(level)
     }
 }
 
 impl From<HeadingLevelExt> for usize {
-    fn from(level: HeadingLevelExt) -> Self {
+    fn from(level: HeadingLevelExt) -> usize {
         match level.0 {
             HeadingLevel::H1 => 1,
             HeadingLevel::H2 => 2,
