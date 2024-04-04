@@ -43,15 +43,16 @@ impl Hash for Name {
     }
 }
 
-impl From<&str> for Name {
-    fn from(name: &str) -> Name {
-        Name(name.into())
-    }
-}
-
 impl From<String> for Name {
     fn from(name: String) -> Name {
         Name(name)
+    }
+}
+
+#[cfg(test)]
+impl From<&str> for Name {
+    fn from(name: &str) -> Name {
+        Name(name.into())
     }
 }
 
@@ -75,15 +76,16 @@ impl Hash for Label {
     }
 }
 
-impl From<&str> for Label {
-    fn from(name: &str) -> Label {
-        Label(name.into())
-    }
-}
-
 impl From<String> for Label {
     fn from(name: String) -> Label {
         Label(name)
+    }
+}
+
+#[cfg(test)]
+impl From<&str> for Label {
+    fn from(name: &str) -> Label {
+        Label(name.into())
     }
 }
 
