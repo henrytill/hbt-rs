@@ -35,11 +35,11 @@ impl Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.inner.as_ref() {
-            ErrorImpl::Io(err) => write!(f, "IO error: {}", err),
-            ErrorImpl::UrlParse(err) => write!(f, "URL parse error: {}", err),
-            ErrorImpl::TimeParse(err, str) => write!(f, "Time parse error: {}: {}", err, str),
-            ErrorImpl::MissingUrl => write!(f, "Missing URL"),
-            ErrorImpl::MissingDate => write!(f, "Missing date"),
+            ErrorImpl::Io(err) => err.fmt(f),
+            ErrorImpl::UrlParse(err) => err.fmt(f),
+            ErrorImpl::TimeParse(err, str) => write!(f, "{err}: {str}"),
+            ErrorImpl::MissingUrl => write!(f, "missing URL"),
+            ErrorImpl::MissingDate => write!(f, "missing date"),
         }
     }
 }
