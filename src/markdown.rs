@@ -1,62 +1,15 @@
 #[cfg(test)]
 mod tests;
 
-use std::{fmt, io};
-
+use anyhow::Error;
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag};
 use time::{macros::format_description, Date};
 use url::Url;
 
 use crate::collection::{Collection, Entity, Id, Label, Name};
 
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-enum ErrorImpl {
-    Io(String),
-    UrlParse(url::ParseError),
-    TimeParse(time::error::Parse, String),
-    MissingUrl,
-    MissingDate,
-}
-
-#[derive(Debug)]
-#[cfg_attr(test, derive(PartialEq, Eq))]
-pub struct Error {
-    inner: Box<ErrorImpl>,
-}
-
-impl Error {
-    fn new(inner: ErrorImpl) -> Error {
-        let inner = Box::new(inner);
-        Error { inner }
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.inner.as_ref() {
-            ErrorImpl::Io(err) => err.fmt(f),
-            ErrorImpl::UrlParse(err) => err.fmt(f),
-            ErrorImpl::TimeParse(err, str) => write!(f, "{err}: {str}"),
-            ErrorImpl::MissingUrl => write!(f, "missing URL"),
-            ErrorImpl::MissingDate => write!(f, "missing date"),
-        }
-    }
-}
-
-impl From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::new(ErrorImpl::Io(err.to_string()))
-    }
-}
-
-impl From<url::ParseError> for Error {
-    fn from(err: url::ParseError) -> Error {
-        Error::new(ErrorImpl::UrlParse(err))
-    }
-}
-
-impl std::error::Error for Error {}
+const MSG_MISSING_URL: &str = "missing URL";
+const MSG_MISSING_DATE: &str = "missing date";
 
 struct HeadingLevelExt(HeadingLevel);
 
@@ -138,8 +91,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // Text
             Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading(_, _, _)), HeadingLevel::H1) => {
-                    let parsed = Date::parse(text.as_ref(), date_format)
-                        .map_err(|err| Error::new(ErrorImpl::TimeParse(err, text.to_string())))?;
+                    let parsed = Date::parse(text.as_ref(), date_format).map_err(|err| {
+                        Error::msg(format!("Time parse error: {}, {}", err, text.to_string()))
+                    })?;
                     date = Some(parsed);
                 }
                 (Some(Tag::Heading(_, _, _)), _) => {
@@ -157,8 +111,8 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
             }
             Event::End(Tag::Link(_, _, _)) => {
-                let url = url.take().ok_or(Error::new(ErrorImpl::MissingUrl))?;
-                let date = date.ok_or(Error::new(ErrorImpl::MissingDate))?;
+                let url = url.take().ok_or_else(|| Error::msg(MSG_MISSING_URL))?;
+                let date = date.ok_or_else(|| Error::msg(MSG_MISSING_DATE))?;
                 let name = name.take();
                 let labels = labels.iter().cloned().collect();
                 let entity = Entity::new(url, date, name, labels);

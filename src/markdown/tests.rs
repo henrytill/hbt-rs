@@ -18,8 +18,8 @@ const TEST_NO_DATE: &str = "\
 
 #[test]
 fn test_no_date() {
-    let expected = Error::new(ErrorImpl::MissingDate);
-    let actual = parse(TEST_NO_DATE).expect_err("Expected error");
+    let expected = super::MSG_MISSING_DATE;
+    let actual = parse(TEST_NO_DATE).expect_err("Expected error").to_string();
     assert_eq!(expected, actual);
 }
 
