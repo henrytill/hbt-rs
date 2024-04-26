@@ -108,13 +108,7 @@ impl Entity {
     ) -> Entity {
         let updated_at = Vec::new();
         let names = maybe_name.into_iter().collect();
-        Entity {
-            url,
-            created_at,
-            updated_at,
-            names,
-            labels,
-        }
+        Entity { url, created_at, updated_at, names, labels }
     }
 
     pub fn update(

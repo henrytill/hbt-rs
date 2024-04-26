@@ -597,9 +597,7 @@ fn test_multiple_labels() {
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Some(Name::from("Bar")),
-            [Label::from("Foo"), Label::from("Bar")]
-                .into_iter()
-                .collect(),
+            [Label::from("Foo"), Label::from("Bar")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -611,9 +609,7 @@ fn test_multiple_labels() {
             Url::parse("https://baz.com").unwrap(),
             expected_date,
             Some(Name::from("Baz")),
-            [Label::from("Foo"), Label::from("Bar"), Label::from("Baz")]
-                .into_iter()
-                .collect(),
+            [Label::from("Foo"), Label::from("Bar"), Label::from("Baz")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
@@ -746,10 +742,7 @@ fn test_mixed_dates() {
     let actual = collection.entity(id);
     assert_eq!(&expected, actual);
     assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
-    assert_eq!(
-        actual.updated_at(),
-        &[date!(2023 - 12 - 6), date!(2023 - 12 - 7)]
-    );
+    assert_eq!(actual.updated_at(), &[date!(2023 - 12 - 6), date!(2023 - 12 - 7)]);
 }
 
 // Original tests below
@@ -794,9 +787,7 @@ fn test_basic() {
             Url::parse("https://bar.com").unwrap(),
             expected_date,
             Default::default(),
-            [Label::from("Foo"), Label::from("Bar")]
-                .into_iter()
-                .collect(),
+            [Label::from("Foo"), Label::from("Bar")].into_iter().collect(),
         );
         let id = collection.id(expected.url()).unwrap();
         assert_eq!(&expected, collection.entity(id));
