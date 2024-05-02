@@ -457,7 +457,7 @@ fn test_label() {
     assert_eq!(collection.len(), 2);
 
     let expected_date = date!(2023 - 11 - 15);
-    let expected_labels = vec![Label::from("Foo")];
+    let expected_labels = [Label::from("Foo")];
 
     {
         let expected = Entity::new(
@@ -504,7 +504,7 @@ fn test_labels() {
     assert_eq!(collection.len(), 4);
 
     let expected_date = date!(2023 - 11 - 15);
-    let expected_labels = vec![Label::from("Foo")];
+    let expected_labels = [Label::from("Foo")];
 
     {
         let expected = Entity::new(
@@ -530,7 +530,7 @@ fn test_labels() {
         assert!(collection.edges(id).is_empty());
     }
 
-    let expected_labels = vec![Label::from("Baz")];
+    let expected_labels = [Label::from("Baz")];
 
     {
         let expected = Entity::new(
@@ -825,7 +825,7 @@ fn test_nested() {
     assert_eq!(collection.len(), 5);
 
     let expected_date = date!(2023 - 11 - 17);
-    let expected_labels = vec![Label::from("Foo")];
+    let expected_labels = [Label::from("Foo")];
 
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),

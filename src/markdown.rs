@@ -92,7 +92,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading(_, _, _)), HeadingLevel::H1) => {
                     let parsed = Date::parse(text.as_ref(), date_format).map_err(|err| {
-                        Error::msg(format!("Time parse error: {}, {}", err, text.to_string()))
+                        Error::msg(format!("Time parse error: {}, {}", err, text))
                     })?;
                     date = Some(parsed);
                 }
