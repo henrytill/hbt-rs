@@ -8,7 +8,8 @@ fn main() -> Result<ExitCode, Error> {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
         let exe = args[0].to_owned();
-        return Err(Error::msg(format!("Usage: {} <file>", exe)));
+        eprintln!("Usage: {} <file>", exe);
+        return Ok(ExitCode::FAILURE);
     }
     let file = &args[1];
     let contents = fs::read_to_string(file)?;
