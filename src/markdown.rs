@@ -2,7 +2,7 @@
 mod tests;
 
 use anyhow::Error;
-use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag};
+use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use time::{macros::format_description, Date};
 use url::Url;
 
@@ -52,7 +52,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
     for event in parser {
         match event {
             // Start
-            Event::Start(tag @ Tag::Heading(HeadingLevel::H1, _, _)) => {
+            Event::Start(tag @ Tag::Heading { level: HeadingLevel::H1, .. }) => {
                 name = None;
                 date = None;
                 url = None;
@@ -62,10 +62,10 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
                 parents.clear();
             }
-            Event::Start(ref tag @ Tag::Heading(heading_level, _, _)) => {
+            Event::Start(ref tag @ Tag::Heading { level, .. }) => {
                 current_tag = Some(tag.to_owned());
-                current_heading_level = heading_level;
-                let level = usize::from(HeadingLevelExt::from(heading_level));
+                current_heading_level = level;
+                let level = usize::from(HeadingLevelExt::from(level));
                 labels.truncate(level - 2);
             }
             Event::Start(tag @ Tag::List(_)) => {
@@ -74,15 +74,21 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     parents.push(last_id);
                 }
             }
-            Event::Start(ref tag @ Tag::Link(LinkType::Inline, ref link, ref title)) => {
+            Event::Start(
+                ref tag @ Tag::Link { link_type: LinkType::Inline, ref dest_url, ref title, .. },
+            ) => {
                 current_tag = Some(tag.to_owned());
-                url = Some(Url::parse(link)?);
+                url = Some(Url::parse(dest_url)?);
                 assert!(title.is_empty());
             }
-            Event::Start(ref tag @ Tag::Link(LinkType::Autolink, ref link, ref title)) => {
+            Event::Start(
+                ref tag @ Tag::Link {
+                    link_type: LinkType::Autolink, ref dest_url, ref title, ..
+                },
+            ) => {
                 current_tag = Some(tag.to_owned());
                 name = None;
-                url = Some(Url::parse(link)?);
+                url = Some(Url::parse(dest_url)?);
                 assert!(title.is_empty());
             }
             Event::Start(tag) => {
@@ -90,27 +96,27 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             }
             // Text
             Event::Text(text) => match (&current_tag, current_heading_level) {
-                (Some(Tag::Heading(_, _, _)), HeadingLevel::H1) => {
+                (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
                     let parsed = Date::parse(text.as_ref(), date_format).map_err(|err| {
                         Error::msg(format!("Time parse error: {}, {}", err, text))
                     })?;
                     date = Some(parsed);
                 }
-                (Some(Tag::Heading(_, _, _)), _) => {
+                (Some(Tag::Heading { .. }), _) => {
                     let label = Label::new(text.to_string());
                     labels.push(label);
                 }
-                (Some(Tag::Link(LinkType::Inline, _, _)), _) => {
+                (Some(Tag::Link { link_type: LinkType::Inline, .. }), _) => {
                     name = Some(Name::new(text.to_string()));
                 }
                 _ => {}
             },
             // End
-            Event::End(Tag::List(_)) => {
+            Event::End(TagEnd::List(_)) => {
                 let _ = parents.pop();
                 maybe_parent = None;
             }
-            Event::End(Tag::Link(_, _, _)) => {
+            Event::End(TagEnd::Link) => {
                 let url = url.take().ok_or_else(|| Error::msg(MSG_MISSING_URL))?;
                 let date = date.ok_or_else(|| Error::msg(MSG_MISSING_DATE))?;
                 let name = name.take();
