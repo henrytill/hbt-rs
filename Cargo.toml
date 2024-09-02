@@ -7,6 +7,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.82"
-pulldown-cmark = "0.11.0"
+pulldown-cmark = "0.12.0"
 time = { version = "0.3.30", features = ["macros", "parsing"] }
 url = "2.4.1"
