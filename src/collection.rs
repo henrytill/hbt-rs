@@ -233,14 +233,13 @@ impl Collection {
     }
 
     pub fn upsert(&mut self, other: Entity) -> Id {
-        let id = if let Some(id) = self.id(other.url()) {
-            id
+        if let Some(id) = self.id(other.url()) {
+            let entity = &mut self.nodes[id];
+            entity.merge(other);
+            return id;
         } else {
             return self.insert(other);
         };
-        let entity = &mut self.nodes[id];
-        entity.merge(other);
-        id
     }
 
     pub fn add_edge(&mut self, from: Id, to: Id) {
