@@ -62,8 +62,8 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
                 parents.clear();
             }
-            Event::Start(ref tag @ Tag::Heading { level, .. }) => {
-                current_tag = Some(tag.to_owned());
+            Event::Start(tag @ Tag::Heading { level, .. }) => {
+                current_tag = Some(tag);
                 current_heading_level = level;
                 let level = usize::from(HeadingLevelExt::from(level));
                 labels.truncate(level - 2);
