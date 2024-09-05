@@ -1,22 +1,37 @@
-use std::{env, fs, process::ExitCode};
+use std::{fs, path::PathBuf, process::ExitCode};
 
 use anyhow::Error;
+use clap::Parser;
 
 use hbt::markdown;
 
+#[derive(Parser, Debug)]
+#[command(version, about, long_about = None)]
+struct Args {
+    /// Dump all entries
+    #[arg(short, long)]
+    dump: bool,
+    /// File to read
+    #[arg(required = true)]
+    file: PathBuf,
+}
+
 fn main() -> Result<ExitCode, Error> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() != 2 {
-        let exe = args[0].to_owned();
-        eprintln!("Usage: {} <file>", exe);
-        return Ok(ExitCode::FAILURE);
-    }
-    let file = &args[1];
-    let contents = fs::read_to_string(file)?;
+    let args = Args::parse();
+
+    let file = args.file;
+    let contents = fs::read_to_string(&file)?;
     let collection = markdown::parse(&contents)?;
-    let entities = collection.entities();
-    for entity in entities {
-        println!("{}", entity.url())
+
+    if args.dump {
+        let entities = collection.entities();
+        for entity in entities {
+            println!("{}", entity.url())
+        }
+    } else {
+        let length = collection.len();
+        println!("{}: {} entities", file.to_string_lossy(), length)
     }
+
     Ok(ExitCode::SUCCESS)
 }
