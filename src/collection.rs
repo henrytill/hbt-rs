@@ -235,10 +235,10 @@ impl Collection {
         if let Some(id) = self.id(other.url()) {
             let entity = &mut self.nodes[id];
             entity.merge(other);
-            return id;
+            id
         } else {
-            return self.insert(other);
-        };
+            self.insert(other)
+        }
     }
 
     pub fn add_edge(&mut self, from: Id, to: Id) {
