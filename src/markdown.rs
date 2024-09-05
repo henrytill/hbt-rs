@@ -124,8 +124,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 let entity = Entity::new(url, date, name, labels);
                 let id = ret.upsert(entity);
                 if let Some(parent) = parents.last() {
-                    ret.add_edge(*parent, id);
-                    ret.add_edge(id, *parent);
+                    ret.add_edges(*parent, id);
                 }
                 maybe_parent = Some(id);
             }

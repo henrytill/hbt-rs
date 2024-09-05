@@ -249,6 +249,11 @@ impl Collection {
         from_edges.push(to);
     }
 
+    pub fn add_edges(&mut self, from: Id, to: Id) {
+        self.add_edge(from, to);
+        self.add_edge(to, from)
+    }
+
     pub fn entity(&self, id: Id) -> &Entity {
         &self.nodes[id]
     }
