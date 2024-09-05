@@ -260,6 +260,10 @@ impl Collection {
     pub fn edges(&self, id: Id) -> &[Id] {
         &self.edges[id]
     }
+
+    pub fn entities(&self) -> &[Entity] {
+        &self.nodes
+    }
 }
 
 impl Default for Collection {

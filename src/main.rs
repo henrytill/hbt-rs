@@ -14,6 +14,9 @@ fn main() -> Result<ExitCode, Error> {
     let file = &args[1];
     let contents = fs::read_to_string(file)?;
     let collection = markdown::parse(&contents)?;
-    println!("collection.len(): {}", collection.len());
+    let entities = collection.entities();
+    for entity in entities {
+        println!("{}", entity.url())
+    }
     Ok(ExitCode::SUCCESS)
 }
