@@ -91,6 +91,10 @@ impl Post {
         }
         Tags(inner)
     }
+
+    pub fn href(&self) -> &String {
+        &self.href
+    }
 }
 
 fn extract_post(attrs: Attributes) -> Result<Post, Error> {
