@@ -10,6 +10,7 @@ anyhow = "1.0.82"
 clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
 pulldown-cmark = { version = "0.12.0", default-features = false, features = ["simd"] }
 quick-xml = "0.36.1"
+scraper = { version = "0.20.0", default-features = false }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 time = { version = "0.3.30", features = ["macros", "parsing"] }

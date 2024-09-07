@@ -11,6 +11,7 @@ use quick_xml::{
     },
     reader::Reader,
 };
+use scraper::{Element, Html, Selector};
 use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, PartialEq, Eq)]
@@ -71,6 +72,52 @@ impl Post {
         toread: bool,
     ) -> Post {
         Post { href, time, description, extended, tags, hash, shared, toread }
+    }
+
+    pub fn from_html(input: &str) -> Result<Vec<Post>, Error> {
+        let document = Html::parse_document(input);
+        let dt_selector = Selector::parse("dt").unwrap();
+
+        let posts = document
+            .select(&dt_selector)
+            .filter_map(|dt_element| {
+                let a_selector = Selector::parse("a").ok()?;
+                let a_element = dt_element.select(&a_selector).next()?;
+
+                let href = a_element.value().attr("href")?.to_string();
+                let add_date = a_element.value().attr("add_date")?;
+                let private = a_element.value().attr("private")?;
+                let toread = a_element.value().attr("toread")?;
+                let tags = a_element.value().attr("tags")?;
+                let description = a_element.text().collect::<String>();
+                let time = add_date.parse().ok()?;
+                let shared = private == "0";
+                let toread = toread == "1";
+                let tags = tags.split(',').map(ToString::to_string).collect();
+
+                let mut post = Post {
+                    href,
+                    time,
+                    description: Some(description),
+                    extended: None,
+                    tags,
+                    hash: None,
+                    shared,
+                    toread,
+                };
+
+                if let Some(dd_element) = dt_element.next_sibling_element() {
+                    if dd_element.value().name() == "dd" {
+                        let extended_text = dd_element.text().collect::<String>();
+                        post.extended = Some(extended_text.trim().to_string());
+                    }
+                }
+
+                Some(post)
+            })
+            .collect();
+
+        Ok(posts)
     }
 
     pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {

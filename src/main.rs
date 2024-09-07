@@ -29,6 +29,11 @@ fn print_posts(args: &Args, posts: Vec<Post>) -> Result<(), Error> {
     Ok(())
 }
 
+fn html(args: &Args, input: &str) -> Result<(), Error> {
+    let posts = Post::from_html(input)?;
+    print_posts(args, posts)
+}
+
 fn json(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_json(input)?;
     print_posts(args, posts)
@@ -63,6 +68,7 @@ fn main() -> Result<ExitCode, Error> {
     let contents = fs::read_to_string(file)?;
 
     match maybe_extension {
+        Some(ext) if ext.as_encoded_bytes() == b"html" => html(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"json" => json(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"xml" => xml(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"md" => md(&args, &contents)?,

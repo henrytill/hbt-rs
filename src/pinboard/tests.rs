@@ -108,3 +108,55 @@ fn test_json_sample() {
     let actual_tags = Post::tags(&actual);
     assert_eq!(expected_tags, actual_tags)
 }
+
+const TEST_HTML_SAMPLE: &str = r#"<!DOCTYPE NETSCAPE-Bookmark-file-1>
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=UTF-8">
+<TITLE>Pinboard Bookmarks</TITLE>
+<H1>Bookmarks</H1>
+<DL><p><DT><A HREF="http://c-faq.com/decl/spiral.anderson.html" ADD_DATE="1653114361" PRIVATE="0" TOREAD="0" TAGS="c,c++">Clockwise/Spiral Rule</A>
+
+<DT><A HREF="https://docs.microsoft.com/en-us/sysinternals/downloads/procmon" ADD_DATE="1606184699" PRIVATE="1" TOREAD="0" TAGS="windows-dev">Process Monitor - Windows Sysinternals | Microsoft Docs</A>
+<DD>Monitor file system, Registry, process, thread and DLL activity in real-time.
+
+<DT><A HREF="https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html" ADD_DATE="1649855530" PRIVATE="1" TOREAD="1" TAGS="performance,profiling,tools,toread">Fix Performance Bottlenecks with Intel® VTune™ Profiler</A>
+</DL></p>
+"#;
+
+#[test]
+fn test_html_sample() {
+    let actual = Post::from_html(TEST_HTML_SAMPLE).unwrap();
+    assert_eq!(actual.len(), 3);
+    let expected = vec![
+        Post::new(
+            String::from("http://c-faq.com/decl/spiral.anderson.html"),
+            String::from("1653114361"),
+            Some(String::from("Clockwise/Spiral Rule")),
+            None,
+            vec![String::from("c"), String::from("c++")],
+            None,
+            true,
+            false,
+        ),
+        Post::new(
+            String::from("https://docs.microsoft.com/en-us/sysinternals/downloads/procmon"),
+            String::from("1606184699"),
+            Some(String::from("Process Monitor - Windows Sysinternals | Microsoft Docs")),
+            Some(String::from("Monitor file system, Registry, process, thread and DLL activity in real-time.")),
+            vec![String::from("windows-dev")],
+            None,
+            false,
+            false,
+        ),
+        Post::new(
+            String::from("https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html"),
+            String::from("1649855530"),
+            Some(String::from("Fix Performance Bottlenecks with Intel® VTune™ Profiler")),
+            None,
+            vec![String::from("performance"), String::from("profiling"), String::from("tools"), String::from("toread")],
+            None,
+            false,
+            true,
+        ),
+    ];
+    assert_eq!(actual, expected);
+}
