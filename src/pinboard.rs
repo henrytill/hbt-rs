@@ -11,6 +11,7 @@ use quick_xml::{
     },
     reader::Reader,
 };
+use serde::{Deserialize, Deserializer};
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Tags(HashSet<String>);
@@ -34,15 +35,21 @@ impl Tags {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 pub struct Post {
     href: String,
     time: String,
+    #[serde(deserialize_with = "deserialize_empty_string")]
     description: Option<String>,
+    #[serde(deserialize_with = "deserialize_empty_string")]
     extended: Option<String>,
-    tag: Vec<String>,
+    #[serde(deserialize_with = "deserialize_tags", default)]
+    tags: Vec<String>,
+    #[serde(deserialize_with = "deserialize_empty_string")]
     hash: Option<String>,
+    #[serde(deserialize_with = "deserialize_yes_no")]
     shared: bool,
+    #[serde(deserialize_with = "deserialize_yes_no")]
     toread: bool,
 }
 
@@ -54,12 +61,17 @@ impl Post {
         time: String,
         description: Option<String>,
         extended: Option<String>,
-        tag: Vec<String>,
+        tags: Vec<String>,
         hash: Option<String>,
         shared: bool,
         toread: bool,
     ) -> Post {
-        Post { href, time, description, extended, tag, hash, shared, toread }
+        Post { href, time, description, extended, tags, hash, shared, toread }
+    }
+
+    pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {
+        let posts: Vec<Post> = serde_json::from_str(&input)?;
+        Ok(posts)
     }
 
     pub fn from_xml(input: &str) -> Result<Vec<Post>, Error> {
@@ -87,13 +99,49 @@ impl Post {
     pub fn tags(ps: &[Post]) -> Tags {
         let mut inner = HashSet::new();
         for p in ps {
-            inner.extend(p.tag.iter().cloned());
+            inner.extend(p.tags.iter().cloned());
         }
         Tags(inner)
     }
 
     pub fn href(&self) -> &String {
         &self.href
+    }
+}
+
+fn deserialize_empty_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(None)
+    } else {
+        Ok(Some(s))
+    }
+}
+
+fn deserialize_tags<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    if s.is_empty() {
+        Ok(Vec::new())
+    } else {
+        Ok(s.split_whitespace().map(ToOwned::to_owned).collect())
+    }
+}
+
+fn deserialize_yes_no<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let s = String::deserialize(deserializer)?;
+    match s.to_lowercase().as_str() {
+        "yes" => Ok(true),
+        "no" => Ok(false),
+        _ => Err(serde::de::Error::custom("expected 'yes' or 'no'")),
     }
 }
 
@@ -122,7 +170,7 @@ fn extract_post(attrs: Attributes) -> Result<Post, Error> {
                 };
             }
             b"tag" => {
-                ret.tag = if value.is_empty() {
+                ret.tags = if value.is_empty() {
                     Vec::new()
                 } else {
                     let s = String::from_utf8(value.into_owned())?;
