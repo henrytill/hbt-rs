@@ -60,7 +60,7 @@ fn main() -> Result<ExitCode, Error> {
 
     let file = &args.file;
     let maybe_extension = file.extension();
-    let contents = fs::read_to_string(&file)?;
+    let contents = fs::read_to_string(file)?;
 
     match maybe_extension {
         Some(ext) if ext.as_encoded_bytes() == b"json" => json(&args, &contents)?,

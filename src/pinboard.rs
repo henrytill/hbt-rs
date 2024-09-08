@@ -30,6 +30,10 @@ impl Tags {
         self.0.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn iter(&self) -> Iter<'_, String> {
         self.0.iter()
     }
@@ -70,7 +74,7 @@ impl Post {
     }
 
     pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {
-        let posts: Vec<Post> = serde_json::from_str(&input)?;
+        let posts: Vec<Post> = serde_json::from_str(input)?;
         Ok(posts)
     }
 
