@@ -3,7 +3,9 @@ use std::{fs, path::PathBuf, process::ExitCode};
 use anyhow::Error;
 use clap::Parser;
 
-use hbt::{markdown, pinboard::Post};
+use hbt::markdown;
+#[cfg(feature = "pinboard")]
+use hbt::pinboard::Post;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -16,6 +18,7 @@ struct Args {
     file: PathBuf,
 }
 
+#[cfg(feature = "pinboard")]
 fn print_posts(args: &Args, posts: Vec<Post>) -> Result<(), Error> {
     if args.dump {
         for post in posts {
@@ -29,16 +32,19 @@ fn print_posts(args: &Args, posts: Vec<Post>) -> Result<(), Error> {
     Ok(())
 }
 
+#[cfg(feature = "pinboard")]
 fn html(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_html(input)?;
     print_posts(args, posts)
 }
 
+#[cfg(feature = "pinboard")]
 fn json(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_json(input)?;
     print_posts(args, posts)
 }
 
+#[cfg(feature = "pinboard")]
 fn xml(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_xml(input)?;
     print_posts(args, posts)
@@ -68,8 +74,11 @@ fn main() -> Result<ExitCode, Error> {
     let contents = fs::read_to_string(file)?;
 
     match maybe_extension {
+        #[cfg(feature = "pinboard")]
         Some(ext) if ext.as_encoded_bytes() == b"html" => html(&args, &contents)?,
+        #[cfg(feature = "pinboard")]
         Some(ext) if ext.as_encoded_bytes() == b"json" => json(&args, &contents)?,
+        #[cfg(feature = "pinboard")]
         Some(ext) if ext.as_encoded_bytes() == b"xml" => xml(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"md" => markdown(&args, &contents)?,
         Some(ext) => {
