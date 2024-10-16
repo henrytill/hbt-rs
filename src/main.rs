@@ -44,7 +44,7 @@ fn xml(args: &Args, input: &str) -> Result<(), Error> {
     print_posts(args, posts)
 }
 
-fn md(args: &Args, input: &str) -> Result<(), Error> {
+fn markdown(args: &Args, input: &str) -> Result<(), Error> {
     let collection = markdown::parse(input)?;
 
     if args.dump {
@@ -71,7 +71,7 @@ fn main() -> Result<ExitCode, Error> {
         Some(ext) if ext.as_encoded_bytes() == b"html" => html(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"json" => json(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"xml" => xml(&args, &contents)?,
-        Some(ext) if ext.as_encoded_bytes() == b"md" => md(&args, &contents)?,
+        Some(ext) if ext.as_encoded_bytes() == b"md" => markdown(&args, &contents)?,
         _ => (),
     }
 
