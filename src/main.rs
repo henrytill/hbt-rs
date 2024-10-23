@@ -72,7 +72,12 @@ fn main() -> Result<ExitCode, Error> {
         Some(ext) if ext.as_encoded_bytes() == b"json" => json(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"xml" => xml(&args, &contents)?,
         Some(ext) if ext.as_encoded_bytes() == b"md" => markdown(&args, &contents)?,
-        _ => (),
+        Some(ext) => {
+            return Err(Error::msg(format!("No parser for extension: {}", ext.to_string_lossy())));
+        }
+        _ => {
+            return Err(Error::msg(format!("No parser for file: {}", file.display())));
+        }
     }
 
     Ok(ExitCode::SUCCESS)
