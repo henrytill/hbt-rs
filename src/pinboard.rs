@@ -100,7 +100,8 @@ mod html {
     #[inline]
     pub fn parse(input: &str) -> Result<Vec<Post>, Error> {
         let document = Html::parse_document(input);
-        let dt_selector = Selector::parse("dt").unwrap();
+        let dt_selector =
+            Selector::parse("dt").map_err(|_| Error::msg("could not create selector"))?;
 
         let posts = document
             .select(&dt_selector)
