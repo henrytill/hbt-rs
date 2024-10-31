@@ -106,7 +106,6 @@ mod html {
         let posts = document
             .select(&dt_selector)
             .filter_map(|dt_element| {
-                // NOTE: These question marks are for Option
                 let a_selector = Selector::parse("a").ok()?;
                 let a_element = dt_element.select(&a_selector).next()?;
 
