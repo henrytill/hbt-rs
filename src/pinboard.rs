@@ -99,25 +99,36 @@ mod html {
 
     #[inline]
     pub fn parse(input: &str) -> Result<Vec<Post>, Error> {
+        const SELECTOR_DESCRIPTION_TERM: &str = "dt";
+        const SELECTOR_DESCRIPTION_DETAILS: &str = "dd";
+        const SELECTOR_ANCHOR: &str = "a";
+        const ATTR_HREF: &str = "href";
+        const ATTR_ADD_DATE: &str = "add_date";
+        const ATTR_PRIVATE: &str = "private";
+        const ATTR_TOREAD: &str = "toread";
+        const ATTR_TAGS: &str = "tags";
+        const TRUE: &str = "1";
+        const FALSE: &str = "0";
+
         let document = Html::parse_document(input);
-        let dt_selector =
-            Selector::parse("dt").map_err(|_| Error::msg("could not create selector"))?;
+        let dt_selector = Selector::parse(SELECTOR_DESCRIPTION_TERM)
+            .map_err(|_| Error::msg("could not create selector"))?;
 
         let posts = document
             .select(&dt_selector)
             .filter_map(|dt_element| {
-                let a_selector = Selector::parse("a").ok()?;
+                let a_selector = Selector::parse(SELECTOR_ANCHOR).ok()?;
                 let a_element = dt_element.select(&a_selector).next()?;
 
-                let href = a_element.value().attr("href")?.to_string();
-                let add_date = a_element.value().attr("add_date")?;
-                let private = a_element.value().attr("private")?;
-                let toread = a_element.value().attr("toread")?;
-                let tags = a_element.value().attr("tags")?;
+                let href = a_element.value().attr(ATTR_HREF)?.to_string();
+                let add_date = a_element.value().attr(ATTR_ADD_DATE)?;
+                let private = a_element.value().attr(ATTR_PRIVATE)?;
+                let toread = a_element.value().attr(ATTR_TOREAD)?;
+                let tags = a_element.value().attr(ATTR_TAGS)?;
                 let description = a_element.text().collect::<String>();
                 let time = add_date.parse().ok()?;
-                let shared = private == "0";
-                let toread = toread == "1";
+                let shared = private == FALSE;
+                let toread = toread == TRUE;
                 let tags = tags.split(',').map(ToString::to_string).collect();
 
                 let mut post = Post {
@@ -132,7 +143,7 @@ mod html {
                 };
 
                 if let Some(dd_element) = dt_element.next_sibling_element() {
-                    if dd_element.value().name() == "dd" {
+                    if dd_element.value().name() == SELECTOR_DESCRIPTION_DETAILS {
                         let extended_text = dd_element.text().collect::<String>();
                         post.extended = Some(extended_text.trim().to_string());
                     }
@@ -177,11 +188,14 @@ mod json {
     where
         D: Deserializer<'de>,
     {
+        const YES: &str = "yes";
+        const NO: &str = "no";
+
         let s = String::deserialize(deserializer)?;
         match s.to_lowercase().as_str() {
-            "yes" => Ok(true),
-            "no" => Ok(false),
-            _ => Err(serde::de::Error::custom("expected 'yes' or 'no'")),
+            YES => Ok(true),
+            NO => Ok(false),
+            _ => Err(serde::de::Error::custom(format!("expected '{YES}' or '{NO}'"))),
         }
     }
 }
@@ -199,14 +213,24 @@ mod xml {
     use super::Post;
 
     pub fn extract_post(attrs: Attributes) -> Result<Post, Error> {
+        const KEY_HREF: &[u8] = b"href";
+        const KEY_TIME: &[u8] = b"time";
+        const KEY_DESCRIPTION: &[u8] = b"description";
+        const KEY_EXTENDED: &[u8] = b"extended";
+        const KEY_TAG: &[u8] = b"tag";
+        const KEY_HASH: &[u8] = b"hash";
+        const KEY_SHARED: &[u8] = b"shared";
+        const KEY_TOREAD: &[u8] = b"toread";
+        const YES: &[u8] = b"yes";
+
         let mut ret = Post::default();
 
         for attr in attrs {
             let Attribute { key, value } = attr?;
             match key.local_name().as_ref() {
-                b"href" => ret.href = String::from_utf8(value.into_owned())?,
-                b"time" => ret.time = String::from_utf8(value.into_owned())?,
-                b"description" => {
+                KEY_HREF => ret.href = String::from_utf8(value.into_owned())?,
+                KEY_TIME => ret.time = String::from_utf8(value.into_owned())?,
+                KEY_DESCRIPTION => {
                     ret.description = if value.is_empty() {
                         None
                     } else {
@@ -214,7 +238,7 @@ mod xml {
                         Some(s)
                     };
                 }
-                b"extended" => {
+                KEY_EXTENDED => {
                     ret.extended = if value.is_empty() {
                         None
                     } else {
@@ -222,7 +246,7 @@ mod xml {
                         Some(s)
                     };
                 }
-                b"tag" => {
+                KEY_TAG => {
                     ret.tags = if value.is_empty() {
                         Vec::new()
                     } else {
@@ -230,7 +254,7 @@ mod xml {
                         s.split_whitespace().map(ToOwned::to_owned).collect()
                     }
                 }
-                b"hash" => {
+                KEY_HASH => {
                     ret.hash = if value.is_empty() {
                         None
                     } else {
@@ -238,11 +262,11 @@ mod xml {
                         Some(s)
                     };
                 }
-                b"shared" => {
-                    ret.shared = value.as_ref() == b"yes";
+                KEY_SHARED => {
+                    ret.shared = value.as_ref() == YES;
                 }
-                b"toread" => {
-                    ret.toread = value.as_ref() == b"yes";
+                KEY_TOREAD => {
+                    ret.toread = value.as_ref() == YES;
                 }
                 _ => (),
             }
@@ -253,16 +277,19 @@ mod xml {
 
     #[inline]
     pub fn parse(input: &str) -> Result<Vec<Post>, Error> {
+        const EVENT_POSTS: &[u8] = b"posts";
+        const EVENT_POST: &[u8] = b"post";
+
         let mut ret = Vec::new();
         let mut reader = Reader::from_str(input);
         reader.config_mut().trim_text(true);
 
         loop {
             match reader.read_event()? {
-                Event::Start(e) if e.name().as_ref() == b"posts" => {
+                Event::Start(e) if e.name().as_ref() == EVENT_POSTS => {
                     // nothing at the moment
                 }
-                Event::Empty(e) if e.name().as_ref() == b"post" => {
+                Event::Empty(e) if e.name().as_ref() == EVENT_POST => {
                     let pinboard = extract_post(e.attributes())?;
                     ret.push(pinboard);
                 }
