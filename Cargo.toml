@@ -7,7 +7,7 @@ edition = "2021"
 
 [features]
 default = ["pinboard"]
-pinboard = ["dep:quick-xml", "dep:scraper", "dep:serde", "dep:serde_json"]
+pinboard = ["dep:quick-xml", "dep:scraper"]
 
 [dependencies]
 anyhow = "1.0.82"
@@ -15,7 +15,7 @@ clap = { version = "4.5.17", default-features = false, features = ["std", "deriv
 pulldown-cmark = { version = "0.12.0", default-features = false, features = ["simd"] }
 quick-xml = { version = "0.37.0", optional = true }
 scraper = { version = "0.21.0", default-features = false, optional = true }
-serde = { version = "1.0.210", features = ["derive"], optional = true }
-serde_json = { version = "1.0.128", optional = true }
-time = { version = "0.3.30", features = ["macros", "parsing"] }
-url = "2.4.1"
+serde = { version = "1.0.210", features = ["derive"] }
+serde_json = { version = "1.0.128" }
+time = { version = "0.3.30", features = ["macros", "parsing", "serde"] }
+url = { version = "2.4.1", features = ["serde"] }

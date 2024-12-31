@@ -4,6 +4,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use serde::Serialize;
 use time::Date;
 use url::Url;
 
@@ -24,7 +25,7 @@ impl From<Id> for usize {
 }
 
 /// A [`Name`] describes an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Name(String);
 
 impl Name {
@@ -57,7 +58,7 @@ impl From<&str> for Name {
 }
 
 /// A [`Label`] is a label that can be attached to an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Label(String);
 
 impl Label {
@@ -90,7 +91,7 @@ impl From<&str> for Label {
 }
 
 /// An [`Entity`] is a page in the collection.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct Entity {
     url: Url,
     created_at: Date,
