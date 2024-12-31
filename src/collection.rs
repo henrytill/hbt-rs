@@ -9,7 +9,7 @@ use time::Date;
 use url::Url;
 
 /// An [`Id`] is a unique identifier for an [`Entity`].
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 pub struct Id(usize);
 
 impl Id {
