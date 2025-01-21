@@ -8,6 +8,29 @@ use serde::{Deserialize, Serialize};
 use time::Date;
 use url::Url;
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+struct Version(semver::Version);
+
+impl Version {
+    const fn new(major: u64, minor: u64, patch: u64) -> Version {
+        Version(semver::Version::new(major, minor, patch))
+    }
+
+    fn matches_requirement(&self) -> bool {
+        let req = semver::VersionReq::parse(Self::EXPECTED_REQ).unwrap();
+        req.matches(&self.0)
+    }
+
+    const EXPECTED: Version = Version::new(0, 1, 0);
+    const EXPECTED_REQ: &str = "^0.1.0";
+}
+
+impl std::fmt::Display for Version {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
 /// An [`Id`] is a unique identifier for an [`Entity`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Id(usize);
