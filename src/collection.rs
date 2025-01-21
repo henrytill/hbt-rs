@@ -92,6 +92,7 @@ impl From<&str> for Label {
 
 /// An [`Entity`] is a page in the collection.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Entity {
     url: Url,
     created_at: Date,
