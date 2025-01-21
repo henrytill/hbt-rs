@@ -57,7 +57,7 @@ impl From<&str> for Name {
     }
 }
 
-/// A [`Label`] is a label that can be attached to an [`Entity`].
+/// A [`Label`] is text that can be attached to an [`Entity`].
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label(String);
 
