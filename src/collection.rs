@@ -4,12 +4,12 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use time::Date;
 use url::Url;
 
 /// An [`Id`] is a unique identifier for an [`Entity`].
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Id(usize);
 
 impl Id {
@@ -25,7 +25,7 @@ impl From<Id> for usize {
 }
 
 /// A [`Name`] describes an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Name(String);
 
 impl Name {
@@ -58,7 +58,7 @@ impl From<&str> for Name {
 }
 
 /// A [`Label`] is a label that can be attached to an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Label(String);
 
 impl Label {
@@ -91,7 +91,7 @@ impl From<&str> for Label {
 }
 
 /// An [`Entity`] is a page in the collection.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Entity {
     url: Url,
     created_at: Date,
