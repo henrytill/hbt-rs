@@ -1,8 +1,9 @@
 use std::vec;
 
-use time::macros::date;
+use time::macros::datetime;
 
 use super::*;
+use crate::collection::Time;
 
 const TEST_EMPTY: &str = "";
 
@@ -45,12 +46,12 @@ fn test_no_labels() {
     let collection = parse(TEST_NO_LABELS).unwrap();
     assert_eq!(collection.len(), 2);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             Default::default(),
         );
@@ -61,7 +62,7 @@ fn test_no_labels() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Bar")),
             Default::default(),
         );
@@ -96,7 +97,7 @@ fn test_no_title() {
 
     let expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        date!(2023 - 11 - 15),
+        datetime!(2023-11-15 0:00 UTC).into(),
         Default::default(),
         Default::default(),
     );
@@ -118,7 +119,7 @@ fn test_indented() {
 
     let expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        date!(2023 - 11 - 15),
+        datetime!(2023-11-15 0:00 UTC).into(),
         Some(Name::from("Foo")),
         Default::default(),
     );
@@ -150,11 +151,11 @@ fn test_parent() {
     let collection = parse(TEST_PARENT).unwrap();
     assert_eq!(collection.len(), 2);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Foo")),
         Default::default(),
     );
@@ -165,7 +166,7 @@ fn test_parent() {
 
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Bar")),
         Default::default(),
     );
@@ -191,11 +192,11 @@ fn test_parents() {
     let collection = parse(TEST_PARENTS).unwrap();
     assert_eq!(collection.len(), 3);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Foo")),
         Default::default(),
     );
@@ -206,7 +207,7 @@ fn test_parents() {
 
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Bar")),
         Default::default(),
     );
@@ -217,7 +218,7 @@ fn test_parents() {
 
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Baz")),
         Default::default(),
     );
@@ -244,11 +245,11 @@ fn test_parents_indented() {
     let collection = parse(TEST_PARENTS_INDENTED).unwrap();
     assert_eq!(collection.len(), 3);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Foo")),
         Default::default(),
     );
@@ -259,7 +260,7 @@ fn test_parents_indented() {
 
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Bar")),
         Default::default(),
     );
@@ -270,7 +271,7 @@ fn test_parents_indented() {
 
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Baz")),
         Default::default(),
     );
@@ -298,11 +299,11 @@ fn test_single_parent() {
     let collection = parse(TEST_SINGLE_PARENT).unwrap();
     assert_eq!(collection.len(), 4);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Foo")),
         Default::default(),
     );
@@ -313,7 +314,7 @@ fn test_single_parent() {
 
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Bar")),
         Default::default(),
     );
@@ -325,7 +326,7 @@ fn test_single_parent() {
 
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Baz")),
         Default::default(),
     );
@@ -336,7 +337,7 @@ fn test_single_parent() {
 
     let quux_expected = Entity::new(
         Url::parse("https://quux.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Quux")),
         Default::default(),
     );
@@ -363,12 +364,12 @@ fn test_no_parent() {
     let collection = parse(TEST_INVERTED_PARENT).unwrap();
     assert_eq!(collection.len(), 2);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             Default::default(),
         );
@@ -380,7 +381,7 @@ fn test_no_parent() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Bar")),
             Default::default(),
         );
@@ -403,12 +404,12 @@ fn test_inverted_parents() {
     let collection = parse(TEST_INVERTED_SINGLE_PARENT).unwrap();
     assert_eq!(collection.len(), 3);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             Default::default(),
         );
@@ -420,7 +421,7 @@ fn test_inverted_parents() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Bar")),
             Default::default(),
         );
@@ -432,7 +433,7 @@ fn test_inverted_parents() {
     {
         let expected = Entity::new(
             Url::parse("https://baz.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Baz")),
             Default::default(),
         );
@@ -456,13 +457,13 @@ fn test_label() {
     let collection = parse(TEST_LABEL).unwrap();
     assert_eq!(collection.len(), 2);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
     let expected_labels = [Label::from("Foo")];
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             expected_labels.iter().cloned().collect(),
         );
@@ -474,7 +475,7 @@ fn test_label() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Bar")),
             expected_labels.into_iter().collect(),
         );
@@ -503,13 +504,13 @@ fn test_labels() {
     let collection = parse(TEST_LABELS).unwrap();
     assert_eq!(collection.len(), 4);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
     let expected_labels = [Label::from("Foo")];
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             expected_labels.iter().cloned().collect(),
         );
@@ -521,7 +522,7 @@ fn test_labels() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Bar")),
             expected_labels.iter().cloned().collect(),
         );
@@ -535,7 +536,7 @@ fn test_labels() {
     {
         let expected = Entity::new(
             Url::parse("https://baz.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Baz")),
             expected_labels.iter().cloned().collect(),
         );
@@ -547,7 +548,7 @@ fn test_labels() {
     {
         let expected = Entity::new(
             Url::parse("https://quux.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Quux")),
             expected_labels.into_iter().collect(),
         );
@@ -578,12 +579,12 @@ fn test_multiple_labels() {
     let collection = parse(TEST_MULTIPLE_LABELS).unwrap();
     assert_eq!(collection.len(), 3);
 
-    let expected_date = date!(2023 - 11 - 15);
+    let expected_time = datetime!(2023-11-15 0:00 UTC).into();
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             [Label::from("Foo")].into_iter().collect(),
         );
@@ -595,7 +596,7 @@ fn test_multiple_labels() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Bar")),
             [Label::from("Foo"), Label::from("Bar")].into_iter().collect(),
         );
@@ -607,7 +608,7 @@ fn test_multiple_labels() {
     {
         let expected = Entity::new(
             Url::parse("https://baz.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Baz")),
             [Label::from("Foo"), Label::from("Bar"), Label::from("Baz")].into_iter().collect(),
         );
@@ -639,13 +640,13 @@ fn test_update() {
     {
         let mut expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            date!(2023 - 12 - 5),
+            datetime!(2023-12-5 0:00 UTC).into(),
             Some(Name::from("Foo")),
             [Label::from("Foo")].into_iter().collect(),
         );
 
         expected.update(
-            date!(2023 - 12 - 6),
+            datetime!(2023-12-6 0:00 UTC).into(),
             [Name::from("Bar")].into_iter().collect(),
             [Label::from("Bar")].into_iter().collect(),
         );
@@ -676,13 +677,13 @@ fn test_descending_dates() {
 
     let mut expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        date!(2023 - 12 - 6),
+        datetime!(2023-12-6 0:00 UTC).into(),
         Some(Name::from("Foo")),
         [Label::from("Foo")].into_iter().collect(),
     );
 
     expected.update(
-        date!(2023 - 12 - 5),
+        datetime!(2023-12-5 0:00 UTC).into(),
         [Name::from("Bar")].into_iter().collect(),
         [Label::from("Bar")].into_iter().collect(),
     );
@@ -690,8 +691,8 @@ fn test_descending_dates() {
     let id = collection.id(expected.url()).unwrap();
     let actual = collection.entity(id);
     assert_eq!(&expected, actual);
-    assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
-    assert_eq!(actual.updated_at(), &[date!(2023 - 12 - 6)]);
+    assert_eq!(actual.created_at(), &Time::new(datetime!(2023-12-5 0:00 UTC)));
+    assert_eq!(actual.updated_at(), &[Time::new(datetime!(2023-12-6 0:00 UTC))]);
 }
 
 const TEST_MIXED_DATES: &str = "\
@@ -721,19 +722,19 @@ fn test_mixed_dates() {
 
     let mut expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        date!(2023 - 12 - 6),
+        datetime!(2023-12-6 0:00 UTC).into(),
         Some(Name::from("Foo")),
         [Label::from("Foo")].into_iter().collect(),
     );
 
     expected.update(
-        date!(2023 - 12 - 5),
+        datetime!(2023-12-5 0:00 UTC).into(),
         [Name::from("Bar")].into_iter().collect(),
         [Label::from("Bar")].into_iter().collect(),
     );
 
     expected.update(
-        date!(2023 - 12 - 7),
+        datetime!(2023-12-7 0:00 UTC).into(),
         [Name::from("Baz")].into_iter().collect(),
         [Label::from("Baz")].into_iter().collect(),
     );
@@ -741,8 +742,11 @@ fn test_mixed_dates() {
     let id = collection.id(expected.url()).unwrap();
     let actual = collection.entity(id);
     assert_eq!(&expected, actual);
-    assert_eq!(actual.created_at(), &date!(2023 - 12 - 5));
-    assert_eq!(actual.updated_at(), &[date!(2023 - 12 - 6), date!(2023 - 12 - 7)]);
+    assert_eq!(actual.created_at(), &Time::new(datetime!(2023-12-5 0:00 UTC)));
+    assert_eq!(
+        actual.updated_at(),
+        &[Time::new(datetime!(2023-12-6 0:00 UTC)), Time::new(datetime!(2023-12-7 0:00 UTC))]
+    );
 }
 
 // Original tests below
@@ -768,12 +772,12 @@ fn test_basic() {
     let collection = parse(TEST_BASIC).unwrap();
     assert_eq!(collection.len(), 3);
 
-    let expected_date = date!(2023 - 11 - 16);
+    let expected_time = datetime!(2023-11-16 0:00 UTC).into();
 
     {
         let expected = Entity::new(
             Url::parse("https://foo.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Foo")),
             [Label::from("Foo")].into_iter().collect(),
         );
@@ -785,7 +789,7 @@ fn test_basic() {
     {
         let expected = Entity::new(
             Url::parse("https://bar.com").unwrap(),
-            expected_date,
+            expected_time,
             Default::default(),
             [Label::from("Foo"), Label::from("Bar")].into_iter().collect(),
         );
@@ -797,7 +801,7 @@ fn test_basic() {
     {
         let expected = Entity::new(
             Url::parse("https://example.com").unwrap(),
-            expected_date,
+            expected_time,
             Some(Name::from("Hello, world!")),
             [Label::from("Misc")].into_iter().collect(),
         );
@@ -824,12 +828,12 @@ fn test_nested() {
     let collection = parse(TEST_NESTED).unwrap();
     assert_eq!(collection.len(), 5);
 
-    let expected_date = date!(2023 - 11 - 17);
+    let expected_time = datetime!(2023-11-17 0:00 UTC).into();
     let expected_labels = [Label::from("Foo")];
 
     let foo_expected = Entity::new(
         Url::parse("https://foo.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Foo")),
         expected_labels.iter().cloned().collect(),
     );
@@ -840,7 +844,7 @@ fn test_nested() {
 
     let bar_expected = Entity::new(
         Url::parse("https://bar.com").unwrap(),
-        expected_date,
+        expected_time,
         Default::default(),
         expected_labels.iter().cloned().collect(),
     );
@@ -851,7 +855,7 @@ fn test_nested() {
 
     let hello_expected = Entity::new(
         Url::parse("https://example.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Hello, world!")),
         expected_labels.iter().cloned().collect(),
     );
@@ -862,7 +866,7 @@ fn test_nested() {
 
     let quux_expected = Entity::new(
         Url::parse("https://quux.com").unwrap(),
-        expected_date,
+        expected_time,
         Some(Name::from("Quux")),
         expected_labels.iter().cloned().collect(),
     );
@@ -873,7 +877,7 @@ fn test_nested() {
 
     let baz_expected = Entity::new(
         Url::parse("https://baz.com").unwrap(),
-        expected_date,
+        expected_time,
         Default::default(),
         expected_labels.into_iter().collect(),
     );

@@ -3,7 +3,7 @@ mod tests;
 
 use anyhow::Error;
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
-use time::{macros::format_description, Date};
+use time::{macros::format_description, Date, OffsetDateTime};
 use url::Url;
 
 use crate::collection::{Collection, Entity, Id, Label, Name};
@@ -119,9 +119,10 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             Event::End(TagEnd::Link) => {
                 let url = url.take().ok_or_else(|| Error::msg(MSG_MISSING_URL))?;
                 let date = date.ok_or_else(|| Error::msg(MSG_MISSING_DATE))?;
+                let datetime = OffsetDateTime::new_utc(date, time::Time::MIDNIGHT);
                 let name = name.take();
                 let labels = labels.iter().cloned().collect();
-                let entity = Entity::new(url, date, name, labels);
+                let entity = Entity::new(url, datetime.into(), name, labels);
                 let id = ret.upsert(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edges(*parent, id);

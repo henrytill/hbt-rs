@@ -1,11 +1,14 @@
+#[cfg(test)]
+mod tests;
+
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap},
     hash::{Hash, Hasher},
     ops::{Index, IndexMut},
 };
 
 use serde::{Deserialize, Serialize};
-use time::Date;
+use time::{serde::timestamp, OffsetDateTime};
 use url::Url;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -48,7 +51,7 @@ impl From<Id> for usize {
 }
 
 /// A [`Name`] describes an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Name(String);
 
 impl Name {
@@ -81,7 +84,7 @@ impl From<&str> for Name {
 }
 
 /// A [`Label`] is text that can be attached to an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Label(String);
 
 impl Label {
@@ -113,23 +116,39 @@ impl From<&str> for Label {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct Time(#[serde(with = "timestamp")] OffsetDateTime);
+
+impl Time {
+    pub const fn new(time: OffsetDateTime) -> Time {
+        Time(time)
+    }
+}
+
+impl From<OffsetDateTime> for Time {
+    fn from(time: OffsetDateTime) -> Self {
+        Time(time)
+    }
+}
+
 /// An [`Entity`] is a page in the collection.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Entity {
+    #[serde(rename = "uri")]
     url: Url,
-    created_at: Date,
-    updated_at: Vec<Date>,
-    names: HashSet<Name>,
-    labels: HashSet<Label>,
+    created_at: Time,
+    updated_at: Vec<Time>,
+    names: BTreeSet<Name>,
+    labels: BTreeSet<Label>,
 }
 
 impl Entity {
     pub fn new(
         url: Url,
-        created_at: Date,
+        created_at: Time,
         maybe_name: Option<Name>,
-        labels: HashSet<Label>,
+        labels: BTreeSet<Label>,
     ) -> Entity {
         let updated_at = Vec::new();
         let names = maybe_name.into_iter().collect();
@@ -138,9 +157,9 @@ impl Entity {
 
     pub fn update(
         &mut self,
-        updated_at: Date,
-        names: HashSet<Name>,
-        labels: HashSet<Label>,
+        updated_at: Time,
+        names: BTreeSet<Name>,
+        labels: BTreeSet<Label>,
     ) -> &mut Entity {
         if updated_at < self.created_at {
             self.updated_at.push(self.created_at);
@@ -161,19 +180,19 @@ impl Entity {
         &self.url
     }
 
-    pub fn created_at(&self) -> &Date {
+    pub fn created_at(&self) -> &Time {
         &self.created_at
     }
 
-    pub fn updated_at(&self) -> &[Date] {
+    pub fn updated_at(&self) -> &[Time] {
         &self.updated_at
     }
 
-    pub fn names(&self) -> &HashSet<Name> {
+    pub fn names(&self) -> &BTreeSet<Name> {
         &self.names
     }
 
-    pub fn labels(&self) -> &HashSet<Label> {
+    pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
     }
 }
@@ -184,7 +203,7 @@ pub type Edges = Vec<Id>;
 ///
 /// This is a graph structure where a nodes are represented by a vector of entities and edges are
 /// represented by an adjacency list.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Collection {
     nodes: Vec<Entity>,
     edges: Vec<Edges>,
@@ -224,6 +243,13 @@ impl Collection {
         let nodes = Vec::new();
         let edges = Vec::new();
         let urls = HashMap::new();
+        Collection { nodes, edges, urls }
+    }
+
+    fn with_capacity(capacity: usize) -> Collection {
+        let nodes = Vec::with_capacity(capacity);
+        let edges = Vec::with_capacity(capacity);
+        let urls = HashMap::with_capacity(capacity);
         Collection { nodes, edges, urls }
     }
 
@@ -299,5 +325,89 @@ impl Collection {
 impl Default for Collection {
     fn default() -> Collection {
         Collection::new()
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SerializedNode {
+    id: Id,
+    entity: Entity,
+    edges: Vec<Id>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SerializedCollection {
+    version: Version,
+    length: usize,
+    value: Vec<SerializedNode>,
+}
+
+impl From<&Collection> for SerializedCollection {
+    fn from(collection: &Collection) -> SerializedCollection {
+        let version = Version::EXPECTED;
+
+        let length = collection.len();
+
+        let value: Vec<_> = (0..length)
+            .map(|i| {
+                let id = Id::new(i);
+                let entity = collection.entity(id).clone();
+                let edges = collection.edges(id).to_vec();
+                SerializedNode { id, entity, edges }
+            })
+            .collect();
+
+        SerializedCollection { version, length, value }
+    }
+}
+
+impl TryFrom<SerializedCollection> for Collection {
+    type Error = String;
+
+    fn try_from(collection: SerializedCollection) -> Result<Collection, Self::Error> {
+        let SerializedCollection { version, length, mut value } = collection;
+
+        if !version.matches_requirement() {
+            return Err(format!(
+                "incompatible version {}, expected {}",
+                Version::EXPECTED,
+                Version::EXPECTED_REQ
+            ));
+        }
+
+        let mut ret = Collection::with_capacity(length);
+
+        value.sort();
+
+        for SerializedNode { id, entity, edges } in value {
+            assert_eq!(id.0, ret.len());
+            let url = entity.url.clone();
+            ret.nodes.push(entity);
+            ret.edges.push(edges);
+            ret.urls.insert(url, id);
+        }
+
+        Ok(ret)
+    }
+}
+
+impl Serialize for Collection {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        SerializedCollection::from(self).serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Collection {
+    fn deserialize<D>(deserializer: D) -> Result<Collection, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let collection = SerializedCollection::deserialize(deserializer)?;
+        Collection::try_from(collection).map_err(serde::de::Error::custom)
     }
 }
