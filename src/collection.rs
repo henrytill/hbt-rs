@@ -19,9 +19,9 @@ impl Version {
         Version(semver::Version::new(major, minor, patch))
     }
 
-    fn matches_requirement(&self) -> bool {
-        let req = semver::VersionReq::parse(Self::EXPECTED_REQ).unwrap();
-        req.matches(&self.0)
+    fn matches_requirement(&self) -> Result<bool, semver::Error> {
+        let req = semver::VersionReq::parse(Self::EXPECTED_REQ)?;
+        Ok(req.matches(&self.0))
     }
 
     const EXPECTED: Version = Version::new(0, 1, 0);
@@ -369,7 +369,7 @@ impl TryFrom<SerializedCollection> for Collection {
     fn try_from(collection: SerializedCollection) -> Result<Collection, Self::Error> {
         let SerializedCollection { version, length, mut value } = collection;
 
-        if !version.matches_requirement() {
+        if !version.matches_requirement().map_err(|err| err.to_string())? {
             return Err(format!(
                 "incompatible version {}, expected {}",
                 Version::EXPECTED,
