@@ -12,6 +12,9 @@ use serde::{Deserialize, Serialize};
 use time::{serde::timestamp, OffsetDateTime};
 use url::Url;
 
+#[cfg(feature = "pinboard")]
+use crate::pinboard::Post;
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 struct Version(semver::Version);
 
@@ -124,11 +127,51 @@ impl Time {
     pub const fn new(time: OffsetDateTime) -> Time {
         Time(time)
     }
+
+    #[cfg(feature = "pinboard")]
+    fn parse(time: &str) -> Result<Time, anyhow::Error> {
+        let timestamp: i64 = time.parse()?;
+        let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
+        Ok(Time(time))
+    }
 }
 
 impl From<OffsetDateTime> for Time {
     fn from(time: OffsetDateTime) -> Self {
         Time(time)
+    }
+}
+
+/// A [`Extended`] is text that can be attached to an [`Entity`].
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+pub struct Extended(String);
+
+impl Extended {
+    pub const fn new(extended: String) -> Extended {
+        Extended(extended)
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+}
+
+impl Hash for Extended {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
+}
+
+impl From<String> for Extended {
+    fn from(extended: String) -> Extended {
+        Extended(extended)
+    }
+}
+
+#[cfg(test)]
+impl From<&str> for Extended {
+    fn from(extended: &str) -> Extended {
+        Extended(extended.into())
     }
 }
 
@@ -142,6 +185,10 @@ pub struct Entity {
     updated_at: Vec<Time>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extended: Option<Extended>,
+    shared: bool,
+    toread: bool,
 }
 
 impl Entity {
@@ -153,7 +200,10 @@ impl Entity {
     ) -> Entity {
         let updated_at = Vec::new();
         let names = maybe_name.into_iter().collect();
-        Entity { url, created_at, updated_at, names, labels }
+        let extended = None;
+        let shared = false;
+        let toread = false;
+        Entity { url, created_at, updated_at, names, labels, extended, shared, toread }
     }
 
     pub fn update(
@@ -195,6 +245,33 @@ impl Entity {
 
     pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
+    }
+}
+
+#[cfg(feature = "pinboard")]
+impl TryFrom<Post> for Entity {
+    type Error = anyhow::Error;
+
+    fn try_from(post: Post) -> Result<Entity, Self::Error> {
+        let url = Url::parse(&post.href)?;
+        let created_at = Time::parse(&post.time)?;
+        let updated_at: Vec<Time> = Vec::new();
+        let names = {
+            let mut tmp = BTreeSet::new();
+            if let Some(name) = post.description.map(Name::new) {
+                tmp.insert(name);
+            }
+            tmp
+        };
+        let labels = {
+            let mut tmp = BTreeSet::new();
+            tmp.extend(post.tags.into_iter().map(Label::new));
+            tmp
+        };
+        let extended = post.extended.map(Extended::new);
+        let shared = post.shared;
+        let toread = post.toread;
+        Ok(Entity { url, created_at, updated_at, names, labels, extended, shared, toread })
     }
 }
 

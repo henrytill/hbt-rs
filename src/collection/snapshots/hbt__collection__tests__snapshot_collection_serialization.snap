@@ -17,7 +17,9 @@ expression: collection
         ],
         "labels": [
           "foo"
-        ]
+        ],
+        "shared": false,
+        "toread": false
       },
       "edges": [
         1,
@@ -36,7 +38,9 @@ expression: collection
         "labels": [
           "bar",
           "foo"
-        ]
+        ],
+        "shared": false,
+        "toread": false
       },
       "edges": [
         0
@@ -55,7 +59,9 @@ expression: collection
           "bar",
           "baz",
           "foo"
-        ]
+        ],
+        "shared": false,
+        "toread": false
       },
       "edges": [
         0
