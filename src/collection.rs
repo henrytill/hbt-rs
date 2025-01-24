@@ -88,8 +88,8 @@ impl From<&str> for Name {
 pub struct Label(String);
 
 impl Label {
-    pub const fn new(name: String) -> Label {
-        Label(name)
+    pub const fn new(label: String) -> Label {
+        Label(label)
     }
 
     pub fn as_str(&self) -> &str {
@@ -104,15 +104,15 @@ impl Hash for Label {
 }
 
 impl From<String> for Label {
-    fn from(name: String) -> Label {
-        Label(name)
+    fn from(label: String) -> Label {
+        Label(label)
     }
 }
 
 #[cfg(test)]
 impl From<&str> for Label {
-    fn from(name: &str) -> Label {
-        Label(name.into())
+    fn from(label: &str) -> Label {
+        Label(label.into())
     }
 }
 
