@@ -137,7 +137,7 @@ impl Time {
 }
 
 impl From<OffsetDateTime> for Time {
-    fn from(time: OffsetDateTime) -> Self {
+    fn from(time: OffsetDateTime) -> Time {
         Time(time)
     }
 }
