@@ -3,6 +3,7 @@ mod tests;
 
 use std::{
     collections::{BTreeSet, HashMap},
+    fmt,
     hash::{Hash, Hasher},
     ops::{Index, IndexMut},
 };
@@ -28,8 +29,8 @@ impl Version {
     const EXPECTED_REQ: &str = "^0.1.0";
 }
 
-impl std::fmt::Display for Version {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for Version {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
     }
 }
