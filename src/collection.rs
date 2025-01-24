@@ -324,7 +324,7 @@ impl Collection {
         Collection { nodes, edges, urls }
     }
 
-    fn with_capacity(capacity: usize) -> Collection {
+    pub fn with_capacity(capacity: usize) -> Collection {
         let nodes = Vec::with_capacity(capacity);
         let edges = Vec::with_capacity(capacity);
         let urls = HashMap::with_capacity(capacity);

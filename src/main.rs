@@ -3,6 +3,9 @@ use std::{fs, path::PathBuf, process::ExitCode};
 use anyhow::Error;
 use clap::Parser;
 
+use hbt::collection::Collection;
+#[cfg(feature = "pinboard")]
+use hbt::collection::Entity;
 use hbt::markdown;
 #[cfg(feature = "pinboard")]
 use hbt::pinboard::Post;
@@ -19,40 +22,16 @@ struct Args {
 }
 
 #[cfg(feature = "pinboard")]
-fn print_posts(args: &Args, posts: Vec<Post>) -> Result<(), Error> {
-    if args.dump {
-        for post in posts {
-            println!("{}", post.href)
-        }
-    } else {
-        let length = posts.len();
-        println!("{}: {} posts", args.file.to_string_lossy(), length)
+fn create_collection(posts: Vec<Post>) -> Result<Collection, Error> {
+    let mut ret = Collection::with_capacity(posts.len());
+    for post in posts {
+        let entity = Entity::try_from(post)?;
+        ret.insert(entity);
     }
-
-    Ok(())
+    Ok(ret)
 }
 
-#[cfg(feature = "pinboard")]
-fn html(args: &Args, input: &str) -> Result<(), Error> {
-    let posts = Post::from_html(input)?;
-    print_posts(args, posts)
-}
-
-#[cfg(feature = "pinboard")]
-fn json(args: &Args, input: &str) -> Result<(), Error> {
-    let posts = Post::from_json(input)?;
-    print_posts(args, posts)
-}
-
-#[cfg(feature = "pinboard")]
-fn xml(args: &Args, input: &str) -> Result<(), Error> {
-    let posts = Post::from_xml(input)?;
-    print_posts(args, posts)
-}
-
-fn markdown(args: &Args, input: &str) -> Result<(), Error> {
-    let collection = markdown::parse(input)?;
-
+fn print_collection(args: &Args, collection: &Collection) {
     if args.dump {
         let entities = collection.entities();
         for entity in entities {
@@ -62,7 +41,35 @@ fn markdown(args: &Args, input: &str) -> Result<(), Error> {
         let length = collection.len();
         println!("{}: {} entities", args.file.to_string_lossy(), length)
     }
+}
 
+#[cfg(feature = "pinboard")]
+fn html(args: &Args, input: &str) -> Result<(), Error> {
+    let posts = Post::from_html(input)?;
+    let collection = create_collection(posts)?;
+    print_collection(args, &collection);
+    Ok(())
+}
+
+#[cfg(feature = "pinboard")]
+fn json(args: &Args, input: &str) -> Result<(), Error> {
+    let posts = Post::from_json(input)?;
+    let collection = create_collection(posts)?;
+    print_collection(args, &collection);
+    Ok(())
+}
+
+#[cfg(feature = "pinboard")]
+fn xml(args: &Args, input: &str) -> Result<(), Error> {
+    let posts = Post::from_xml(input)?;
+    let collection = create_collection(posts)?;
+    print_collection(args, &collection);
+    Ok(())
+}
+
+fn markdown(args: &Args, input: &str) -> Result<(), Error> {
+    let collection = markdown::parse(input)?;
+    print_collection(args, &collection);
     Ok(())
 }
 
