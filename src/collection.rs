@@ -366,10 +366,12 @@ impl From<&Collection> for SerializedCollection {
 impl TryFrom<SerializedCollection> for Collection {
     type Error = String;
 
-    fn try_from(collection: SerializedCollection) -> Result<Collection, Self::Error> {
-        let SerializedCollection { version, length, mut value } = collection;
+    fn try_from(serialized_collection: SerializedCollection) -> Result<Collection, Self::Error> {
+        let SerializedCollection { version, length, mut value } = serialized_collection;
 
-        if !version.matches_requirement().map_err(|err| err.to_string())? {
+        let is_compatible_version = version.matches_requirement().map_err(|err| err.to_string())?;
+
+        if !is_compatible_version {
             return Err(format!(
                 "incompatible version {}, expected {}",
                 Version::EXPECTED,
