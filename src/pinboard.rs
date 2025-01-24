@@ -7,14 +7,9 @@ use anyhow::Error;
 use serde::Deserialize;
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct Tags(HashSet<String>);
+pub struct Tags<'a>(HashSet<&'a str>);
 
-impl Tags {
-    #[cfg(test)]
-    const fn new(inner: HashSet<String>) -> Tags {
-        Tags(inner)
-    }
-
+impl<'a> Tags<'a> {
     pub fn contains(&self, value: impl AsRef<str>) -> bool {
         self.0.contains(value.as_ref())
     }
@@ -27,27 +22,48 @@ impl Tags {
         self.0.is_empty()
     }
 
-    pub fn iter(&self) -> Iter<'_, String> {
+    pub fn iter(&self) -> Iter<'_, &str> {
         self.0.iter()
+    }
+}
+
+#[cfg(test)]
+impl<'a> From<&'a [String]> for Tags<'a> {
+    fn from(tags: &'a [String]) -> Self {
+        let mut ret = HashSet::new();
+        for tag in tags {
+            ret.insert(tag.as_str());
+        }
+        Tags(ret)
     }
 }
 
 #[derive(Debug, Default, PartialEq, Eq, Deserialize)]
 pub struct Post {
-    href: String,
-    time: String,
+    pub href: String,
+    pub time: String,
     #[serde(deserialize_with = "json::deserialize_empty_string")]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(deserialize_with = "json::deserialize_empty_string")]
-    extended: Option<String>,
+    pub extended: Option<String>,
     #[serde(deserialize_with = "json::deserialize_tags", default)]
-    tags: Vec<String>,
+    pub tags: Vec<String>,
     #[serde(deserialize_with = "json::deserialize_empty_string")]
-    hash: Option<String>,
+    pub hash: Option<String>,
     #[serde(deserialize_with = "json::deserialize_yes_no")]
-    shared: bool,
+    pub shared: bool,
     #[serde(deserialize_with = "json::deserialize_yes_no")]
-    toread: bool,
+    pub toread: bool,
+}
+
+impl<'a> From<&'a [Post]> for Tags<'a> {
+    fn from(posts: &'a [Post]) -> Self {
+        let mut ret = HashSet::new();
+        for post in posts {
+            ret.extend(post.tags.iter().map(AsRef::<str>::as_ref));
+        }
+        Tags(ret)
+    }
 }
 
 impl Post {
@@ -76,18 +92,6 @@ impl Post {
 
     pub fn from_xml(input: &str) -> Result<Vec<Post>, Error> {
         xml::parse(input)
-    }
-
-    pub fn tags(ps: &[Post]) -> Tags {
-        let mut inner = HashSet::new();
-        for p in ps {
-            inner.extend(p.tags.iter().cloned());
-        }
-        Tags(inner)
-    }
-
-    pub fn href(&self) -> &String {
-        &self.href
     }
 }
 

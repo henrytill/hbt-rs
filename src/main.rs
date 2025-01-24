@@ -22,7 +22,7 @@ struct Args {
 fn print_posts(args: &Args, posts: Vec<Post>) -> Result<(), Error> {
     if args.dump {
         for post in posts {
-            println!("{}", post.href())
+            println!("{}", post.href)
         }
     } else {
         let length = posts.len();

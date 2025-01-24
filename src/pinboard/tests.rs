@@ -1,7 +1,5 @@
 use super::*;
 
-use std::collections::HashSet;
-
 const TEST_XML_EMPTY: &str = "";
 
 #[test]
@@ -55,8 +53,8 @@ fn test_xml_sample() {
     let expected = vec![magic_trace, intel, kcachegrind];
     let actual = Post::from_xml(TEST_XML_SAMPLE).unwrap();
     assert_eq!(expected, actual);
-    let expected_tags = Tags::new(HashSet::from(expected_tags));
-    let actual_tags = Post::tags(&actual);
+    let expected_tags = Tags::from(expected_tags.as_slice());
+    let actual_tags = Tags::from(expected.as_slice());
     assert_eq!(expected_tags, actual_tags)
 }
 
@@ -104,8 +102,8 @@ fn test_json_sample() {
     let expected = vec![magic_trace, intel, kcachegrind];
     let actual = Post::from_json(TEST_JSON_SAMPLE).unwrap();
     assert_eq!(expected, actual);
-    let expected_tags = Tags::new(HashSet::from(expected_tags));
-    let actual_tags = Post::tags(&actual);
+    let expected_tags = Tags::from(expected_tags.as_slice());
+    let actual_tags = Tags::from(expected.as_slice());
     assert_eq!(expected_tags, actual_tags)
 }
 
