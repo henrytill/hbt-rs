@@ -30,11 +30,8 @@ impl Tags<'_> {
 #[cfg(test)]
 impl<'a> From<&'a [String]> for Tags<'a> {
     fn from(tags: &'a [String]) -> Tags<'a> {
-        let mut ret = HashSet::new();
-        for tag in tags {
-            ret.insert(tag.as_str());
-        }
-        Tags(ret)
+        let inner = tags.iter().map(String::as_str).collect();
+        Tags(inner)
     }
 }
 
@@ -58,11 +55,11 @@ pub struct Post {
 
 impl<'a> From<&'a [Post]> for Tags<'a> {
     fn from(posts: &'a [Post]) -> Tags<'a> {
-        let mut ret = HashSet::new();
+        let mut inner = HashSet::new();
         for post in posts {
-            ret.extend(post.tags.iter().map(String::as_str));
+            inner.extend(post.tags.iter().map(String::as_str));
         }
-        Tags(ret)
+        Tags(inner)
     }
 }
 
