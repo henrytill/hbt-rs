@@ -281,7 +281,7 @@ pub type Edges = Vec<Id>;
 ///
 /// This is a graph structure where a nodes are represented by a vector of entities and edges are
 /// represented by an adjacency list.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Default, PartialEq, Eq)]
 pub struct Collection {
     nodes: Vec<Entity>,
     edges: Vec<Edges>,
@@ -397,12 +397,6 @@ impl Collection {
 
     pub fn entities(&self) -> &[Entity] {
         &self.nodes
-    }
-}
-
-impl Default for Collection {
-    fn default() -> Collection {
-        Collection::new()
     }
 }
 
