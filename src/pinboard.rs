@@ -9,7 +9,7 @@ use serde::Deserialize;
 #[derive(Debug, PartialEq, Eq)]
 pub struct Tags<'a>(HashSet<&'a str>);
 
-impl<'a> Tags<'a> {
+impl Tags<'_> {
     pub fn contains(&self, value: impl AsRef<str>) -> bool {
         self.0.contains(value.as_ref())
     }
