@@ -142,6 +142,12 @@ impl From<OffsetDateTime> for Time {
     }
 }
 
+impl Default for Time {
+    fn default() -> Time {
+        Time(OffsetDateTime::UNIX_EPOCH)
+    }
+}
+
 /// A [`Extended`] is text that can be attached to an [`Entity`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct Extended(String);
