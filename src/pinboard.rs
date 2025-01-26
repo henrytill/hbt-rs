@@ -60,7 +60,7 @@ impl<'a> From<&'a [Post]> for Tags<'a> {
     fn from(posts: &'a [Post]) -> Tags<'a> {
         let mut ret = HashSet::new();
         for post in posts {
-            ret.extend(post.tags.iter().map(AsRef::<str>::as_ref));
+            ret.extend(post.tags.iter().map(String::as_str));
         }
         Tags(ret)
     }
