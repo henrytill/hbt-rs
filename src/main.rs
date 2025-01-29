@@ -44,16 +44,15 @@ fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Err
     Ok(())
 }
 
-fn print_collection(args: &Args, collection: &Collection) {
+fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
     if args.dump {
-        let entities = collection.entities();
-        for entity in entities {
-            println!("{}", entity.url())
-        }
+        let json = serde_json::to_string_pretty(collection)?;
+        println!("{}", json);
     } else {
         let length = collection.len();
         println!("{}: {} entities", args.file.to_string_lossy(), length)
     }
+    Ok(())
 }
 
 #[cfg(feature = "pinboard")]
@@ -61,7 +60,7 @@ fn html(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_html(input)?;
     let mut collection = create_collection(posts)?;
     update_collection(args, &mut collection)?;
-    print_collection(args, &collection);
+    print_collection(args, &collection)?;
     Ok(())
 }
 
@@ -70,7 +69,7 @@ fn json(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_json(input)?;
     let mut collection = create_collection(posts)?;
     update_collection(args, &mut collection)?;
-    print_collection(args, &collection);
+    print_collection(args, &collection)?;
     Ok(())
 }
 
@@ -79,14 +78,14 @@ fn xml(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_xml(input)?;
     let mut collection = create_collection(posts)?;
     update_collection(args, &mut collection)?;
-    print_collection(args, &collection);
+    print_collection(args, &collection)?;
     Ok(())
 }
 
 fn markdown(args: &Args, input: &str) -> Result<(), Error> {
     let mut collection = markdown::parse(input)?;
     update_collection(args, &mut collection)?;
-    print_collection(args, &collection);
+    print_collection(args, &collection)?;
     Ok(())
 }
 
