@@ -1,0 +1,10 @@
+Usage: hbt [OPTIONS] <FILE>
+
+Arguments:
+  <FILE>  File to read
+
+Options:
+  -d, --dump             Dump all entries
+  -m, --mappings <FILE>  Read mappings from <FILE>
+  -h, --help             Print help
+  -V, --version          Print version
