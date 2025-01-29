@@ -1,7 +1,14 @@
 # November 15, 2023
 
-## Foo
+## programming
 
-- [Foo](https://foo.com)
-- [Bar](https://bar.com)
-- [Baz](https://baz.com)
+### rust
+
+- [Rust Website](https://rust-lang.org)
+- <https://users.rust-lang.org/>
+
+### tools
+
+#### editor
+
+- [VS Code](https://code.visualstudio.com)

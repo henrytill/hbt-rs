@@ -126,7 +126,14 @@ mod html {
                 let private = a_element.value().attr(ATTR_PRIVATE)?;
                 let toread = a_element.value().attr(ATTR_TOREAD)?;
                 let tags = a_element.value().attr(ATTR_TAGS)?;
-                let description = a_element.text().collect::<String>();
+                let description = {
+                    let text = a_element.text().collect::<String>();
+                    if text.is_empty() {
+                        None
+                    } else {
+                        Some(text)
+                    }
+                };
                 let time = add_date.parse().ok()?;
                 let shared = private == FALSE;
                 let toread = toread == TRUE;
@@ -135,7 +142,7 @@ mod html {
                 let mut post = Post {
                     href,
                     time,
-                    description: Some(description),
+                    description,
                     extended: None,
                     tags,
                     hash: None,
