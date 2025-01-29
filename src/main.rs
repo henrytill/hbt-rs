@@ -9,6 +9,7 @@ use hbt::collection::Entity;
 use hbt::markdown;
 #[cfg(feature = "pinboard")]
 use hbt::pinboard::Post;
+use serde_json::Value;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -19,6 +20,9 @@ struct Args {
     /// File to read
     #[arg(required = true)]
     file: PathBuf,
+    /// Read mappings from <FILE>
+    #[arg(short, long, value_name = "FILE")]
+    mappings: Option<PathBuf>,
 }
 
 #[cfg(feature = "pinboard")]
@@ -29,6 +33,15 @@ fn create_collection(posts: Vec<Post>) -> Result<Collection, Error> {
         ret.insert(entity);
     }
     Ok(ret)
+}
+
+fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Error> {
+    if let Some(mappings) = &args.mappings {
+        let contents = fs::read_to_string(mappings)?;
+        let contents_value: Value = serde_json::from_str(&contents)?;
+        collection.update_labels(contents_value)?;
+    }
+    Ok(())
 }
 
 fn print_collection(args: &Args, collection: &Collection) {
@@ -46,7 +59,8 @@ fn print_collection(args: &Args, collection: &Collection) {
 #[cfg(feature = "pinboard")]
 fn html(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_html(input)?;
-    let collection = create_collection(posts)?;
+    let mut collection = create_collection(posts)?;
+    update_collection(args, &mut collection)?;
     print_collection(args, &collection);
     Ok(())
 }
@@ -54,7 +68,8 @@ fn html(args: &Args, input: &str) -> Result<(), Error> {
 #[cfg(feature = "pinboard")]
 fn json(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_json(input)?;
-    let collection = create_collection(posts)?;
+    let mut collection = create_collection(posts)?;
+    update_collection(args, &mut collection)?;
     print_collection(args, &collection);
     Ok(())
 }
@@ -62,13 +77,15 @@ fn json(args: &Args, input: &str) -> Result<(), Error> {
 #[cfg(feature = "pinboard")]
 fn xml(args: &Args, input: &str) -> Result<(), Error> {
     let posts = Post::from_xml(input)?;
-    let collection = create_collection(posts)?;
+    let mut collection = create_collection(posts)?;
+    update_collection(args, &mut collection)?;
     print_collection(args, &collection);
     Ok(())
 }
 
 fn markdown(args: &Args, input: &str) -> Result<(), Error> {
-    let collection = markdown::parse(input)?;
+    let mut collection = markdown::parse(input)?;
+    update_collection(args, &mut collection)?;
     print_collection(args, &collection);
     Ok(())
 }
