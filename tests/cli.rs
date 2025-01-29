@@ -38,7 +38,7 @@ fn test_basic_markdown() {
         .arg("tests/cli/fixtures/basic.md")
         .assert()
         .success()
-        .stdout_eq(file!("cli/snapshots/basic.stdout"));
+        .stdout_eq(file!("cli/snapshots/basic.md.stdout"));
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn test_basic_html() {
         .arg("tests/cli/fixtures/basic.html")
         .assert()
         .success()
-        .stdout_eq("tests/cli/fixtures/basic.html: 3 entities\n");
+        .stdout_eq(file!("cli/snapshots/basic.html.stdout"));
 }
 
 #[cfg(feature = "pinboard")]
@@ -82,4 +82,32 @@ fn test_mappings() {
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.mapped.stdout"));
+}
+
+#[test]
+fn test_empty_mappings() {
+    Command::new(cargo_bin(BIN))
+        .args([
+            "--dump",
+            "--mappings",
+            "tests/cli/fixtures/mappings-empty.json",
+            "tests/cli/fixtures/basic.md",
+        ])
+        .assert()
+        .success()
+        .stdout_eq(file!("cli/snapshots/basic.dump.stdout")); // Should match original dump
+}
+
+#[test]
+fn test_invalid_mappings() {
+    Command::new(cargo_bin(BIN))
+        .args([
+            "--dump",
+            "--mappings",
+            "tests/cli/fixtures/mappings-invalid.json",
+            "tests/cli/fixtures/basic.md",
+        ])
+        .assert()
+        .success()
+        .stdout_eq(file!("cli/snapshots/basic.dump.stdout")); // Should match original dump since invalid mappings are ignored
 }

@@ -5,14 +5,15 @@
     {
       "id": 0,
       "entity": {
-        "uri": "https://foo.com/",
+        "uri": "https://rust-lang.org/",
         "createdAt": 1700006400,
         "updatedAt": [],
         "names": [
-          "Foo"
+          "Rust Website"
         ],
         "labels": [
-          "Foo-updated"
+          "dev",
+          "languages"
         ],
         "shared": false,
         "toread": false
@@ -22,14 +23,13 @@
     {
       "id": 1,
       "entity": {
-        "uri": "https://bar.com/",
+        "uri": "https://users.rust-lang.org/",
         "createdAt": 1700006400,
         "updatedAt": [],
-        "names": [
-          "Bar"
-        ],
+        "names": [],
         "labels": [
-          "Foo-updated"
+          "dev",
+          "languages"
         ],
         "shared": false,
         "toread": false
@@ -39,14 +39,16 @@
     {
       "id": 2,
       "entity": {
-        "uri": "https://baz.com/",
+        "uri": "https://code.visualstudio.com/",
         "createdAt": 1700006400,
         "updatedAt": [],
         "names": [
-          "Baz"
+          "VS Code"
         ],
         "labels": [
-          "Foo-updated"
+          "dev",
+          "editors",
+          "tools"
         ],
         "shared": false,
         "toread": false
