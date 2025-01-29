@@ -2,13 +2,15 @@
 mod tests;
 
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     fmt,
     hash::{Hash, Hasher},
     ops::{Index, IndexMut},
 };
 
+use anyhow::Error;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use time::{serde::timestamp, OffsetDateTime};
 use url::Url;
 
@@ -113,7 +115,6 @@ impl From<String> for Label {
     }
 }
 
-#[cfg(test)]
 impl From<&str> for Label {
     fn from(label: &str) -> Label {
         Label(label.into())
@@ -251,6 +252,10 @@ impl Entity {
 
     pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
+    }
+
+    pub fn labels_mut(&mut self) -> &mut BTreeSet<Label> {
+        &mut self.labels
     }
 }
 
@@ -404,6 +409,32 @@ impl Collection {
     pub fn entities(&self) -> &[Entity] {
         &self.nodes
     }
+
+    pub fn update_labels(&mut self, json: Value) -> Result<(), Error> {
+        let mapping = json_to_map(json)?;
+        for node in self.nodes.iter_mut() {
+            let labels = node.labels_mut();
+            let to_add: BTreeSet<Label> =
+                labels.iter().filter_map(|label| mapping.get(label).cloned()).collect();
+            labels.retain(|label| !mapping.contains_key(label));
+            labels.extend(to_add);
+        }
+        Ok(())
+    }
+}
+
+fn json_to_map(json: Value) -> Result<BTreeMap<Label, Label>, Error> {
+    let ret: BTreeMap<Label, Label> = json
+        .as_object()
+        .ok_or(Error::msg("expected a JSON object"))?
+        .iter()
+        .filter_map(|(k, v)| {
+            let v = v.as_str().map(Label::from)?;
+            let k = Label::from(k.as_str());
+            Some((k, v))
+        })
+        .collect();
+    Ok(ret)
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

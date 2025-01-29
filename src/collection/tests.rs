@@ -1,3 +1,4 @@
+use serde_json::json;
 use time::macros::datetime;
 
 use super::*;
@@ -160,4 +161,69 @@ fn snapshot_collection_serialization() {
         tmp
     };
     insta::assert_json_snapshot!(collection)
+}
+
+#[test]
+fn test_update_labels() {
+    let mut collection = create_test_collection();
+
+    // Test basic label update
+    let update = json!({
+        "tag1": "tag1-updated",
+        "tag2": "tag2-updated"
+    });
+    collection.update_labels(update).unwrap();
+
+    // Verify updates on first entity
+    let id1 = Id::new(0);
+    let labels1 = collection.entity(id1).labels();
+    assert!(labels1.contains(&Label::from("tag1-updated")));
+    assert!(labels1.contains(&Label::from("tag2-updated")));
+    assert!(!labels1.contains(&Label::from("tag1")));
+    assert!(!labels1.contains(&Label::from("tag2")));
+
+    // Verify updates on second entity
+    let id2 = Id::new(1);
+    let labels2 = collection.entity(id2).labels();
+    assert!(labels2.contains(&Label::from("tag2-updated")));
+    assert!(labels2.contains(&Label::from("tag3")));
+    assert!(!labels2.contains(&Label::from("tag2")));
+}
+
+#[test]
+fn test_update_labels_empty_mapping() {
+    let mut collection = create_test_collection();
+
+    // Empty update should not modify labels
+    let update = json!({});
+    collection.update_labels(update).unwrap();
+
+    let id1 = Id::new(0);
+    assert_eq!(
+        collection.entity(id1).labels(),
+        &vec![Label::from("tag1"), Label::from("tag2")].into_iter().collect()
+    );
+}
+
+#[test]
+fn test_update_labels_invalid_json() {
+    let mut collection = create_test_collection();
+
+    // Non-object JSON should return error
+    let update = json!(["not", "an", "object"]);
+    assert!(collection.update_labels(update).is_err());
+
+    // Non-string values should be ignored
+    let update = json!({
+        "tag1": 42,
+        "tag2": "valid-update",
+        "tag3": null
+    });
+    collection.update_labels(update).unwrap();
+
+    let id1 = Id::new(0);
+    let labels = collection.entity(id1).labels();
+    assert!(labels.contains(&Label::from("tag1"))); // unchanged
+    assert!(labels.contains(&Label::from("valid-update")));
+    assert!(!labels.contains(&Label::from("tag2")));
 }
