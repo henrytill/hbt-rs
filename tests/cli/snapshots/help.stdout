@@ -5,6 +5,7 @@ Arguments:
 
 Options:
   -d, --dump             Dump all entries
+  -t, --tags             Dump tags
   -m, --mappings <FILE>  Read mappings from <FILE>
   -h, --help             Print help
   -V, --version          Print version

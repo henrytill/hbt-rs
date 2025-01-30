@@ -1,4 +1,4 @@
-use std::{fs, path::PathBuf, process::ExitCode};
+use std::{collections::BTreeSet, fs, path::PathBuf, process::ExitCode};
 
 use anyhow::Error;
 use clap::Parser;
@@ -17,6 +17,9 @@ struct Args {
     /// Dump all entries
     #[arg(short, long)]
     dump: bool,
+    /// Dump tags
+    #[arg(short, long)]
+    tags: bool,
     /// File to read
     #[arg(required = true)]
     file: PathBuf,
@@ -48,6 +51,14 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
     if args.dump {
         let json = serde_json::to_string_pretty(collection)?;
         println!("{}", json);
+    } else if args.tags {
+        let mut all_tags = BTreeSet::new();
+        for entity in collection.entities() {
+            all_tags.extend(entity.labels())
+        }
+        for tag in all_tags {
+            println!("{}", tag.as_str());
+        }
     } else {
         let length = collection.len();
         println!("{}: {} entities", args.file.to_string_lossy(), length)

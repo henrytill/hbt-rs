@@ -111,3 +111,26 @@ fn test_invalid_mappings() {
         .success()
         .stdout_eq(file!("cli/snapshots/basic.dump.stdout")); // Should match original dump since invalid mappings are ignored
 }
+
+#[test]
+fn test_tags() {
+    Command::new(cargo_bin(BIN))
+        .args(["--tags", "tests/cli/fixtures/basic.md"])
+        .assert()
+        .success()
+        .stdout_eq(file!("cli/snapshots/basic.tags.stdout"));
+}
+
+#[test]
+fn test_tags_with_mappings() {
+    Command::new(cargo_bin(BIN))
+        .args([
+            "--tags",
+            "--mappings",
+            "tests/cli/fixtures/mappings.json",
+            "tests/cli/fixtures/basic.md",
+        ])
+        .assert()
+        .success()
+        .stdout_eq(file!("cli/snapshots/basic.mapped.tags.stdout"));
+}
