@@ -20,5 +20,5 @@ time = { version = "0.3.30", features = ["macros", "parsing", "serde"] }
 url = { version = "2.4.1", features = ["serde"] }
 
 [dev-dependencies]
-snapbox = { version = "0.6.21", default-features = false, features = ["diff"] }
 insta = { version = "1.42.0", features = ["json"] }
+snapbox = { version = "0.6.21", default-features = false, features = ["diff"] }
