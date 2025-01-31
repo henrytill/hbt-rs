@@ -3,16 +3,16 @@ use std::{collections::BTreeSet, fs, path::PathBuf, process::ExitCode};
 use anyhow::Error;
 use clap::Parser;
 
-use hbt::collection::Collection;
+use hbt_core::collection::Collection;
 #[cfg(feature = "pinboard")]
-use hbt::collection::Entity;
-use hbt::markdown;
+use hbt_core::collection::Entity;
+use hbt_core::markdown;
 #[cfg(feature = "pinboard")]
-use hbt::pinboard::Post;
+use hbt_core::pinboard::Post;
 use serde_json::Value;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(version, about, long_about = None, name = "hbt")]
 struct Args {
     /// Dump all entries
     #[arg(short, long)]

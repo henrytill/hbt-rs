@@ -3,7 +3,7 @@ use snapbox::{
     file,
 };
 
-const BIN: &str = env!("CARGO_PKG_NAME");
+const BIN: &str = "hbt";
 
 #[test]
 fn test_help() {
