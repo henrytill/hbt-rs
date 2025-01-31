@@ -12,7 +12,7 @@ use hbt_core::pinboard::Post;
 use serde_json::Value;
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None, name = "hbt")]
+#[command(version, about, long_about = None)]
 struct Args {
     /// Dump all entries
     #[arg(short, long)]

@@ -1,0 +1,17 @@
+[package]
+name = "hbt"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["pinboard"]
+pinboard = ["hbt-core/pinboard"]
+
+[dependencies]
+anyhow.workspace = true
+clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
+hbt-core = { path = "../core" }
+serde_json.workspace = true
+
+[dev-dependencies]
+snapbox = { version = "0.6.21", default-features = false, features = ["diff"] }

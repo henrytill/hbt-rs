@@ -210,11 +210,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "hbt-core"
+name = "hbt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "hbt-core",
+ "serde_json",
+ "snapbox",
+]
+
+[[package]]
+name = "hbt-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
  "insta",
  "pulldown-cmark",
  "quick-xml",
@@ -222,7 +232,6 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "snapbox",
  "time",
  "url",
 ]
