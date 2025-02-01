@@ -8,7 +8,7 @@ default = ["pinboard"]
 pinboard = ["hbt-core/pinboard"]
 
 [dependencies]
-anyhow.workspace = true
+anyhow = "1.0.82"
 clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
 hbt-core = { path = "../core" }
 serde_json.workspace = true
