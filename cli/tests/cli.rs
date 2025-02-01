@@ -1,13 +1,9 @@
-use snapbox::{
-    cmd::{cargo_bin, Command},
-    file,
-};
-
-const BIN: &str = env!("CARGO_PKG_NAME");
+use snapbox::{cmd::Command, file};
+use snapbox_macros::cargo_bin;
 
 #[test]
 fn test_help() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .arg("--help")
         .assert()
         .success()
@@ -16,7 +12,7 @@ fn test_help() {
 
 #[test]
 fn test_version() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .arg("--version")
         .assert()
         .success()
@@ -25,7 +21,7 @@ fn test_version() {
 
 #[test]
 fn test_missing_file() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .arg("nonexistent.md")
         .assert()
         .failure()
@@ -34,7 +30,7 @@ fn test_missing_file() {
 
 #[test]
 fn test_basic_markdown() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .arg("tests/cli/fixtures/basic.md")
         .assert()
         .success()
@@ -43,7 +39,7 @@ fn test_basic_markdown() {
 
 #[test]
 fn test_dump_markdown() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args(["--dump", "tests/cli/fixtures/basic.md"])
         .assert()
         .success()
@@ -53,7 +49,7 @@ fn test_dump_markdown() {
 #[cfg(feature = "pinboard")]
 #[test]
 fn test_basic_html() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .arg("tests/cli/fixtures/basic.html")
         .assert()
         .success()
@@ -63,7 +59,7 @@ fn test_basic_html() {
 #[cfg(feature = "pinboard")]
 #[test]
 fn test_dump_html() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args(["--dump", "tests/cli/fixtures/basic.html"])
         .assert()
         .success()
@@ -72,7 +68,7 @@ fn test_dump_html() {
 
 #[test]
 fn test_mappings() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args([
             "--dump",
             "--mappings",
@@ -86,7 +82,7 @@ fn test_mappings() {
 
 #[test]
 fn test_empty_mappings() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args([
             "--dump",
             "--mappings",
@@ -100,7 +96,7 @@ fn test_empty_mappings() {
 
 #[test]
 fn test_invalid_mappings() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args([
             "--dump",
             "--mappings",
@@ -114,7 +110,7 @@ fn test_invalid_mappings() {
 
 #[test]
 fn test_tags() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args(["--tags", "tests/cli/fixtures/basic.md"])
         .assert()
         .success()
@@ -123,7 +119,7 @@ fn test_tags() {
 
 #[test]
 fn test_tags_with_mappings() {
-    Command::new(cargo_bin(BIN))
+    Command::new(cargo_bin!("hbt"))
         .args([
             "--tags",
             "--mappings",
