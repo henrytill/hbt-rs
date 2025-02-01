@@ -3,8 +3,22 @@ mod tests;
 
 use std::collections::{hash_set::Iter, HashSet};
 
-use anyhow::Error;
 use serde::Deserialize;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("HTML selector error: {0}")]
+    HtmlSelector(String),
+    #[error("XML attribute error: {0}")]
+    XmlAttribute(#[from] quick_xml::events::attributes::AttrError),
+    #[error("XML parsing error: {0}")]
+    ParseXml(#[from] quick_xml::Error),
+    #[error("invalid UTF-8: {0}")]
+    ParseUtf8(#[from] std::string::FromUtf8Error),
+    #[error("JSON parsing error: {0}")]
+    ParseJson(#[from] serde_json::Error),
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Tags<'a>(HashSet<&'a str>);
@@ -93,10 +107,9 @@ impl Post {
 }
 
 mod html {
-    use anyhow::Error;
     use scraper::{Element, Html, Selector};
 
-    use super::Post;
+    use super::{Error, Post};
 
     #[inline]
     pub fn parse(input: &str) -> Result<Vec<Post>, Error> {
@@ -113,7 +126,7 @@ mod html {
 
         let document = Html::parse_document(input);
         let dt_selector = Selector::parse(SELECTOR_DESCRIPTION_TERM)
-            .map_err(|_| Error::msg("could not create selector"))?;
+            .map_err(|err| Error::HtmlSelector(err.to_string()))?;
 
         let posts = document
             .select(&dt_selector)
@@ -209,7 +222,6 @@ mod json {
 }
 
 mod xml {
-    use anyhow::Error;
     use quick_xml::{
         events::{
             attributes::{Attribute, Attributes},
@@ -218,7 +230,7 @@ mod xml {
         reader::Reader,
     };
 
-    use super::Post;
+    use super::{Error, Post};
 
     pub fn extract_post(attrs: Attributes) -> Result<Post, Error> {
         const KEY_HREF: &[u8] = b"href";

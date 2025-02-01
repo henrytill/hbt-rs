@@ -1,15 +1,24 @@
 #[cfg(test)]
 mod tests;
 
-use anyhow::Error;
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
+use thiserror::Error;
 use time::{macros::format_description, Date, OffsetDateTime};
 use url::Url;
 
 use crate::collection::{Collection, Entity, Id, Label, Name};
 
-const MSG_MISSING_URL: &str = "missing URL";
-const MSG_MISSING_DATE: &str = "missing date";
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("missing URL")]
+    MissingUrl,
+    #[error("missing date")]
+    MissingDate,
+    #[error("URL parsing error: {0}, {1}")]
+    ParseUrl(#[source] url::ParseError, String),
+    #[error("date parsing error: {0}, {1}")]
+    ParseDate(#[source] time::error::Parse, String),
+}
 
 struct HeadingLevelExt(HeadingLevel);
 
@@ -78,7 +87,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 ref tag @ Tag::Link { link_type: LinkType::Inline, ref dest_url, ref title, .. },
             ) => {
                 current_tag = Some(tag.to_owned());
-                url = Some(Url::parse(dest_url)?);
+                let parsed =
+                    Url::parse(dest_url).map_err(|e| Error::ParseUrl(e, dest_url.to_string()))?;
+                url = Some(parsed);
                 assert!(title.is_empty());
             }
             Event::Start(
@@ -88,7 +99,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             ) => {
                 current_tag = Some(tag.to_owned());
                 name = None;
-                url = Some(Url::parse(dest_url)?);
+                let parsed =
+                    Url::parse(dest_url).map_err(|e| Error::ParseUrl(e, dest_url.to_string()))?;
+                url = Some(parsed);
                 assert!(title.is_empty());
             }
             Event::Start(tag) => {
@@ -97,9 +110,8 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // Text
             Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
-                    let parsed = Date::parse(text.as_ref(), date_format).map_err(|err| {
-                        Error::msg(format!("Time parse error: {}, {}", err, text))
-                    })?;
+                    let parsed = Date::parse(text.as_ref(), date_format)
+                        .map_err(|err| Error::ParseDate(err, text.to_string()))?;
                     date = Some(parsed);
                 }
                 (Some(Tag::Heading { .. }), _) => {
@@ -117,8 +129,8 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 maybe_parent = None;
             }
             Event::End(TagEnd::Link) => {
-                let url = url.take().ok_or_else(|| Error::msg(MSG_MISSING_URL))?;
-                let date = date.ok_or_else(|| Error::msg(MSG_MISSING_DATE))?;
+                let url = url.take().ok_or(Error::MissingUrl)?;
+                let date = date.ok_or(Error::MissingDate)?;
                 let datetime = OffsetDateTime::new_utc(date, time::Time::MIDNIGHT);
                 let name = name.take();
                 let labels = labels.iter().cloned().collect();

@@ -8,14 +8,30 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use anyhow::Error;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use thiserror::Error;
 use time::{serde::timestamp, OffsetDateTime};
 use url::Url;
 
 #[cfg(feature = "pinboard")]
 use crate::pinboard::Post;
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("invalid JSON structure: expected object")]
+    InvalidJson,
+    #[error("incompatible version: {0}, expected: {1}")]
+    IncompatibleVersion(String, String),
+    #[error("version parsing error: {0}")]
+    ParseSemver(#[from] semver::Error),
+    #[error("URL parsing error: {0}")]
+    ParseUrl(#[from] url::ParseError),
+    #[error("integer parsing error: {0}")]
+    ParseInt(#[from] std::num::ParseIntError),
+    #[error("time parsing error: {0}")]
+    ParseTime(#[from] time::error::ComponentRange),
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 struct Version(semver::Version);
@@ -130,7 +146,7 @@ impl Time {
     }
 
     #[cfg(feature = "pinboard")]
-    fn parse(time: &str) -> Result<Time, anyhow::Error> {
+    fn parse(time: &str) -> Result<Time, Error> {
         let timestamp: i64 = time.parse()?;
         let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
         Ok(Time(time))
@@ -261,7 +277,7 @@ impl Entity {
 
 #[cfg(feature = "pinboard")]
 impl TryFrom<Post> for Entity {
-    type Error = anyhow::Error;
+    type Error = Error;
 
     fn try_from(post: Post) -> Result<Entity, Self::Error> {
         let url = Url::parse(&post.href)?;
@@ -426,7 +442,7 @@ impl Collection {
 fn json_to_map(json: Value) -> Result<BTreeMap<Label, Label>, Error> {
     let ret: BTreeMap<Label, Label> = json
         .as_object()
-        .ok_or(Error::msg("expected a JSON object"))?
+        .ok_or(Error::InvalidJson)?
         .iter()
         .filter_map(|(k, v)| {
             let v = v.as_str().map(Label::from)?;
@@ -473,18 +489,17 @@ impl From<&Collection> for SerializedCollection {
 }
 
 impl TryFrom<SerializedCollection> for Collection {
-    type Error = String;
+    type Error = Error;
 
     fn try_from(serialized_collection: SerializedCollection) -> Result<Collection, Self::Error> {
         let SerializedCollection { version, length, mut value } = serialized_collection;
 
-        let is_compatible_version = version.matches_requirement().map_err(|err| err.to_string())?;
+        let is_compatible_version = version.matches_requirement()?;
 
         if !is_compatible_version {
-            return Err(format!(
-                "incompatible version {}, expected {}",
-                Version::EXPECTED,
-                Version::EXPECTED_REQ
+            return Err(Error::IncompatibleVersion(
+                version.to_string(),
+                Version::EXPECTED_REQ.to_string(),
             ));
         }
 
