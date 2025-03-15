@@ -283,18 +283,8 @@ impl TryFrom<Post> for Entity {
         let url = Url::parse(&post.href)?;
         let created_at = Time::parse(&post.time)?;
         let updated_at: Vec<Time> = Vec::new();
-        let names = {
-            let mut tmp = BTreeSet::new();
-            if let Some(name) = post.description.map(Name::new) {
-                tmp.insert(name);
-            }
-            tmp
-        };
-        let labels = {
-            let mut tmp = BTreeSet::new();
-            tmp.extend(post.tags.into_iter().map(Label::new));
-            tmp
-        };
+        let names = post.description.into_iter().map(Name::new).collect();
+        let labels = post.tags.into_iter().map(Label::new).collect();
         let extended = post.extended.map(Extended::new);
         let shared = post.shared;
         let toread = post.toread;
