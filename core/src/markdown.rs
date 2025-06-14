@@ -3,7 +3,7 @@ mod tests;
 
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use thiserror::Error;
-use time::{macros::format_description, Date, OffsetDateTime};
+use time::{Date, OffsetDateTime, macros::format_description};
 use url::Url;
 
 use crate::collection::{Collection, Entity, Id, Label, Name};

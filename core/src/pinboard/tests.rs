@@ -23,7 +23,9 @@ fn test_xml_sample() {
     let magic_trace = Post::new(
         String::from("https://github.com/janestreet/magic-trace"),
         String::from("2022-04-23T00:29:36Z"),
-        Some(String::from("janestreet/magic-trace: magic-trace collects and displays high-resolution traces of what a process is doing")),
+        Some(String::from(
+            "janestreet/magic-trace: magic-trace collects and displays high-resolution traces of what a process is doing",
+        )),
         Some(String::from("tragically intel-only")),
         Vec::from(expected_tags.clone()),
         Some(String::from("54dab27be2409c987bb17fc06e47a729")),
@@ -31,7 +33,9 @@ fn test_xml_sample() {
         false,
     );
     let intel = Post::new(
-        String::from("https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html#gs.x8oazh"),
+        String::from(
+            "https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html#gs.x8oazh",
+        ),
         String::from("2022-04-13T13:12:10Z"),
         Some(String::from("Fix Performance Bottlenecks with Intel® VTune™ Profiler")),
         None,
@@ -72,7 +76,9 @@ fn test_json_sample() {
     let magic_trace = Post::new(
         String::from("https://github.com/janestreet/magic-trace"),
         String::from("2022-04-23T00:29:36Z"),
-        Some(String::from("janestreet/magic-trace: magic-trace collects and displays high-resolution traces of what a process is doing")),
+        Some(String::from(
+            "janestreet/magic-trace: magic-trace collects and displays high-resolution traces of what a process is doing",
+        )),
         Some(String::from("tragically intel-only")),
         Vec::from(expected_tags.clone()),
         Some(String::from("54dab27be2409c987bb17fc06e47a729")),
@@ -80,7 +86,9 @@ fn test_json_sample() {
         false,
     );
     let intel = Post::new(
-        String::from("https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html#gs.x8oazh"),
+        String::from(
+            "https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html#gs.x8oazh",
+        ),
         String::from("2022-04-13T13:12:10Z"),
         Some(String::from("Fix Performance Bottlenecks with Intel® VTune™ Profiler")),
         None,
@@ -139,18 +147,27 @@ fn test_html_sample() {
             String::from("https://docs.microsoft.com/en-us/sysinternals/downloads/procmon"),
             String::from("1606184699"),
             Some(String::from("Process Monitor - Windows Sysinternals | Microsoft Docs")),
-            Some(String::from("Monitor file system, Registry, process, thread and DLL activity in real-time.")),
+            Some(String::from(
+                "Monitor file system, Registry, process, thread and DLL activity in real-time.",
+            )),
             vec![String::from("windows-dev")],
             None,
             false,
             false,
         ),
         Post::new(
-            String::from("https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html"),
+            String::from(
+                "https://www.intel.com/content/www/us/en/developer/tools/oneapi/vtune-profiler.html",
+            ),
             String::from("1649855530"),
             Some(String::from("Fix Performance Bottlenecks with Intel® VTune™ Profiler")),
             None,
-            vec![String::from("performance"), String::from("profiling"), String::from("tools"), String::from("toread")],
+            vec![
+                String::from("performance"),
+                String::from("profiling"),
+                String::from("tools"),
+                String::from("toread"),
+            ],
             None,
             false,
             true,

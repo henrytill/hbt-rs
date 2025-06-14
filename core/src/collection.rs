@@ -11,7 +11,7 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
-use time::{serde::timestamp, OffsetDateTime};
+use time::{OffsetDateTime, serde::timestamp};
 use url::Url;
 
 #[cfg(feature = "pinboard")]

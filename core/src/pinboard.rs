@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::collections::{hash_set::Iter, HashSet};
+use std::collections::{HashSet, hash_set::Iter};
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -141,11 +141,7 @@ mod html {
                 let tags = a_element.value().attr(ATTR_TAGS)?;
                 let description = {
                     let text = a_element.text().collect::<String>();
-                    if text.is_empty() {
-                        None
-                    } else {
-                        Some(text)
-                    }
+                    if text.is_empty() { None } else { Some(text) }
                 };
                 let time = add_date.parse().ok()?;
                 let shared = private == FALSE;
@@ -186,11 +182,7 @@ mod json {
         D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
-        if s.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(s))
-        }
+        if s.is_empty() { Ok(None) } else { Ok(Some(s)) }
     }
 
     pub fn deserialize_tags<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
@@ -224,8 +216,8 @@ mod json {
 mod xml {
     use quick_xml::{
         events::{
-            attributes::{Attribute, Attributes},
             Event,
+            attributes::{Attribute, Attributes},
         },
         reader::Reader,
     };
