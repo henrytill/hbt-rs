@@ -12,9 +12,8 @@
       ...
     }:
     let
-      makeHbt =
-        pkgs:
-        pkgs.rustPlatform.buildRustPackage {
+      overlay = final: prev: {
+        hbt = final.pkgs.rustPlatform.buildRustPackage {
           name = "hbt";
           cargoLock = {
             lockFile = ./Cargo.lock;
@@ -24,14 +23,18 @@
             name = "hbt-src";
           };
         };
+      };
     in
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [ overlay ];
+        };
       in
       {
-        packages.hbt = makeHbt pkgs;
+        packages.hbt = pkgs.hbt;
         packages.default = self.packages.${system}.hbt;
       }
     );
