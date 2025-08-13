@@ -13,7 +13,7 @@
     }:
     let
       overlay = final: prev: {
-        hbt = final.pkgs.rustPlatform.buildRustPackage {
+        hbt = final.rustPlatform.buildRustPackage {
           name = "hbt";
           cargoLock = {
             lockFile = ./Cargo.lock;
