@@ -11,6 +11,8 @@ use std::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
+#[cfg(feature = "pinboard")]
+use time::format_description::well_known::Rfc3339;
 use time::{OffsetDateTime, serde::timestamp};
 use url::Url;
 
@@ -31,6 +33,8 @@ pub enum Error {
     ParseInt(#[from] std::num::ParseIntError),
     #[error("time parsing error: {0}")]
     ParseTime(#[from] time::error::ComponentRange),
+    #[error("time format parsing error: {0}")]
+    ParseTimeFormat(#[from] time::error::Parse),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -150,6 +154,23 @@ impl Time {
         let timestamp: i64 = time.parse()?;
         let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
         Ok(Time(time))
+    }
+
+    #[cfg(feature = "pinboard")]
+    fn parse_iso8601(time: &str) -> Result<Time, Error> {
+        let time = OffsetDateTime::parse(time, &Rfc3339)?;
+        Ok(Time(time))
+    }
+
+    #[cfg(feature = "pinboard")]
+    fn parse_flexible(time: &str) -> Result<Time, Error> {
+        // Try Unix timestamp first (all digits, possibly with leading/trailing whitespace)
+        if time.trim().chars().all(|c| c.is_ascii_digit()) {
+            Self::parse(time.trim())
+        } else {
+            // Try ISO 8601 format
+            Self::parse_iso8601(time.trim())
+        }
     }
 }
 
@@ -281,7 +302,7 @@ impl TryFrom<Post> for Entity {
 
     fn try_from(post: Post) -> Result<Entity, Self::Error> {
         let url = Url::parse(&post.href)?;
-        let created_at = Time::parse(&post.time)?;
+        let created_at = Time::parse_flexible(&post.time)?;
         let updated_at: Vec<Time> = Vec::new();
         let names = post.description.into_iter().map(Name::new).collect();
         let labels = post.tags.into_iter().map(Label::new).collect();
