@@ -159,12 +159,11 @@ mod html {
                     toread,
                 };
 
-                if let Some(dd_element) = dt_element.next_sibling_element() {
-                    if dd_element.value().name() == SELECTOR_DESCRIPTION_DETAILS {
+                if let Some(dd_element) = dt_element.next_sibling_element()
+                    && dd_element.value().name() == SELECTOR_DESCRIPTION_DETAILS {
                         let extended_text = dd_element.text().collect::<String>();
                         post.extended = Some(extended_text.trim().to_string());
                     }
-                }
 
                 Some(post)
             })
