@@ -233,6 +233,9 @@ pub struct Entity {
     extended: Option<Extended>,
     shared: bool,
     toread: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    last_visited_at: Option<Time>,
+    is_feed: bool,
 }
 
 impl Entity {
@@ -247,7 +250,20 @@ impl Entity {
         let extended = None;
         let shared = false;
         let toread = false;
-        Entity { url, created_at, updated_at, names, labels, extended, shared, toread }
+        let last_visited_at = None;
+        let is_feed = false;
+        Entity {
+            url,
+            created_at,
+            updated_at,
+            names,
+            labels,
+            extended,
+            shared,
+            toread,
+            last_visited_at,
+            is_feed,
+        }
     }
 
     pub fn update(
@@ -294,6 +310,44 @@ impl Entity {
     pub fn labels_mut(&mut self) -> &mut BTreeSet<Label> {
         &mut self.labels
     }
+
+    pub fn last_visited_at(&self) -> Option<&Time> {
+        self.last_visited_at.as_ref()
+    }
+
+    pub fn is_feed(&self) -> bool {
+        self.is_feed
+    }
+
+    pub fn with_extended(mut self, extended: Option<Extended>) -> Entity {
+        self.extended = extended;
+        self
+    }
+
+    pub fn with_shared(mut self, shared: bool) -> Entity {
+        self.shared = shared;
+        self
+    }
+
+    pub fn with_toread(mut self, toread: bool) -> Entity {
+        self.toread = toread;
+        self
+    }
+
+    pub fn with_last_visited_at(mut self, last_visited_at: Option<Time>) -> Entity {
+        self.last_visited_at = last_visited_at;
+        self
+    }
+
+    pub fn with_is_feed(mut self, is_feed: bool) -> Entity {
+        self.is_feed = is_feed;
+        self
+    }
+
+    pub fn with_updated_at(mut self, updated_at: Vec<Time>) -> Entity {
+        self.updated_at = updated_at;
+        self
+    }
 }
 
 #[cfg(feature = "pinboard")]
@@ -309,7 +363,20 @@ impl TryFrom<Post> for Entity {
         let extended = post.extended.map(Extended::new);
         let shared = post.shared;
         let toread = post.toread;
-        Ok(Entity { url, created_at, updated_at, names, labels, extended, shared, toread })
+        let last_visited_at = None;
+        let is_feed = false;
+        Ok(Entity {
+            url,
+            created_at,
+            updated_at,
+            names,
+            labels,
+            extended,
+            shared,
+            toread,
+            last_visited_at,
+            is_feed,
+        })
     }
 }
 
@@ -546,5 +613,237 @@ impl<'de> Deserialize<'de> for Collection {
     {
         let collection = SerializedCollection::deserialize(deserializer)?;
         Collection::try_from(collection).map_err(serde::de::Error::custom)
+    }
+}
+
+#[cfg(feature = "pinboard")]
+mod netscape {
+    use super::*;
+    use scraper::{Html, Selector};
+    use std::collections::HashMap;
+
+    pub fn from_html_str(html: &str) -> Result<Collection, Error> {
+        let document = Html::parse_document(html);
+        let mut collection = Collection::new();
+
+        let mut folder_stack: Vec<String> = Vec::new();
+        let mut pending_bookmark: Option<(HashMap<String, String>, Option<String>)> = None;
+
+        // Process the document iteratively using an explicit stack to avoid recursion
+        process(
+            document.root_element(),
+            &mut collection,
+            &mut folder_stack,
+            &mut pending_bookmark,
+        )?;
+
+        // Handle any remaining pending bookmark
+        if let Some((attrs, description)) = pending_bookmark {
+            create_and_insert_bookmark(&mut collection, &folder_stack, attrs, description, None)?;
+        }
+
+        Ok(collection)
+    }
+
+    #[derive(Debug)]
+    enum StackItem<'a> {
+        Element(scraper::ElementRef<'a>),
+        PopFolder,
+    }
+
+    fn process(
+        root: scraper::ElementRef,
+        collection: &mut Collection,
+        folder_stack: &mut Vec<String>,
+        pending_bookmark: &mut Option<(HashMap<String, String>, Option<String>)>,
+    ) -> Result<(), Error> {
+        // Use a stack for depth-first traversal (which maintains document order)
+        let mut stack: Vec<StackItem> = Vec::new();
+        let a_selector = Selector::parse("a").unwrap();
+
+        // Start with root's children in reverse order (so they're processed in correct order)
+        for child in root.children().rev() {
+            if let Some(child_element) = scraper::ElementRef::wrap(child) {
+                stack.push(StackItem::Element(child_element));
+            }
+        }
+
+        while let Some(item) = stack.pop() {
+            match item {
+                StackItem::Element(element) => {
+                    let tag_name = element.value().name();
+
+                    match tag_name {
+                        "h3" => {
+                            // Add folder name to stack
+                            let folder_name = element.text().collect::<String>().trim().to_string();
+                            if !folder_name.is_empty() {
+                                folder_stack.push(folder_name);
+                            }
+                        }
+                        "dt" => {
+                            // Finalize any previous bookmark before processing new one
+                            if let Some((attrs, description)) = pending_bookmark.take() {
+                                create_and_insert_bookmark(
+                                    collection,
+                                    folder_stack,
+                                    attrs,
+                                    description,
+                                    None,
+                                )?;
+                            }
+
+                            // Look for an anchor tag within this dt
+                            if let Some(a_element) = element.select(&a_selector).next() {
+                                let attrs = extract_attributes(a_element);
+                                let description =
+                                    a_element.text().collect::<String>().trim().to_string();
+                                let description =
+                                    if description.is_empty() { None } else { Some(description) };
+                                *pending_bookmark = Some((attrs, description));
+                            }
+                        }
+                        "dd" => {
+                            // Extended description for pending bookmark
+                            if let Some((attrs, description)) = pending_bookmark.take() {
+                                let extended =
+                                    element.text().collect::<String>().trim().to_string();
+                                let extended =
+                                    if extended.is_empty() { None } else { Some(extended) };
+                                create_and_insert_bookmark(
+                                    collection,
+                                    folder_stack,
+                                    attrs,
+                                    description,
+                                    extended,
+                                )?;
+                            }
+                        }
+                        "dl" => {
+                            // Schedule folder pop after processing children
+                            stack.push(StackItem::PopFolder);
+
+                            // Add children in reverse order (so they're processed in correct order)
+                            for child in element.children().rev() {
+                                if let Some(child_element) = scraper::ElementRef::wrap(child) {
+                                    stack.push(StackItem::Element(child_element));
+                                }
+                            }
+                            continue; // Don't process general children for dl
+                        }
+                        _ => {}
+                    }
+
+                    // Add children in reverse order for non-dl elements
+                    if tag_name != "dl" {
+                        for child in element.children().rev() {
+                            if let Some(child_element) = scraper::ElementRef::wrap(child) {
+                                stack.push(StackItem::Element(child_element));
+                            }
+                        }
+                    }
+                }
+                StackItem::PopFolder => {
+                    folder_stack.pop();
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn extract_attributes(element: scraper::ElementRef) -> HashMap<String, String> {
+        let mut attrs = HashMap::new();
+        for (name, value) in element.value().attrs() {
+            attrs.insert(name.to_lowercase(), value.to_string());
+        }
+        attrs
+    }
+
+    fn create_and_insert_bookmark(
+        collection: &mut Collection,
+        folder_stack: &[String],
+        attrs: HashMap<String, String>,
+        description: Option<String>,
+        extended: Option<String>,
+    ) -> Result<(), Error> {
+        // Extract URL
+        let href = attrs.get("href").ok_or_else(|| Error::ParseUrl(url::ParseError::EmptyHost))?;
+        let url = Url::parse(href)?;
+
+        // Extract timestamps
+        let created_at = parse_timestamp_attr(&attrs, "add_date")?;
+        let last_modified = parse_timestamp_attr_opt(&attrs, "last_modified")?;
+        let last_visited_at = parse_timestamp_attr_opt(&attrs, "last_visit")?;
+
+        // Extract tags
+        let tag_string = attrs.get("tags").cloned().unwrap_or_default();
+        let tags: Vec<String> = if tag_string.is_empty() {
+            Vec::new()
+        } else {
+            tag_string.split(',').map(|s| s.trim().to_string()).collect()
+        };
+
+        // Add folder path as labels and filter out "toread"
+        let labels: BTreeSet<Label> = folder_stack
+            .iter()
+            .chain(tags.iter())
+            .filter(|&tag| tag != "toread")
+            .map(|tag| Label::from(tag.clone()))
+            .collect();
+
+        // Extract other attributes
+        let shared = match attrs.get("private") {
+            Some(val) if val == "1" => false,
+            _ => true,
+        };
+
+        let toread =
+            attrs.get("toread").map_or(false, |val| val == "1") || tag_string.contains("toread");
+
+        let is_feed = attrs.get("feed").map_or(false, |val| val == "true");
+
+        // Create updated_at vector
+        let updated_at =
+            if let Some(last_mod) = last_modified { vec![last_mod] } else { Vec::new() };
+
+        // Create entity
+        let entity = Entity::new(url, created_at, description.map(Name::from), labels)
+            .with_extended(extended.map(Extended::from))
+            .with_shared(shared)
+            .with_toread(toread)
+            .with_last_visited_at(last_visited_at)
+            .with_is_feed(is_feed)
+            .with_updated_at(updated_at);
+
+        collection.upsert(entity);
+        Ok(())
+    }
+
+    fn parse_timestamp_attr(attrs: &HashMap<String, String>, key: &str) -> Result<Time, Error> {
+        parse_timestamp_attr_opt(attrs, key).map(|opt| opt.unwrap_or(Time::default()))
+    }
+
+    fn parse_timestamp_attr_opt(
+        attrs: &HashMap<String, String>,
+        key: &str,
+    ) -> Result<Option<Time>, Error> {
+        if let Some(timestamp_str) = attrs.get(key) {
+            if timestamp_str.trim().is_empty() {
+                return Ok(None);
+            }
+            let timestamp: i64 = timestamp_str.trim().parse()?;
+            let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
+            Ok(Some(Time::new(time)))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+impl Collection {
+    #[cfg(feature = "pinboard")]
+    pub fn from_html_str(html: &str) -> Result<Collection, Error> {
+        netscape::from_html_str(html)
     }
 }

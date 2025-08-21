@@ -227,3 +227,120 @@ fn test_update_labels_invalid_json() {
     assert!(labels.contains(&Label::from("valid-update")));
     assert!(!labels.contains(&Label::from("tag2")));
 }
+
+#[cfg(feature = "pinboard")]
+mod html_tests {
+    use super::*;
+
+    fn load_fixture(filename: &str) -> String {
+        std::fs::read_to_string(format!(
+            "{}/src/collection/fixtures/{}",
+            env!("CARGO_MANIFEST_DIR"),
+            filename
+        ))
+        .unwrap_or_else(|_| panic!("Failed to load fixture: {}", filename))
+    }
+
+    #[test]
+    fn snapshot_html_simple() {
+        let html = load_fixture("bookmarks_simple.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+        insta::assert_json_snapshot!(collection);
+    }
+
+    #[test]
+    fn snapshot_html_folders() {
+        let html = load_fixture("bookmarks_folders.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+        insta::assert_json_snapshot!(collection);
+    }
+
+    #[test]
+    fn snapshot_html_privacy() {
+        let html = load_fixture("bookmarks_privacy.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+        insta::assert_json_snapshot!(collection);
+    }
+
+    #[test]
+    fn snapshot_html_feeds() {
+        let html = load_fixture("bookmarks_feeds.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+        insta::assert_json_snapshot!(collection);
+    }
+
+    #[test]
+    fn snapshot_html_pinboard() {
+        let html = load_fixture("bookmarks_pinboard.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+        insta::assert_json_snapshot!(collection);
+    }
+
+    #[test]
+    fn test_html_parsing_basic() {
+        let html = load_fixture("bookmarks_simple.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+
+        assert_eq!(collection.len(), 3);
+
+        // Check that URLs are parsed correctly
+        assert!(collection.contains(&Url::parse("https://example.com/").unwrap()));
+        assert!(collection.contains(&Url::parse("https://github.com/").unwrap()));
+        assert!(collection.contains(&Url::parse("https://news.ycombinator.com/").unwrap()));
+    }
+
+    #[test]
+    fn test_html_parsing_folders() {
+        let html = load_fixture("bookmarks_folders.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+
+        assert_eq!(collection.len(), 7); // Updated count for the folders fixture
+
+        // Find GitHub entity and check its labels include folder name
+        let github_url = Url::parse("https://github.com/").unwrap();
+        if let Some(id) = collection.id(&github_url) {
+            let entity = collection.entity(id);
+            let labels = entity.labels();
+            assert!(labels.contains(&Label::from("Programming")));
+            assert!(labels.contains(&Label::from("git")));
+            assert!(labels.contains(&Label::from("hosting")));
+        } else {
+            panic!("GitHub entity not found");
+        }
+    }
+
+    #[test]
+    fn test_html_parsing_privacy() {
+        let html = load_fixture("bookmarks_privacy.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+
+        assert_eq!(collection.len(), 6);
+
+        // Check private bookmark
+        let private_url = Url::parse("https://internal.company.com/").unwrap();
+        if let Some(id) = collection.id(&private_url) {
+            let entity = collection.entity(id);
+            assert_eq!(entity.shared, false); // PRIVATE="1" should set shared=false
+        } else {
+            panic!("Private entity not found");
+        }
+
+        // Check public bookmark
+        let public_url = Url::parse("https://example.com/").unwrap();
+        if let Some(id) = collection.id(&public_url) {
+            let entity = collection.entity(id);
+            assert_eq!(entity.shared, true); // PRIVATE="0" should set shared=true
+        } else {
+            panic!("Public entity not found");
+        }
+
+        // Check feed bookmarks
+        let feed_url = Url::parse("https://public-feed.example.com/rss").unwrap();
+        if let Some(id) = collection.id(&feed_url) {
+            let entity = collection.entity(id);
+            assert_eq!(entity.is_feed(), true); // FEED="true" should set is_feed=true
+        } else {
+            panic!("Feed entity not found");
+        }
+    }
+}

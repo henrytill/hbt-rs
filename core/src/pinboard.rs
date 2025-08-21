@@ -93,83 +93,12 @@ impl Post {
         Post { href, time, description, extended, tags, hash, shared, toread }
     }
 
-    pub fn from_html(input: &str) -> Result<Vec<Post>, Error> {
-        html::parse(input)
-    }
-
     pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {
         serde_json::from_str(input).map_err(Into::into)
     }
 
     pub fn from_xml(input: &str) -> Result<Vec<Post>, Error> {
         xml::parse(input)
-    }
-}
-
-mod html {
-    use scraper::{Element, Html, Selector};
-
-    use super::{Error, Post};
-
-    #[inline]
-    pub fn parse(input: &str) -> Result<Vec<Post>, Error> {
-        const SELECTOR_DESCRIPTION_TERM: &str = "dt";
-        const SELECTOR_DESCRIPTION_DETAILS: &str = "dd";
-        const SELECTOR_ANCHOR: &str = "a";
-        const ATTR_HREF: &str = "href";
-        const ATTR_ADD_DATE: &str = "add_date";
-        const ATTR_PRIVATE: &str = "private";
-        const ATTR_TOREAD: &str = "toread";
-        const ATTR_TAGS: &str = "tags";
-        const TRUE: &str = "1";
-        const FALSE: &str = "0";
-
-        let document = Html::parse_document(input);
-        let dt_selector = Selector::parse(SELECTOR_DESCRIPTION_TERM)
-            .map_err(|err| Error::HtmlSelector(err.to_string()))?;
-
-        let posts = document
-            .select(&dt_selector)
-            .filter_map(|dt_element| {
-                let a_selector = Selector::parse(SELECTOR_ANCHOR).ok()?;
-                let a_element = dt_element.select(&a_selector).next()?;
-
-                let href = a_element.value().attr(ATTR_HREF)?.to_string();
-                let add_date = a_element.value().attr(ATTR_ADD_DATE)?;
-                let private = a_element.value().attr(ATTR_PRIVATE)?;
-                let toread = a_element.value().attr(ATTR_TOREAD)?;
-                let tags = a_element.value().attr(ATTR_TAGS)?;
-                let description = {
-                    let text = a_element.text().collect::<String>();
-                    if text.is_empty() { None } else { Some(text) }
-                };
-                let time = add_date.parse().ok()?;
-                let shared = private == FALSE;
-                let toread = toread == TRUE;
-                let tags = tags.split(',').map(ToString::to_string).collect();
-
-                let mut post = Post {
-                    href,
-                    time,
-                    description,
-                    extended: None,
-                    tags,
-                    hash: None,
-                    shared,
-                    toread,
-                };
-
-                if let Some(dd_element) = dt_element.next_sibling_element()
-                    && dd_element.value().name() == SELECTOR_DESCRIPTION_DETAILS {
-                        let extended_text = dd_element.text().collect::<String>();
-                        post.extended = Some(extended_text.trim().to_string());
-                    }
-
-                Some(post)
-            })
-            .collect();
-
-        Ok(posts)
     }
 }
 

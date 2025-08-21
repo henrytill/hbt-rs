@@ -68,8 +68,7 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
 
 #[cfg(feature = "pinboard")]
 fn html(args: &Args, input: &str) -> Result<(), Error> {
-    let posts = Post::from_html(input)?;
-    let mut collection = create_collection(posts)?;
+    let mut collection = Collection::from_html_str(input)?;
     update_collection(args, &mut collection)?;
     print_collection(args, &collection)?;
     Ok(())
