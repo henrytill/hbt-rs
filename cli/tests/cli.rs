@@ -72,7 +72,7 @@ fn test_mappings() {
         .args([
             "--dump",
             "--mappings",
-            "tests/cli/fixtures/mappings.json",
+            "tests/cli/fixtures/mappings.yaml",
             "tests/cli/fixtures/basic.md",
         ])
         .assert()
@@ -86,7 +86,7 @@ fn test_empty_mappings() {
         .args([
             "--dump",
             "--mappings",
-            "tests/cli/fixtures/mappings-empty.json",
+            "tests/cli/fixtures/mappings-empty.yaml",
             "tests/cli/fixtures/basic.md",
         ])
         .assert()
@@ -100,7 +100,7 @@ fn test_invalid_mappings() {
         .args([
             "--dump",
             "--mappings",
-            "tests/cli/fixtures/mappings-invalid.json",
+            "tests/cli/fixtures/mappings-invalid.yaml",
             "tests/cli/fixtures/basic.md",
         ])
         .assert()
@@ -123,7 +123,7 @@ fn test_tags_with_mappings() {
         .args([
             "--tags",
             "--mappings",
-            "tests/cli/fixtures/mappings.json",
+            "tests/cli/fixtures/mappings.yaml",
             "tests/cli/fixtures/basic.md",
         ])
         .assert()

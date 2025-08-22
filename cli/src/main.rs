@@ -41,7 +41,8 @@ fn create_collection(posts: Vec<Post>) -> Result<Collection, Error> {
 fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Error> {
     if let Some(mappings) = &args.mappings {
         let contents = fs::read_to_string(mappings)?;
-        let contents_value: Value = serde_json::from_str(&contents)?;
+        let yaml_value: serde_yaml::Value = serde_yaml::from_str(&contents)?;
+        let contents_value: Value = serde_json::to_value(yaml_value)?;
         collection.update_labels(contents_value)?;
     }
     Ok(())
@@ -49,8 +50,8 @@ fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Err
 
 fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
     if args.dump {
-        let json = serde_json::to_string_pretty(collection)?;
-        println!("{}", json);
+        let yaml = serde_yaml::to_string(collection)?;
+        println!("{}", yaml);
     } else if args.tags {
         let mut all_tags = BTreeSet::new();
         for entity in collection.entities() {

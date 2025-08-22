@@ -1,62 +1,46 @@
-{
-  "version": "0.1.0",
-  "length": 3,
-  "value": [
-    {
-      "id": 0,
-      "entity": {
-        "uri": "https://rust-lang.org/",
-        "createdAt": 1700006400,
-        "updatedAt": [],
-        "names": [
-          "Rust Website"
-        ],
-        "labels": [
-          "dev",
-          "languages"
-        ],
-        "shared": false,
-        "toread": false,
-        "isFeed": false
-      },
-      "edges": []
-    },
-    {
-      "id": 1,
-      "entity": {
-        "uri": "https://users.rust-lang.org/",
-        "createdAt": 1700006400,
-        "updatedAt": [],
-        "names": [],
-        "labels": [
-          "dev",
-          "languages"
-        ],
-        "shared": false,
-        "toread": false,
-        "isFeed": false
-      },
-      "edges": []
-    },
-    {
-      "id": 2,
-      "entity": {
-        "uri": "https://code.visualstudio.com/",
-        "createdAt": 1700006400,
-        "updatedAt": [],
-        "names": [
-          "VS Code"
-        ],
-        "labels": [
-          "dev",
-          "editors",
-          "tools"
-        ],
-        "shared": false,
-        "toread": false,
-        "isFeed": false
-      },
-      "edges": []
-    }
-  ]
-}
+version: 0.1.0
+length: 3
+value:
+- id: 0
+  entity:
+    uri: https://rust-lang.org/
+    createdAt: 1700006400
+    updatedAt: []
+    names:
+    - Rust Website
+    labels:
+    - dev
+    - languages
+    shared: false
+    toread: false
+    isFeed: false
+  edges: []
+- id: 1
+  entity:
+    uri: https://users.rust-lang.org/
+    createdAt: 1700006400
+    updatedAt: []
+    names: []
+    labels:
+    - dev
+    - languages
+    shared: false
+    toread: false
+    isFeed: false
+  edges: []
+- id: 2
+  entity:
+    uri: https://code.visualstudio.com/
+    createdAt: 1700006400
+    updatedAt: []
+    names:
+    - VS Code
+    labels:
+    - dev
+    - editors
+    - tools
+    shared: false
+    toread: false
+    isFeed: false
+  edges: []
+

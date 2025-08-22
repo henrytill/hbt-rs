@@ -12,6 +12,7 @@ anyhow = "1.0.82"
 clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
 hbt-core = { path = "../core" }
 serde_json.workspace = true
+serde_yaml = "0.9.34"
 
 [dev-dependencies]
 snapbox = { version = "0.6.21", default-features = false, features = ["diff"] }
