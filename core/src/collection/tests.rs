@@ -206,4 +206,119 @@ mod html_tests {
     snapshot_html_test!(snapshot_html_privacy, "bookmarks_privacy.html");
     snapshot_html_test!(snapshot_html_feeds, "bookmarks_feeds.html");
     snapshot_html_test!(snapshot_html_pinboard, "bookmarks_pinboard.html");
+
+    macro_rules! snapshot_to_html_test {
+        ($test_name:ident, $fixture_name:expr) => {
+            #[test]
+            fn $test_name() {
+                let html = load_fixture($fixture_name);
+                let collection = Collection::from_html_str(&html).unwrap();
+                let generated_html = collection.to_html().unwrap();
+                insta::assert_snapshot!(generated_html);
+            }
+        };
+    }
+
+    snapshot_to_html_test!(snapshot_to_html_simple, "bookmarks_simple.html");
+    snapshot_to_html_test!(snapshot_to_html_folders, "bookmarks_folders.html");
+    snapshot_to_html_test!(snapshot_to_html_privacy, "bookmarks_privacy.html");
+    snapshot_to_html_test!(snapshot_to_html_feeds, "bookmarks_feeds.html");
+    snapshot_to_html_test!(snapshot_to_html_pinboard, "bookmarks_pinboard.html");
+
+    #[test]
+    fn test_html_roundtrip_consistency() {
+        // Test that parsing and regenerating preserves data structure
+        let html = load_fixture("bookmarks_simple.html");
+        let collection = Collection::from_html_str(&html).unwrap();
+        let generated_html = collection.to_html().unwrap();
+        let roundtrip_collection = Collection::from_html_str(&generated_html).unwrap();
+
+        // Verify the collections are equivalent
+        assert_eq!(collection.len(), roundtrip_collection.len());
+
+        for i in 0..collection.len() {
+            let id = Id::new(i);
+            let original = collection.entity(id);
+            let roundtrip = roundtrip_collection.entity(id);
+
+            assert_eq!(original.url(), roundtrip.url());
+            assert_eq!(original.names(), roundtrip.names());
+            assert_eq!(original.labels(), roundtrip.labels());
+            assert_eq!(original.shared(), roundtrip.shared());
+            assert_eq!(original.toread(), roundtrip.toread());
+            assert_eq!(original.is_feed(), roundtrip.is_feed());
+        }
+    }
+}
+
+mod to_html_tests {
+    use super::*;
+
+    #[test]
+    fn test_to_html_basic() {
+        // Create a simple collection for testing
+        let mut collection = Collection::new();
+
+        let url = Url::parse("https://example.com/").unwrap();
+        let entity = Entity::new(
+            url,
+            datetime!(2021-01-01 0:00 UTC).into(),
+            Some(Name::from("Example Website")),
+            vec![Label::from("test"), Label::from("example")].into_iter().collect(),
+        );
+
+        collection.upsert(entity);
+
+        let html = collection.to_html().unwrap();
+
+        // Basic structure checks
+        assert!(html.contains("<!DOCTYPE NETSCAPE-Bookmark-file-1>"));
+        assert!(html.contains("<TITLE>Bookmarks</TITLE>"));
+        assert!(html.contains("<H1>Bookmarks</H1>"));
+        assert!(html.contains("<DL>"));
+        assert!(html.contains("</DL>"));
+
+        // Should contain the bookmark
+        assert!(html.contains(r#"HREF="https://example.com/""#));
+        assert!(html.contains("ADD_DATE="));
+        assert!(html.contains("Example Website"));
+        // Tags might be in different order due to BTreeSet
+        assert!(html.contains("TAGS=") && html.contains("test") && html.contains("example"));
+    }
+
+    #[test]
+    fn test_to_html_empty_collection() {
+        let collection = Collection::new();
+        let html = collection.to_html().unwrap();
+
+        // Should generate valid HTML structure even for empty collection
+        assert!(html.contains("<!DOCTYPE NETSCAPE-Bookmark-file-1>"));
+        assert!(html.contains("<TITLE>Bookmarks</TITLE>"));
+        assert!(html.contains("<DL><p>"));
+        assert!(html.contains("</DL><p>"));
+
+        // Should not contain any bookmarks
+        assert!(!html.contains("<DT><A HREF="));
+    }
+
+    #[test]
+    fn test_to_html_fallback_to_url() {
+        // Test that when no name is provided, URL is used as title
+        let mut collection = Collection::new();
+
+        let url = Url::parse("https://github.com/").unwrap();
+        let entity = Entity::new(
+            url,
+            datetime!(2021-01-01 0:00 UTC).into(),
+            None, // No name provided
+            BTreeSet::new(),
+        );
+
+        collection.upsert(entity);
+
+        let html = collection.to_html().unwrap();
+
+        // Should use URL as the title when no name is available
+        assert!(html.contains(">https://github.com/</A>"));
+    }
 }

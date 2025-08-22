@@ -8,6 +8,7 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use minijinja::{Environment, context};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
@@ -35,6 +36,8 @@ pub enum Error {
     ParseTime(#[from] time::error::ComponentRange),
     #[error("time format parsing error: {0}")]
     ParseTimeFormat(#[from] time::error::Parse),
+    #[error("template error: {0}")]
+    Template(#[from] minijinja::Error),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -317,6 +320,18 @@ impl Entity {
 
     pub fn is_feed(&self) -> bool {
         self.is_feed
+    }
+
+    pub fn shared(&self) -> bool {
+        self.shared
+    }
+
+    pub fn toread(&self) -> bool {
+        self.toread
+    }
+
+    pub fn extended(&self) -> Option<&Extended> {
+        self.extended.as_ref()
     }
 
     pub fn with_extended(mut self, extended: Option<Extended>) -> Entity {
@@ -845,10 +860,24 @@ mod netscape {
             Ok(None)
         }
     }
+
+    pub fn to_html(collection: &Collection) -> Result<String, Error> {
+        const TEMPLATE: &str = include_str!("collection/netscape_bookmarks.jinja");
+        let mut env = Environment::new();
+        env.add_template("netscape", TEMPLATE)?;
+        let entities = collection.entities();
+        let template = env.get_template("netscape")?;
+        let rendered = template.render(context! { entities })?;
+        Ok(rendered)
+    }
 }
 
 impl Collection {
     pub fn from_html_str(html: &str) -> Result<Collection, Error> {
         netscape::from_html_str(html)
+    }
+
+    pub fn to_html(&self) -> Result<String, Error> {
+        netscape::to_html(self)
     }
 }
