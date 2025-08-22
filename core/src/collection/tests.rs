@@ -177,7 +177,6 @@ fn test_update_labels_invalid_json() {
     assert!(!labels.contains(&Label::from("tag2")));
 }
 
-#[cfg(feature = "pinboard")]
 mod html_tests {
     use super::*;
 
