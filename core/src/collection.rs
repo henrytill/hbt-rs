@@ -768,7 +768,7 @@ mod netscape {
         extended: Option<String>,
     ) -> Result<(), Error> {
         // Extract URL
-        let href = attrs.get("href").ok_or_else(|| Error::ParseUrl(url::ParseError::EmptyHost))?;
+        let href = attrs.get("href").ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
         let url = Url::parse(href)?;
 
         // Extract timestamps
@@ -793,15 +793,12 @@ mod netscape {
             .collect();
 
         // Extract other attributes
-        let shared = match attrs.get("private") {
-            Some(val) if val == "1" => false,
-            _ => true,
-        };
+        let shared = !matches!(attrs.get("private"), Some(val) if val == "1");
 
         let toread =
-            attrs.get("toread").map_or(false, |val| val == "1") || tag_string.contains("toread");
+            attrs.get("toread").is_some_and(|val| val == "1") || tag_string.contains("toread");
 
-        let is_feed = attrs.get("feed").map_or(false, |val| val == "true");
+        let is_feed = attrs.get("feed").is_some_and(|val| val == "true");
 
         // Create updated_at vector
         let updated_at =
@@ -821,7 +818,7 @@ mod netscape {
     }
 
     fn parse_timestamp_attr(attrs: &HashMap<String, String>, key: &str) -> Result<Time, Error> {
-        parse_timestamp_attr_opt(attrs, key).map(|opt| opt.unwrap_or(Time::default()))
+        parse_timestamp_attr_opt(attrs, key).map(|opt| opt.unwrap_or_default())
     }
 
     fn parse_timestamp_attr_opt(
