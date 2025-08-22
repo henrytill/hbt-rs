@@ -3,7 +3,7 @@ mod tests;
 
 use std::collections::{HashSet, hash_set::Iter};
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -49,7 +49,7 @@ impl<'a> From<&'a [String]> for Tags<'a> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Post {
     pub href: String,
     pub time: String,
@@ -78,21 +78,6 @@ impl<'a> From<&'a [Post]> for Tags<'a> {
 }
 
 impl Post {
-    #[allow(clippy::too_many_arguments)]
-    #[cfg(test)]
-    const fn new(
-        href: String,
-        time: String,
-        description: Option<String>,
-        extended: Option<String>,
-        tags: Vec<String>,
-        hash: Option<String>,
-        shared: bool,
-        toread: bool,
-    ) -> Post {
-        Post { href, time, description, extended, tags, hash, shared, toread }
-    }
-
     pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {
         serde_json::from_str(input).map_err(Into::into)
     }
