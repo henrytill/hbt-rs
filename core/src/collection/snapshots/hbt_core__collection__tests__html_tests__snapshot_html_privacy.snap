@@ -2,129 +2,96 @@
 source: core/src/collection/tests.rs
 expression: collection
 ---
-{
-  "version": "0.1.0",
-  "length": 6,
-  "value": [
-    {
-      "id": 0,
-      "entity": {
-        "uri": "https://example.com/",
-        "createdAt": 1609459200,
-        "updatedAt": [],
-        "names": [
-          "Public Example"
-        ],
-        "labels": [
-          "example",
-          "public"
-        ],
-        "extended": "This bookmark is public (PRIVATE=\"0\")",
-        "shared": true,
-        "toread": false,
-        "isFeed": false
-      },
-      "edges": []
-    },
-    {
-      "id": 1,
-      "entity": {
-        "uri": "https://internal.company.com/",
-        "createdAt": 1609545600,
-        "updatedAt": [],
-        "names": [
-          "Internal Company Site"
-        ],
-        "labels": [
-          "internal",
-          "work"
-        ],
-        "extended": "This bookmark is private (PRIVATE=\"1\")",
-        "shared": false,
-        "toread": false,
-        "isFeed": false
-      },
-      "edges": []
-    },
-    {
-      "id": 2,
-      "entity": {
-        "uri": "https://github.com/",
-        "createdAt": 1609632000,
-        "updatedAt": [],
-        "names": [
-          "GitHub (no privacy flag)"
-        ],
-        "labels": [
-          "programming"
-        ],
-        "extended": "This bookmark has no privacy flag (defaults to public)",
-        "shared": true,
-        "toread": false,
-        "isFeed": false
-      },
-      "edges": []
-    },
-    {
-      "id": 3,
-      "entity": {
-        "uri": "https://secret-project.example.com/",
-        "createdAt": 1609718400,
-        "updatedAt": [],
-        "names": [
-          "Secret Project"
-        ],
-        "labels": [
-          "project",
-          "secret"
-        ],
-        "extended": "Private bookmark with last visit time",
-        "shared": false,
-        "toread": false,
-        "lastVisitedAt": 1609804800,
-        "isFeed": false
-      },
-      "edges": []
-    },
-    {
-      "id": 4,
-      "entity": {
-        "uri": "https://public-feed.example.com/rss",
-        "createdAt": 1609891200,
-        "updatedAt": [],
-        "names": [
-          "Public RSS Feed"
-        ],
-        "labels": [
-          "feed",
-          "public"
-        ],
-        "extended": "Public feed bookmark",
-        "shared": true,
-        "toread": false,
-        "isFeed": true
-      },
-      "edges": []
-    },
-    {
-      "id": 5,
-      "entity": {
-        "uri": "https://private-feed.example.com/rss",
-        "createdAt": 1609977600,
-        "updatedAt": [],
-        "names": [
-          "Private RSS Feed"
-        ],
-        "labels": [
-          "feed",
-          "private"
-        ],
-        "extended": "Private feed bookmark",
-        "shared": false,
-        "toread": false,
-        "isFeed": true
-      },
-      "edges": []
-    }
-  ]
-}
+version: 0.1.0
+length: 6
+value:
+  - id: 0
+    entity:
+      uri: "https://example.com/"
+      createdAt: 1609459200
+      updatedAt: []
+      names:
+        - Public Example
+      labels:
+        - example
+        - public
+      extended: "This bookmark is public (PRIVATE=\"0\")"
+      shared: true
+      toread: false
+      isFeed: false
+    edges: []
+  - id: 1
+    entity:
+      uri: "https://internal.company.com/"
+      createdAt: 1609545600
+      updatedAt: []
+      names:
+        - Internal Company Site
+      labels:
+        - internal
+        - work
+      extended: "This bookmark is private (PRIVATE=\"1\")"
+      shared: false
+      toread: false
+      isFeed: false
+    edges: []
+  - id: 2
+    entity:
+      uri: "https://github.com/"
+      createdAt: 1609632000
+      updatedAt: []
+      names:
+        - GitHub (no privacy flag)
+      labels:
+        - programming
+      extended: This bookmark has no privacy flag (defaults to public)
+      shared: true
+      toread: false
+      isFeed: false
+    edges: []
+  - id: 3
+    entity:
+      uri: "https://secret-project.example.com/"
+      createdAt: 1609718400
+      updatedAt: []
+      names:
+        - Secret Project
+      labels:
+        - project
+        - secret
+      extended: Private bookmark with last visit time
+      shared: false
+      toread: false
+      lastVisitedAt: 1609804800
+      isFeed: false
+    edges: []
+  - id: 4
+    entity:
+      uri: "https://public-feed.example.com/rss"
+      createdAt: 1609891200
+      updatedAt: []
+      names:
+        - Public RSS Feed
+      labels:
+        - feed
+        - public
+      extended: Public feed bookmark
+      shared: true
+      toread: false
+      isFeed: true
+    edges: []
+  - id: 5
+    entity:
+      uri: "https://private-feed.example.com/rss"
+      createdAt: 1609977600
+      updatedAt: []
+      names:
+        - Private RSS Feed
+      labels:
+        - feed
+        - private
+      extended: Private feed bookmark
+      shared: false
+      toread: false
+      isFeed: true
+    edges: []

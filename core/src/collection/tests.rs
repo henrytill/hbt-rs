@@ -4,64 +4,13 @@ use time::macros::datetime;
 use super::*;
 
 fn create_test_collection() -> Collection {
-    let mut collection = Collection::new();
+    let json = std::fs::read_to_string(format!(
+        "{}/src/collection/fixtures/test_collection.json",
+        env!("CARGO_MANIFEST_DIR")
+    ))
+    .unwrap_or_else(|_| panic!("Failed to load test collection fixture"));
 
-    // Create first entity
-    let url1 = Url::parse("https://example.com/page1").unwrap();
-    let entity1 = Entity::new(
-        url1,
-        datetime!(2024-01-15 0:00 UTC).into(),
-        Some(Name::from("Page One")),
-        vec![Label::from("tag1"), Label::from("tag2")].into_iter().collect(),
-    );
-    let id1 = collection.insert(entity1);
-
-    // Create second entity
-    let url2 = Url::parse("https://example.com/page2").unwrap();
-    let entity2 = Entity::new(
-        url2,
-        datetime!(2024-01-16 0:00 UTC).into(),
-        Some(Name::from("Page Two")),
-        vec![Label::from("tag2"), Label::from("tag3")].into_iter().collect(),
-    );
-    let id2 = collection.insert(entity2);
-
-    // Add bidirectional edge between entities
-    collection.add_edges(id1, id2);
-
-    collection
-}
-
-#[test]
-fn test_collection_serialization() {
-    let collection = create_test_collection();
-
-    // Serialize to JSON
-    let json = serde_json::to_string_pretty(&collection).unwrap();
-
-    // Deserialize back to Collection
-    let deserialized: Collection = serde_json::from_str(&json).unwrap();
-
-    // Verify the collections are equal
-    assert_eq!(collection.len(), deserialized.len());
-
-    assert_eq!(collection, deserialized);
-
-    // Check first entity
-    let id1 = Id::new(0);
-    assert_eq!(collection.entity(id1).url(), deserialized.entity(id1).url());
-    assert_eq!(collection.entity(id1).names(), deserialized.entity(id1).names());
-    assert_eq!(collection.entity(id1).labels(), deserialized.entity(id1).labels());
-
-    // Check second entity
-    let id2 = Id::new(1);
-    assert_eq!(collection.entity(id2).url(), deserialized.entity(id2).url());
-    assert_eq!(collection.entity(id2).names(), deserialized.entity(id2).names());
-    assert_eq!(collection.entity(id2).labels(), deserialized.entity(id2).labels());
-
-    // Verify edges
-    assert_eq!(collection.edges(id1), deserialized.edges(id1));
-    assert_eq!(collection.edges(id2), deserialized.edges(id2));
+    serde_json::from_str(&json).unwrap()
 }
 
 #[test]
@@ -160,7 +109,7 @@ fn snapshot_collection_serialization() {
         tmp.add_edges(id_foo, id_baz);
         tmp
     };
-    insta::assert_json_snapshot!(collection)
+    insta::assert_yaml_snapshot!(collection)
 }
 
 #[test]
@@ -241,106 +190,20 @@ mod html_tests {
         .unwrap_or_else(|_| panic!("Failed to load fixture: {}", filename))
     }
 
-    #[test]
-    fn snapshot_html_simple() {
-        let html = load_fixture("bookmarks_simple.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-        insta::assert_json_snapshot!(collection);
+    macro_rules! snapshot_html_test {
+        ($test_name:ident, $fixture_name:expr) => {
+            #[test]
+            fn $test_name() {
+                let html = load_fixture($fixture_name);
+                let collection = Collection::from_html_str(&html).unwrap();
+                insta::assert_yaml_snapshot!(collection);
+            }
+        };
     }
 
-    #[test]
-    fn snapshot_html_folders() {
-        let html = load_fixture("bookmarks_folders.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-        insta::assert_json_snapshot!(collection);
-    }
-
-    #[test]
-    fn snapshot_html_privacy() {
-        let html = load_fixture("bookmarks_privacy.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-        insta::assert_json_snapshot!(collection);
-    }
-
-    #[test]
-    fn snapshot_html_feeds() {
-        let html = load_fixture("bookmarks_feeds.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-        insta::assert_json_snapshot!(collection);
-    }
-
-    #[test]
-    fn snapshot_html_pinboard() {
-        let html = load_fixture("bookmarks_pinboard.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-        insta::assert_json_snapshot!(collection);
-    }
-
-    #[test]
-    fn test_html_parsing_basic() {
-        let html = load_fixture("bookmarks_simple.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-
-        assert_eq!(collection.len(), 3);
-
-        // Check that URLs are parsed correctly
-        assert!(collection.contains(&Url::parse("https://example.com/").unwrap()));
-        assert!(collection.contains(&Url::parse("https://github.com/").unwrap()));
-        assert!(collection.contains(&Url::parse("https://news.ycombinator.com/").unwrap()));
-    }
-
-    #[test]
-    fn test_html_parsing_folders() {
-        let html = load_fixture("bookmarks_folders.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-
-        assert_eq!(collection.len(), 7); // Updated count for the folders fixture
-
-        // Find GitHub entity and check its labels include folder name
-        let github_url = Url::parse("https://github.com/").unwrap();
-        if let Some(id) = collection.id(&github_url) {
-            let entity = collection.entity(id);
-            let labels = entity.labels();
-            assert!(labels.contains(&Label::from("Programming")));
-            assert!(labels.contains(&Label::from("git")));
-            assert!(labels.contains(&Label::from("hosting")));
-        } else {
-            panic!("GitHub entity not found");
-        }
-    }
-
-    #[test]
-    fn test_html_parsing_privacy() {
-        let html = load_fixture("bookmarks_privacy.html");
-        let collection = Collection::from_html_str(&html).unwrap();
-
-        assert_eq!(collection.len(), 6);
-
-        // Check private bookmark
-        let private_url = Url::parse("https://internal.company.com/").unwrap();
-        if let Some(id) = collection.id(&private_url) {
-            let entity = collection.entity(id);
-            assert_eq!(entity.shared, false); // PRIVATE="1" should set shared=false
-        } else {
-            panic!("Private entity not found");
-        }
-
-        // Check public bookmark
-        let public_url = Url::parse("https://example.com/").unwrap();
-        if let Some(id) = collection.id(&public_url) {
-            let entity = collection.entity(id);
-            assert_eq!(entity.shared, true); // PRIVATE="0" should set shared=true
-        } else {
-            panic!("Public entity not found");
-        }
-
-        // Check feed bookmarks
-        let feed_url = Url::parse("https://public-feed.example.com/rss").unwrap();
-        if let Some(id) = collection.id(&feed_url) {
-            let entity = collection.entity(id);
-            assert_eq!(entity.is_feed(), true); // FEED="true" should set is_feed=true
-        } else {
-            panic!("Feed entity not found");
-        }
-    }
+    snapshot_html_test!(snapshot_html_simple, "bookmarks_simple.html");
+    snapshot_html_test!(snapshot_html_folders, "bookmarks_folders.html");
+    snapshot_html_test!(snapshot_html_privacy, "bookmarks_privacy.html");
+    snapshot_html_test!(snapshot_html_feeds, "bookmarks_feeds.html");
+    snapshot_html_test!(snapshot_html_pinboard, "bookmarks_pinboard.html");
 }

@@ -19,4 +19,4 @@ time = { version = "0.3.30", features = ["macros", "parsing", "serde"] }
 url = { version = "2.4.1", features = ["serde"] }
 
 [dev-dependencies]
-insta = { version = "1.42.0", features = ["json"] }
+insta = { version = "1.42.0", features = ["json", "yaml"] }
