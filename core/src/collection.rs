@@ -10,7 +10,6 @@ use std::{
 
 use minijinja::{Environment, context};
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use thiserror::Error;
 #[cfg(feature = "pinboard")]
 use time::format_description::well_known::Rfc3339;
@@ -22,8 +21,6 @@ use crate::pinboard::Post;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("invalid JSON structure: expected object")]
-    InvalidJson,
     #[error("incompatible version: {0}, expected: {1}")]
     IncompatibleVersion(String, String),
     #[error("version parsing error: {0}")]
@@ -519,8 +516,13 @@ impl Collection {
         &self.nodes
     }
 
-    pub fn update_labels(&mut self, json: Value) -> Result<(), Error> {
-        let mapping = json_to_map(json)?;
+    pub fn update_labels<M>(&mut self, mappings: M) -> Result<(), Error>
+    where
+        M: IntoIterator<Item = (String, String)>,
+    {
+        let mapping: BTreeMap<Label, Label> =
+            mappings.into_iter().map(|(k, v)| (Label::from(k), Label::from(v))).collect();
+
         for node in self.nodes.iter_mut() {
             let labels = node.labels_mut();
             let to_add: BTreeSet<Label> =
@@ -530,20 +532,6 @@ impl Collection {
         }
         Ok(())
     }
-}
-
-fn json_to_map(json: Value) -> Result<BTreeMap<Label, Label>, Error> {
-    let ret: BTreeMap<Label, Label> = json
-        .as_object()
-        .ok_or(Error::InvalidJson)?
-        .iter()
-        .filter_map(|(k, v)| {
-            let v = v.as_str().map(Label::from)?;
-            let k = Label::from(k.as_str());
-            Some((k, v))
-        })
-        .collect();
-    Ok(ret)
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]

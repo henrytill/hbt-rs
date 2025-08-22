@@ -9,7 +9,6 @@ use hbt_core::collection::Entity;
 use hbt_core::markdown;
 #[cfg(feature = "pinboard")]
 use hbt_core::pinboard::Post;
-use serde_json::Value;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -42,8 +41,19 @@ fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Err
     if let Some(mappings) = &args.mappings {
         let contents = fs::read_to_string(mappings)?;
         let yaml_value: serde_yaml::Value = serde_yaml::from_str(&contents)?;
-        let contents_value: Value = serde_json::to_value(yaml_value)?;
-        collection.update_labels(contents_value)?;
+
+        let mappings = yaml_value
+            .as_mapping()
+            .ok_or_else(|| Error::msg("Mapping file must contain a YAML mapping"))?
+            .iter()
+            .filter_map(|(k, v)| {
+                let key = k.as_str()?.to_string();
+                let value = v.as_str()?.to_string();
+                Some((key, value))
+            })
+            .collect::<Vec<_>>();
+
+        collection.update_labels(mappings)?;
     }
     Ok(())
 }

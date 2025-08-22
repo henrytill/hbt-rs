@@ -4,4 +4,3 @@ resolver = "2"
 
 [workspace.dependencies]
 serde = { version = "1.0.210", features = ["derive"] }
-serde_json = { version = "1.0.128" }

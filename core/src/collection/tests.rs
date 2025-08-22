@@ -1,4 +1,3 @@
-use serde_json::json;
 use time::macros::datetime;
 
 use super::*;
@@ -117,10 +116,10 @@ fn test_update_labels() {
     let mut collection = create_test_collection();
 
     // Test basic label update
-    let update = json!({
-        "tag1": "tag1-updated",
-        "tag2": "tag2-updated"
-    });
+    let update = vec![
+        ("tag1".to_string(), "tag1-updated".to_string()),
+        ("tag2".to_string(), "tag2-updated".to_string()),
+    ];
     collection.update_labels(update).unwrap();
 
     // Verify updates on first entity
@@ -144,7 +143,7 @@ fn test_update_labels_empty_mapping() {
     let mut collection = create_test_collection();
 
     // Empty update should not modify labels
-    let update = json!({});
+    let update: Vec<(String, String)> = vec![];
     collection.update_labels(update).unwrap();
 
     let id1 = Id::new(0);
@@ -155,19 +154,11 @@ fn test_update_labels_empty_mapping() {
 }
 
 #[test]
-fn test_update_labels_invalid_json() {
+fn test_update_labels_non_string_values() {
     let mut collection = create_test_collection();
 
-    // Non-object JSON should return error
-    let update = json!(["not", "an", "object"]);
-    assert!(collection.update_labels(update).is_err());
-
-    // Non-string values should be ignored
-    let update = json!({
-        "tag1": 42,
-        "tag2": "valid-update",
-        "tag3": null
-    });
+    // Test that only valid string pairs are processed
+    let update = vec![("tag2".to_string(), "valid-update".to_string())];
     collection.update_labels(update).unwrap();
 
     let id1 = Id::new(0);

@@ -217,7 +217,6 @@ dependencies = [
  "anyhow",
  "clap",
  "hbt-core",
- "serde_json",
  "serde_yaml",
  "snapbox",
  "snapbox-macros",
