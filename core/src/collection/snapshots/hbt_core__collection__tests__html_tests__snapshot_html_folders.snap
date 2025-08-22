@@ -22,14 +22,14 @@ value:
     entity:
       uri: "https://github.com/"
       createdAt: 1609545600
-      updatedAt:
-        - 1609545600
+      updatedAt: []
       names:
         - GitHub
       labels:
         - Programming
         - git
         - hosting
+      extended: Code hosting and collaboration
       shared: true
       toread: false
       isFeed: false
@@ -53,8 +53,7 @@ value:
     entity:
       uri: "https://ocaml.org/"
       createdAt: 1609718400
-      updatedAt:
-        - 1609718400
+      updatedAt: []
       names:
         - OCaml
       labels:
@@ -62,6 +61,7 @@ value:
         - Programming
         - functional
         - ml
+      extended: Industrial-strength functional programming
       shared: true
       toread: false
       isFeed: false
@@ -74,6 +74,8 @@ value:
       names:
         - Rust
       labels:
+        - Languages
+        - Programming
         - safety
         - systems
       shared: true
@@ -84,8 +86,7 @@ value:
     entity:
       uri: "https://news.ycombinator.com/"
       createdAt: 1609977600
-      updatedAt:
-        - 1609977600
+      updatedAt: []
       names:
         - Hacker News
       labels:
@@ -104,6 +105,7 @@ value:
       names:
         - Lobsters
       labels:
+        - News
         - programming
         - tech
       shared: true

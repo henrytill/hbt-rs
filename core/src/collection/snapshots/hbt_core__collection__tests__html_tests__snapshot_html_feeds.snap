@@ -22,14 +22,14 @@ value:
     entity:
       uri: "https://feeds.feedburner.com/oreilly/radar"
       createdAt: 1609545600
-      updatedAt:
-        - 1609545600
+      updatedAt: []
       names:
         - "O'Reilly Radar"
       labels:
         - RSS Feeds
         - books
         - tech
+      extended: Technology insights and trends
       shared: true
       toread: false
       isFeed: true
@@ -58,6 +58,7 @@ value:
       names:
         - This Week in Rust
       labels:
+        - RSS Feeds
         - rust
         - weekly
       shared: true
@@ -68,8 +69,7 @@ value:
     entity:
       uri: "https://github.com/"
       createdAt: 1609891200
-      updatedAt:
-        - 1609891200
+      updatedAt: []
       names:
         - GitHub
       labels:
@@ -88,6 +88,7 @@ value:
       names:
         - Hacker News
       labels:
+        - Regular Sites
         - news
         - tech
       shared: true

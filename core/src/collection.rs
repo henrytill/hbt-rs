@@ -657,11 +657,12 @@ mod netscape {
         folder_stack: &mut Vec<String>,
         pending_bookmark: &mut Option<(HashMap<String, String>, Option<String>)>,
     ) -> Result<(), Error> {
-        // Use a stack for depth-first traversal (which maintains document order)
+        // Use iterative processing with explicit stack to avoid recursion
         let mut stack: Vec<StackItem> = Vec::new();
         let a_selector = Selector::parse("a").unwrap();
+        let h3_selector = Selector::parse("h3").unwrap();
 
-        // Start with root's children in reverse order (so they're processed in correct order)
+        // Start with root's children in reverse order
         for child in root.children().rev() {
             if let Some(child_element) = scraper::ElementRef::wrap(child) {
                 stack.push(StackItem::Element(child_element));
@@ -674,13 +675,6 @@ mod netscape {
                     let tag_name = element.value().name();
 
                     match tag_name {
-                        "h3" => {
-                            // Add folder name to stack
-                            let folder_name = element.text().collect::<String>().trim().to_string();
-                            if !folder_name.is_empty() {
-                                folder_stack.push(folder_name);
-                            }
-                        }
                         "dt" => {
                             // Finalize any previous bookmark before processing new one
                             if let Some((attrs, description)) = pending_bookmark.take() {
@@ -693,14 +687,28 @@ mod netscape {
                                 )?;
                             }
 
-                            // Look for an anchor tag within this dt
-                            if let Some(a_element) = element.select(&a_selector).next() {
-                                let attrs = extract_attributes(a_element);
-                                let description =
-                                    a_element.text().collect::<String>().trim().to_string();
-                                let description =
-                                    if description.is_empty() { None } else { Some(description) };
-                                *pending_bookmark = Some((attrs, description));
+                            // Check if this dt contains an h3 (folder header)
+                            if let Some(h3_element) = element.select(&h3_selector).next() {
+                                // This dt contains a folder, push the folder name to stack
+                                let folder_name =
+                                    h3_element.text().collect::<String>().trim().to_string();
+                                if !folder_name.is_empty() {
+                                    folder_stack.push(folder_name);
+                                }
+                                // Don't process as bookmark - this is a folder header
+                            } else {
+                                // Look for an anchor tag within this dt
+                                if let Some(a_element) = element.select(&a_selector).next() {
+                                    let attrs = extract_attributes(a_element);
+                                    let description =
+                                        a_element.text().collect::<String>().trim().to_string();
+                                    let description = if description.is_empty() {
+                                        None
+                                    } else {
+                                        Some(description)
+                                    };
+                                    *pending_bookmark = Some((attrs, description));
+                                }
                             }
                         }
                         "dd" => {
@@ -720,10 +728,10 @@ mod netscape {
                             }
                         }
                         "dl" => {
-                            // Schedule folder pop after processing children
+                            // Schedule folder pop to happen after all children are processed
                             stack.push(StackItem::PopFolder);
 
-                            // Add children in reverse order (so they're processed in correct order)
+                            // Add children in reverse order (so they're processed in document order)
                             for child in element.children().rev() {
                                 if let Some(child_element) = scraper::ElementRef::wrap(child) {
                                     stack.push(StackItem::Element(child_element));
@@ -744,6 +752,17 @@ mod netscape {
                     }
                 }
                 StackItem::PopFolder => {
+                    // Finalize any pending bookmark before popping folder
+                    if let Some((attrs, description)) = pending_bookmark.take() {
+                        create_and_insert_bookmark(
+                            collection,
+                            folder_stack,
+                            attrs,
+                            description,
+                            None,
+                        )?;
+                    }
+
                     folder_stack.pop();
                 }
             }
