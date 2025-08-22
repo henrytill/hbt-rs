@@ -616,7 +616,6 @@ impl<'de> Deserialize<'de> for Collection {
     }
 }
 
-#[cfg(feature = "pinboard")]
 mod netscape {
     use super::*;
     use scraper::{Html, Selector};
@@ -637,10 +636,7 @@ mod netscape {
             &mut pending_bookmark,
         )?;
 
-        // Handle any remaining pending bookmark
-        if let Some((attrs, description)) = pending_bookmark {
-            create_and_insert_bookmark(&mut collection, &folder_stack, attrs, description, None)?;
-        }
+        assert!(pending_bookmark.is_none());
 
         Ok(collection)
     }
@@ -696,19 +692,13 @@ mod netscape {
                                     folder_stack.push(folder_name);
                                 }
                                 // Don't process as bookmark - this is a folder header
-                            } else {
-                                // Look for an anchor tag within this dt
-                                if let Some(a_element) = element.select(&a_selector).next() {
-                                    let attrs = extract_attributes(a_element);
-                                    let description =
-                                        a_element.text().collect::<String>().trim().to_string();
-                                    let description = if description.is_empty() {
-                                        None
-                                    } else {
-                                        Some(description)
-                                    };
-                                    *pending_bookmark = Some((attrs, description));
-                                }
+                            } else if let Some(a_element) = element.select(&a_selector).next() {
+                                let attrs = extract_attributes(a_element);
+                                let description =
+                                    a_element.text().collect::<String>().trim().to_string();
+                                let description =
+                                    if description.is_empty() { None } else { Some(description) };
+                                *pending_bookmark = Some((attrs, description));
                             }
                         }
                         "dd" => {
@@ -858,7 +848,6 @@ mod netscape {
 }
 
 impl Collection {
-    #[cfg(feature = "pinboard")]
     pub fn from_html_str(html: &str) -> Result<Collection, Error> {
         netscape::from_html_str(html)
     }
