@@ -629,33 +629,16 @@ impl<'de> Deserialize<'de> for Collection {
 
 mod netscape {
     use super::*;
-    use scraper::{Html, Selector};
+    use scraper::{ElementRef, Html, Selector};
     use std::collections::HashMap;
-
-    pub fn from_html_str(html: &str) -> Result<Collection, Error> {
-        let document = Html::parse_document(html);
-        let mut collection = Collection::new();
-
-        let mut folder_stack: Vec<String> = Vec::new();
-        let mut pending_bookmark: Option<(HashMap<String, String>, Option<String>)> = None;
-
-        process(
-            document.root_element(),
-            &mut collection,
-            &mut folder_stack,
-            &mut pending_bookmark,
-        )?;
-
-        assert!(pending_bookmark.is_none());
-
-        Ok(collection)
-    }
 
     #[derive(Debug)]
     enum StackItem<'a> {
-        Element(scraper::ElementRef<'a>),
+        Element(ElementRef<'a>),
         PopGroup,
     }
+
+    type Attributes = HashMap<String, String>;
 
     const A: &str = "a";
     const H3: &str = "h3";
@@ -663,23 +646,20 @@ mod netscape {
     const DD: &str = "dd";
     const DL: &str = "dl";
 
-    fn maybe_element_text(element: scraper::ElementRef<'_>) -> Option<String> {
-        let trimmed = element.text().collect::<String>().trim().to_string();
-        if trimmed.is_empty() { None } else { Some(trimmed) }
-    }
+    pub fn from_html_str(html: &str) -> Result<Collection, Error> {
+        let document = Html::parse_document(html);
+        let root = document.root_element();
 
-    fn process(
-        root: scraper::ElementRef,
-        collection: &mut Collection,
-        folder_stack: &mut Vec<String>,
-        pending_bookmark: &mut Option<(HashMap<String, String>, Option<String>)>,
-    ) -> Result<(), Error> {
+        let mut collection = Collection::new();
         let mut stack: Vec<StackItem> = Vec::new();
+        let mut folder_stack: Vec<String> = Vec::new();
+        let mut pending_bookmark: Option<(Attributes, Option<String>)> = None;
+
         let a_selector = Selector::parse(A)?;
         let h3_selector = Selector::parse(H3)?;
 
         for child in root.children().rev() {
-            if let Some(child_element) = scraper::ElementRef::wrap(child) {
+            if let Some(child_element) = ElementRef::wrap(child) {
                 stack.push(StackItem::Element(child_element));
             }
         }
@@ -691,8 +671,8 @@ mod netscape {
                         DT => {
                             if let Some((attrs, maybe_description)) = pending_bookmark.take() {
                                 add_pending(
-                                    collection,
-                                    folder_stack,
+                                    &mut collection,
+                                    &folder_stack,
                                     attrs,
                                     maybe_description,
                                     None, // No extended
@@ -705,15 +685,15 @@ mod netscape {
                             } else if let Some(a_element) = element.select(&a_selector).next() {
                                 let attrs = extract_attributes(a_element);
                                 let maybe_description = maybe_element_text(a_element);
-                                *pending_bookmark = Some((attrs, maybe_description));
+                                pending_bookmark = Some((attrs, maybe_description));
                             }
                         }
                         DD => {
                             if let Some((attrs, maybe_description)) = pending_bookmark.take() {
                                 let maybe_extended = maybe_element_text(element);
                                 add_pending(
-                                    collection,
-                                    folder_stack,
+                                    &mut collection,
+                                    &folder_stack,
                                     attrs,
                                     maybe_description,
                                     maybe_extended,
@@ -726,24 +706,37 @@ mod netscape {
                         _ => {}
                     }
                     for child in element.children().rev() {
-                        if let Some(child_element) = scraper::ElementRef::wrap(child) {
+                        if let Some(child_element) = ElementRef::wrap(child) {
                             stack.push(StackItem::Element(child_element));
                         }
                     }
                 }
                 StackItem::PopGroup => {
                     if let Some((attrs, maybe_description)) = pending_bookmark.take() {
-                        add_pending(collection, folder_stack, attrs, maybe_description, None)?;
+                        add_pending(
+                            &mut collection,
+                            &folder_stack,
+                            attrs,
+                            maybe_description,
+                            None,
+                        )?;
                     }
                     folder_stack.pop();
                 }
             }
         }
 
-        Ok(())
+        assert!(pending_bookmark.is_none());
+
+        Ok(collection)
     }
 
-    fn extract_attributes(element: scraper::ElementRef) -> HashMap<String, String> {
+    fn maybe_element_text(element: ElementRef) -> Option<String> {
+        let trimmed = element.text().collect::<String>().trim().to_string();
+        if trimmed.is_empty() { None } else { Some(trimmed) }
+    }
+
+    fn extract_attributes(element: ElementRef) -> Attributes {
         let mut attrs = HashMap::new();
         for (name, value) in element.value().attrs() {
             attrs.insert(name.to_lowercase(), value.to_string());
@@ -754,7 +747,7 @@ mod netscape {
     fn add_pending(
         collection: &mut Collection,
         folder_stack: &[String],
-        attrs: HashMap<String, String>,
+        attrs: Attributes,
         description: Option<String>,
         extended: Option<String>,
     ) -> Result<(), Error> {
@@ -804,14 +797,11 @@ mod netscape {
         Ok(())
     }
 
-    fn parse_timestamp_attr(attrs: &HashMap<String, String>, key: &str) -> Result<Time, Error> {
-        parse_timestamp_attr_opt(attrs, key).map(|opt| opt.unwrap_or_default())
+    fn parse_timestamp_attr(attrs: &Attributes, key: &str) -> Result<Time, Error> {
+        parse_timestamp_attr_opt(attrs, key).map(Option::unwrap_or_default)
     }
 
-    fn parse_timestamp_attr_opt(
-        attrs: &HashMap<String, String>,
-        key: &str,
-    ) -> Result<Option<Time>, Error> {
+    fn parse_timestamp_attr_opt(attrs: &Attributes, key: &str) -> Result<Option<Time>, Error> {
         if let Some(timestamp_str) = attrs.get(key) {
             if timestamp_str.trim().is_empty() {
                 return Ok(None);
