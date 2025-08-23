@@ -751,16 +751,25 @@ mod netscape {
         description: Option<String>,
         extended: Option<String>,
     ) -> Result<(), Error> {
+        const ATTR_HREF: &str = "href";
+        const ATTR_ADD_DATE: &str = "add_date";
+        const ATTR_LAST_MODIFIED: &str = "last_modified";
+        const ATTR_LAST_VISIT: &str = "last_visit";
+        const ATTR_TAGS: &str = "tags";
+        const ATTR_TOREAD: &str = "toread";
+        const ATTR_PRIVATE: &str = "private";
+        const ATTR_FEED: &str = "feed";
+
         let url = {
-            let href = attrs.get("href").ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
+            let href = attrs.get(ATTR_HREF).ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
             Url::parse(href)?
         };
 
-        let created_at = parse_timestamp_attr(&attrs, "add_date")?;
-        let last_modified = parse_timestamp_attr_opt(&attrs, "last_modified")?;
-        let last_visited_at = parse_timestamp_attr_opt(&attrs, "last_visit")?;
+        let created_at = parse_timestamp_attr(&attrs, ATTR_ADD_DATE)?;
+        let last_modified = parse_timestamp_attr_opt(&attrs, ATTR_LAST_MODIFIED)?;
+        let last_visited_at = parse_timestamp_attr_opt(&attrs, ATTR_LAST_VISIT)?;
 
-        let tag_string = attrs.get("tags").cloned().unwrap_or_default();
+        let tag_string = attrs.get(ATTR_TAGS).cloned().unwrap_or_default();
         let tags: Vec<String> = if tag_string.is_empty() {
             Vec::new()
         } else {
@@ -770,16 +779,16 @@ mod netscape {
         let labels: BTreeSet<Label> = folder_stack
             .iter()
             .chain(tags.iter())
-            .filter(|&tag| tag != "toread")
+            .filter(|&tag| tag != ATTR_TOREAD)
             .map(|tag| Label::from(tag.clone()))
             .collect();
 
-        let shared = !matches!(attrs.get("private"), Some(val) if val == "1");
+        let shared = !matches!(attrs.get(ATTR_PRIVATE), Some(val) if val == "1");
 
-        let to_read =
-            attrs.get("toread").is_some_and(|val| val == "1") || tag_string.contains("toread");
+        let to_read = attrs.get(ATTR_TOREAD).is_some_and(|val| val == "1")
+            || tag_string.contains(ATTR_TOREAD);
 
-        let is_feed = attrs.get("feed").is_some_and(|val| val == "true");
+        let is_feed = attrs.get(ATTR_FEED).is_some_and(|val| val == "true");
 
         let updated_at =
             if let Some(last_mod) = last_modified { vec![last_mod] } else { Vec::new() };
