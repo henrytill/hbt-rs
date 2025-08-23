@@ -813,10 +813,11 @@ mod netscape {
 
     fn parse_timestamp_attr_opt(attrs: &Attributes, key: &str) -> Result<Option<Time>, Error> {
         if let Some(timestamp_str) = attrs.get(key) {
-            if timestamp_str.trim().is_empty() {
+            let trimmed = timestamp_str.trim();
+            if trimmed.is_empty() {
                 return Ok(None);
             }
-            let timestamp: i64 = timestamp_str.trim().parse()?;
+            let timestamp: i64 = trimmed.parse()?;
             let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
             Ok(Some(Time::new(time)))
         } else {
