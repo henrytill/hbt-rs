@@ -234,7 +234,7 @@ pub struct Entity {
     #[serde(skip_serializing_if = "Option::is_none")]
     extended: Option<Extended>,
     shared: bool,
-    toread: bool,
+    to_read: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     last_visited_at: Option<Time>,
     is_feed: bool,
@@ -251,7 +251,7 @@ impl Entity {
         let names = maybe_name.into_iter().collect();
         let extended = None;
         let shared = false;
-        let toread = false;
+        let to_read = false;
         let last_visited_at = None;
         let is_feed = false;
         Entity {
@@ -262,7 +262,7 @@ impl Entity {
             labels,
             extended,
             shared,
-            toread,
+            to_read,
             last_visited_at,
             is_feed,
         }
@@ -325,8 +325,8 @@ impl Entity {
         self.shared
     }
 
-    pub fn toread(&self) -> bool {
-        self.toread
+    pub fn to_read(&self) -> bool {
+        self.to_read
     }
 
     pub fn extended(&self) -> Option<&Extended> {
@@ -343,8 +343,8 @@ impl Entity {
         self
     }
 
-    pub fn with_toread(mut self, toread: bool) -> Entity {
-        self.toread = toread;
+    pub fn with_to_read(mut self, to_read: bool) -> Entity {
+        self.to_read = to_read;
         self
     }
 
@@ -376,7 +376,7 @@ impl TryFrom<Post> for Entity {
         let labels = post.tags.into_iter().map(Label::new).collect();
         let extended = post.extended.map(Extended::new);
         let shared = post.shared;
-        let toread = post.toread;
+        let to_read = post.toread;
         let last_visited_at = None;
         let is_feed = false;
         Ok(Entity {
@@ -387,7 +387,7 @@ impl TryFrom<Post> for Entity {
             labels,
             extended,
             shared,
-            toread,
+            to_read,
             last_visited_at,
             is_feed,
         })
@@ -811,7 +811,7 @@ mod netscape {
         // Extract other attributes
         let shared = !matches!(attrs.get("private"), Some(val) if val == "1");
 
-        let toread =
+        let to_read =
             attrs.get("toread").is_some_and(|val| val == "1") || tag_string.contains("toread");
 
         let is_feed = attrs.get("feed").is_some_and(|val| val == "true");
@@ -824,7 +824,7 @@ mod netscape {
         let entity = Entity::new(url, created_at, description.map(Name::from), labels)
             .with_extended(extended.map(Extended::from))
             .with_shared(shared)
-            .with_toread(toread)
+            .with_to_read(to_read)
             .with_last_visited_at(last_visited_at)
             .with_is_feed(is_feed)
             .with_updated_at(updated_at);

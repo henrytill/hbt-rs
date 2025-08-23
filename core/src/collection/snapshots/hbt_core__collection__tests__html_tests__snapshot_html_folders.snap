@@ -15,7 +15,7 @@ value:
       labels:
         - example
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 1
@@ -31,7 +31,7 @@ value:
         - hosting
       extended: Code hosting and collaboration
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 2
@@ -46,7 +46,7 @@ value:
         - git
         - hosting
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 3
@@ -63,7 +63,7 @@ value:
         - ml
       extended: Industrial-strength functional programming
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 4
@@ -79,7 +79,7 @@ value:
         - safety
         - systems
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 5
@@ -94,7 +94,7 @@ value:
         - startup
         - tech
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 6
@@ -109,6 +109,6 @@ value:
         - programming
         - tech
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []

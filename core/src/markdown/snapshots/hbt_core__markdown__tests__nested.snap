@@ -15,7 +15,7 @@ value:
       labels:
         - Foo
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges:
       - 1
@@ -30,7 +30,7 @@ value:
       labels:
         - Foo
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges:
       - 0
@@ -44,7 +44,7 @@ value:
       labels:
         - Foo
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges:
       - 0
@@ -59,7 +59,7 @@ value:
       labels:
         - Foo
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges:
       - 2
@@ -72,7 +72,7 @@ value:
       labels:
         - Foo
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges:
       - 0

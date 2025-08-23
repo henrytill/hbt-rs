@@ -15,7 +15,7 @@ value:
       labels:
         - example
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 1
@@ -31,7 +31,7 @@ value:
         - tech
       extended: Technology insights and trends
       shared: true
-      toread: false
+      toRead: false
       isFeed: true
     edges: []
   - id: 2
@@ -47,7 +47,7 @@ value:
         - ocaml
       extended: OCaml community blog aggregator
       shared: true
-      toread: false
+      toRead: false
       isFeed: true
     edges: []
   - id: 3
@@ -62,7 +62,7 @@ value:
         - rust
         - weekly
       shared: true
-      toread: false
+      toRead: false
       isFeed: true
     edges: []
   - id: 4
@@ -77,7 +77,7 @@ value:
         - git
         - programming
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 5
@@ -92,7 +92,7 @@ value:
         - news
         - tech
       shared: true
-      toread: false
+      toRead: false
       lastVisitedAt: 1610064000
       isFeed: false
     edges: []

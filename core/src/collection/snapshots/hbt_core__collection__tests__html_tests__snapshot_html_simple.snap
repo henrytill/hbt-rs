@@ -18,7 +18,7 @@ value:
         - test
       extended: A simple example website for testing
       shared: true
-      toread: false
+      toRead: false
       isFeed: false
     edges: []
   - id: 1
@@ -33,7 +33,7 @@ value:
         - programming
       extended: Code hosting platform
       shared: true
-      toread: false
+      toRead: false
       lastVisitedAt: 1609632000
       isFeed: false
     edges: []
@@ -47,6 +47,6 @@ value:
       labels:
         - news
       shared: false
-      toread: false
+      toRead: false
       isFeed: false
     edges: []

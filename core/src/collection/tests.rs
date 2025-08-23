@@ -235,7 +235,7 @@ mod html_tests {
             assert_eq!(original.names(), roundtrip.names());
             assert_eq!(original.labels(), roundtrip.labels());
             assert_eq!(original.shared(), roundtrip.shared());
-            assert_eq!(original.toread(), roundtrip.toread());
+            assert_eq!(original.to_read(), roundtrip.to_read());
             assert_eq!(original.is_feed(), roundtrip.is_feed());
         }
     }
