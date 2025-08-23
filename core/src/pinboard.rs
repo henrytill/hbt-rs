@@ -8,8 +8,6 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("HTML selector error: {0}")]
-    HtmlSelector(String),
     #[error("XML attribute error: {0}")]
     XmlAttribute(#[from] quick_xml::events::attributes::AttrError),
     #[error("XML parsing error: {0}")]
