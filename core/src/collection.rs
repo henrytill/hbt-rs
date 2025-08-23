@@ -39,6 +39,12 @@ pub enum Error {
     Template(#[from] minijinja::Error),
 }
 
+impl From<scraper::error::SelectorErrorKind<'_>> for Error {
+    fn from(value: scraper::error::SelectorErrorKind<'_>) -> Self {
+        Error::HtmlSelector(value.to_string())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 struct Version(semver::Version);
 
@@ -633,7 +639,6 @@ mod netscape {
         let mut folder_stack: Vec<String> = Vec::new();
         let mut pending_bookmark: Option<(HashMap<String, String>, Option<String>)> = None;
 
-        // Process the document iteratively using an explicit stack to avoid recursion
         process(
             document.root_element(),
             &mut collection,
@@ -649,7 +654,18 @@ mod netscape {
     #[derive(Debug)]
     enum StackItem<'a> {
         Element(scraper::ElementRef<'a>),
-        PopFolder,
+        PopGroup,
+    }
+
+    const A: &str = "a";
+    const H3: &str = "h3";
+    const DT: &str = "dt";
+    const DD: &str = "dd";
+    const DL: &str = "dl";
+
+    fn maybe_element_text(element: scraper::ElementRef<'_>) -> Option<String> {
+        let trimmed = element.text().collect::<String>().trim().to_string();
+        if trimmed.is_empty() { None } else { Some(trimmed) }
     }
 
     fn process(
@@ -658,14 +674,10 @@ mod netscape {
         folder_stack: &mut Vec<String>,
         pending_bookmark: &mut Option<(HashMap<String, String>, Option<String>)>,
     ) -> Result<(), Error> {
-        // Use iterative processing with explicit stack to avoid recursion
         let mut stack: Vec<StackItem> = Vec::new();
-        let a_selector =
-            Selector::parse("a").map_err(|err| Error::HtmlSelector(err.to_string()))?;
-        let h3_selector =
-            Selector::parse("h3").map_err(|err| Error::HtmlSelector(err.to_string()))?;
+        let a_selector = Selector::parse(A)?;
+        let h3_selector = Selector::parse(H3)?;
 
-        // Start with root's children in reverse order
         for child in root.children().rev() {
             if let Some(child_element) = scraper::ElementRef::wrap(child) {
                 stack.push(StackItem::Element(child_element));
@@ -675,91 +687,54 @@ mod netscape {
         while let Some(item) = stack.pop() {
             match item {
                 StackItem::Element(element) => {
-                    let tag_name = element.value().name();
-
-                    match tag_name {
-                        "dt" => {
-                            // Finalize any previous bookmark before processing new one
-                            if let Some((attrs, description)) = pending_bookmark.take() {
-                                create_and_insert_bookmark(
+                    match element.value().name() {
+                        DT => {
+                            if let Some((attrs, maybe_description)) = pending_bookmark.take() {
+                                add_pending(
                                     collection,
                                     folder_stack,
                                     attrs,
-                                    description,
-                                    None,
+                                    maybe_description,
+                                    None, // No extended
                                 )?;
                             }
-
-                            // Check if this dt contains an h3 (folder header)
                             if let Some(h3_element) = element.select(&h3_selector).next() {
-                                // This dt contains a folder, push the folder name to stack
-                                let folder_name =
-                                    h3_element.text().collect::<String>().trim().to_string();
-                                if !folder_name.is_empty() {
+                                if let Some(folder_name) = maybe_element_text(h3_element) {
                                     folder_stack.push(folder_name);
                                 }
-                                // Don't process as bookmark - this is a folder header
                             } else if let Some(a_element) = element.select(&a_selector).next() {
                                 let attrs = extract_attributes(a_element);
-                                let description =
-                                    a_element.text().collect::<String>().trim().to_string();
-                                let description =
-                                    if description.is_empty() { None } else { Some(description) };
-                                *pending_bookmark = Some((attrs, description));
+                                let maybe_description = maybe_element_text(a_element);
+                                *pending_bookmark = Some((attrs, maybe_description));
                             }
                         }
-                        "dd" => {
-                            // Extended description for pending bookmark
-                            if let Some((attrs, description)) = pending_bookmark.take() {
-                                let extended =
-                                    element.text().collect::<String>().trim().to_string();
-                                let extended =
-                                    if extended.is_empty() { None } else { Some(extended) };
-                                create_and_insert_bookmark(
+                        DD => {
+                            if let Some((attrs, maybe_description)) = pending_bookmark.take() {
+                                let maybe_extended = maybe_element_text(element);
+                                add_pending(
                                     collection,
                                     folder_stack,
                                     attrs,
-                                    description,
-                                    extended,
+                                    maybe_description,
+                                    maybe_extended,
                                 )?;
                             }
                         }
-                        "dl" => {
-                            // Schedule folder pop to happen after all children are processed
-                            stack.push(StackItem::PopFolder);
-
-                            // Add children in reverse order (so they're processed in document order)
-                            for child in element.children().rev() {
-                                if let Some(child_element) = scraper::ElementRef::wrap(child) {
-                                    stack.push(StackItem::Element(child_element));
-                                }
-                            }
-                            continue; // Don't process general children for dl
+                        DL => {
+                            stack.push(StackItem::PopGroup);
                         }
                         _ => {}
                     }
-
-                    // Add children in reverse order for non-dl elements
-                    if tag_name != "dl" {
-                        for child in element.children().rev() {
-                            if let Some(child_element) = scraper::ElementRef::wrap(child) {
-                                stack.push(StackItem::Element(child_element));
-                            }
+                    for child in element.children().rev() {
+                        if let Some(child_element) = scraper::ElementRef::wrap(child) {
+                            stack.push(StackItem::Element(child_element));
                         }
                     }
                 }
-                StackItem::PopFolder => {
-                    // Finalize any pending bookmark before popping folder
-                    if let Some((attrs, description)) = pending_bookmark.take() {
-                        create_and_insert_bookmark(
-                            collection,
-                            folder_stack,
-                            attrs,
-                            description,
-                            None,
-                        )?;
+                StackItem::PopGroup => {
+                    if let Some((attrs, maybe_description)) = pending_bookmark.take() {
+                        add_pending(collection, folder_stack, attrs, maybe_description, None)?;
                     }
-
                     folder_stack.pop();
                 }
             }
@@ -776,23 +751,22 @@ mod netscape {
         attrs
     }
 
-    fn create_and_insert_bookmark(
+    fn add_pending(
         collection: &mut Collection,
         folder_stack: &[String],
         attrs: HashMap<String, String>,
         description: Option<String>,
         extended: Option<String>,
     ) -> Result<(), Error> {
-        // Extract URL
-        let href = attrs.get("href").ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
-        let url = Url::parse(href)?;
+        let url = {
+            let href = attrs.get("href").ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
+            Url::parse(href)?
+        };
 
-        // Extract timestamps
         let created_at = parse_timestamp_attr(&attrs, "add_date")?;
         let last_modified = parse_timestamp_attr_opt(&attrs, "last_modified")?;
         let last_visited_at = parse_timestamp_attr_opt(&attrs, "last_visit")?;
 
-        // Extract tags
         let tag_string = attrs.get("tags").cloned().unwrap_or_default();
         let tags: Vec<String> = if tag_string.is_empty() {
             Vec::new()
@@ -800,7 +774,6 @@ mod netscape {
             tag_string.split(',').map(|s| s.trim().to_string()).collect()
         };
 
-        // Add folder path as labels and filter out "toread"
         let labels: BTreeSet<Label> = folder_stack
             .iter()
             .chain(tags.iter())
@@ -808,7 +781,6 @@ mod netscape {
             .map(|tag| Label::from(tag.clone()))
             .collect();
 
-        // Extract other attributes
         let shared = !matches!(attrs.get("private"), Some(val) if val == "1");
 
         let to_read =
@@ -816,11 +788,9 @@ mod netscape {
 
         let is_feed = attrs.get("feed").is_some_and(|val| val == "true");
 
-        // Create updated_at vector
         let updated_at =
             if let Some(last_mod) = last_modified { vec![last_mod] } else { Vec::new() };
 
-        // Create entity
         let entity = Entity::new(url, created_at, description.map(Name::from), labels)
             .with_extended(extended.map(Extended::from))
             .with_shared(shared)
@@ -830,6 +800,7 @@ mod netscape {
             .with_updated_at(updated_at);
 
         collection.upsert(entity);
+
         Ok(())
     }
 
