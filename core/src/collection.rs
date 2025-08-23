@@ -33,6 +33,8 @@ pub enum Error {
     ParseTime(#[from] time::error::ComponentRange),
     #[error("time format parsing error: {0}")]
     ParseTimeFormat(#[from] time::error::Parse),
+    #[error("HTML selector error: {0}")]
+    HtmlSelector(String),
     #[error("template error: {0}")]
     Template(#[from] minijinja::Error),
 }
@@ -658,8 +660,10 @@ mod netscape {
     ) -> Result<(), Error> {
         // Use iterative processing with explicit stack to avoid recursion
         let mut stack: Vec<StackItem> = Vec::new();
-        let a_selector = Selector::parse("a").unwrap();
-        let h3_selector = Selector::parse("h3").unwrap();
+        let a_selector =
+            Selector::parse("a").map_err(|err| Error::HtmlSelector(err.to_string()))?;
+        let h3_selector =
+            Selector::parse("h3").map_err(|err| Error::HtmlSelector(err.to_string()))?;
 
         // Start with root's children in reverse order
         for child in root.children().rev() {
