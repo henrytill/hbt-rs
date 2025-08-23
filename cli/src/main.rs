@@ -16,6 +16,8 @@ use hbt_core::markdown;
 #[cfg(feature = "pinboard")]
 use hbt_core::pinboard::Post;
 
+use hbt::version;
+
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum InputFormat {
     Html,
@@ -33,7 +35,7 @@ enum OutputFormat {
 }
 
 #[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
+#[command(about, long_about = None, version = version::version_info().to_string())]
 struct Args {
     /// Input format
     #[arg(short = 'f', long = "from", value_enum)]

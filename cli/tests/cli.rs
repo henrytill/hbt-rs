@@ -11,15 +11,6 @@ fn test_help() {
 }
 
 #[test]
-fn test_version() {
-    Command::new(cargo_bin!("hbt"))
-        .arg("--version")
-        .assert()
-        .success()
-        .stdout_eq(file!("cli/snapshots/version.stdout"));
-}
-
-#[test]
 fn test_missing_file() {
     Command::new(cargo_bin!("hbt"))
         .arg("nonexistent.md")

@@ -22,6 +22,10 @@
             path = ./.;
             name = "hbt-src";
           };
+          env = {
+            HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
+            HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+          };
         };
       };
     in
