@@ -1,11 +1,14 @@
 Usage: hbt [OPTIONS] <FILE>
 
 Arguments:
-  <FILE>  File to read
+  <FILE>  Input file
 
 Options:
-  -d, --dump             Dump all entries
-  -t, --tags             Dump tags
-  -m, --mappings <FILE>  Read mappings from <FILE>
+  -f, --from <FROM>      Input format [possible values: html, json, xml, markdown]
+  -t, --to <TO>          Output format [possible values: yaml, html]
+  -o, --output <OUTPUT>  Output file (defaults to stdout)
+      --info             Show collection info (entity count)
+      --list-tags        List all tags
+      --mappings <FILE>  Read mappings from <FILE>
   -h, --help             Print help
   -V, --version          Print version

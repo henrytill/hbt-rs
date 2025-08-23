@@ -1,4 +1,10 @@
-use std::{collections::BTreeSet, fs, path::PathBuf, process::ExitCode};
+use std::{
+    collections::BTreeSet,
+    fs,
+    io::{self, Write},
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 use anyhow::Error;
 use clap::Parser;
@@ -10,21 +16,45 @@ use hbt_core::markdown;
 #[cfg(feature = "pinboard")]
 use hbt_core::pinboard::Post;
 
+#[derive(clap::ValueEnum, Debug, Clone)]
+enum InputFormat {
+    Html,
+    #[cfg(feature = "pinboard")]
+    Json,
+    #[cfg(feature = "pinboard")]
+    Xml,
+    Markdown,
+}
+
+#[derive(clap::ValueEnum, Debug, Clone)]
+enum OutputFormat {
+    Yaml,
+    Html,
+}
+
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Args {
-    /// Dump all entries
-    #[arg(short, long)]
-    dump: bool,
-    /// Dump tags
-    #[arg(short, long)]
-    tags: bool,
-    /// File to read
-    #[arg(required = true)]
-    file: PathBuf,
+    /// Input format
+    #[arg(short = 'f', long = "from", value_enum)]
+    from: Option<InputFormat>,
+    /// Output format
+    #[arg(short = 't', long = "to", value_enum)]
+    to: Option<OutputFormat>,
+    /// Output file (defaults to stdout)
+    #[arg(short = 'o', long = "output")]
+    output: Option<PathBuf>,
+    /// Show collection info (entity count)
+    #[arg(long = "info")]
+    info: bool,
+    /// List all tags
+    #[arg(long = "list-tags")]
+    list_tags: bool,
     /// Read mappings from <FILE>
-    #[arg(short, long, value_name = "FILE")]
+    #[arg(long = "mappings", value_name = "FILE")]
     mappings: Option<PathBuf>,
+    /// Input file
+    file: PathBuf,
 }
 
 #[cfg(feature = "pinboard")]
@@ -35,6 +65,20 @@ fn create_collection(posts: Vec<Post>) -> Result<Collection, Error> {
         ret.insert(entity);
     }
     Ok(ret)
+}
+
+fn detect_input_format(file: &Path) -> Result<InputFormat, Error> {
+    let maybe_extension = file.extension();
+    match maybe_extension {
+        Some(ext) if ext.as_encoded_bytes() == b"html" => Ok(InputFormat::Html),
+        #[cfg(feature = "pinboard")]
+        Some(ext) if ext.as_encoded_bytes() == b"json" => Ok(InputFormat::Json),
+        #[cfg(feature = "pinboard")]
+        Some(ext) if ext.as_encoded_bytes() == b"xml" => Ok(InputFormat::Xml),
+        Some(ext) if ext.as_encoded_bytes() == b"md" => Ok(InputFormat::Markdown),
+        Some(ext) => Err(Error::msg(format!("No parser for extension: {}", ext.to_string_lossy()))),
+        _ => Err(Error::msg(format!("No parser for file: {}", file.display()))),
+    }
 }
 
 fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Error> {
@@ -58,53 +102,60 @@ fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Err
     Ok(())
 }
 
+fn write_output(writer: &mut dyn Write, content: &str) -> Result<(), Error> {
+    writer.write_all(content.as_bytes())?;
+    writer.flush()?;
+    Ok(())
+}
+
 fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
-    if args.dump {
-        let yaml = serde_yaml::to_string(collection)?;
-        println!("{}", yaml);
-    } else if args.tags {
+    let output = if args.info {
+        let length = collection.len();
+        format!("{}: {} entities\n", args.file.to_string_lossy(), length)
+    } else if args.list_tags {
         let mut all_tags = BTreeSet::new();
         for entity in collection.entities() {
             all_tags.extend(entity.labels())
         }
-        for tag in all_tags {
-            println!("{}", tag.as_str());
+        let tags_output = all_tags.iter().map(|tag| tag.as_str()).collect::<Vec<_>>().join("\n");
+        if tags_output.is_empty() { String::new() } else { format!("{}\n", tags_output) }
+    } else if let Some(format) = &args.to {
+        match format {
+            OutputFormat::Yaml => serde_yaml::to_string(collection)?,
+            OutputFormat::Html => collection.to_html()?,
         }
     } else {
-        let length = collection.len();
-        println!("{}: {} entities", args.file.to_string_lossy(), length)
+        return Err(Error::msg(
+            "Must specify an output format (-t) or analysis flag (--info, --list-tags)",
+        ));
+    };
+
+    if let Some(output_file) = &args.output {
+        let mut file = std::fs::File::create(output_file)?;
+        write_output(&mut file, &output)?;
+    } else {
+        write_output(&mut io::stdout(), &output)?;
     }
+
     Ok(())
 }
 
-#[cfg(feature = "pinboard")]
-fn html(args: &Args, input: &str) -> Result<(), Error> {
-    let mut collection = Collection::from_html_str(input)?;
-    update_collection(args, &mut collection)?;
-    print_collection(args, &collection)?;
-    Ok(())
-}
+fn process_input(args: &Args, input: &str, format: InputFormat) -> Result<(), Error> {
+    let mut collection = match format {
+        InputFormat::Html => Collection::from_html_str(input)?,
+        #[cfg(feature = "pinboard")]
+        InputFormat::Json => {
+            let posts = Post::from_json(input)?;
+            create_collection(posts)?
+        }
+        #[cfg(feature = "pinboard")]
+        InputFormat::Xml => {
+            let posts = Post::from_xml(input)?;
+            create_collection(posts)?
+        }
+        InputFormat::Markdown => markdown::parse(input)?,
+    };
 
-#[cfg(feature = "pinboard")]
-fn json(args: &Args, input: &str) -> Result<(), Error> {
-    let posts = Post::from_json(input)?;
-    let mut collection = create_collection(posts)?;
-    update_collection(args, &mut collection)?;
-    print_collection(args, &collection)?;
-    Ok(())
-}
-
-#[cfg(feature = "pinboard")]
-fn xml(args: &Args, input: &str) -> Result<(), Error> {
-    let posts = Post::from_xml(input)?;
-    let mut collection = create_collection(posts)?;
-    update_collection(args, &mut collection)?;
-    print_collection(args, &collection)?;
-    Ok(())
-}
-
-fn markdown(args: &Args, input: &str) -> Result<(), Error> {
-    let mut collection = markdown::parse(input)?;
     update_collection(args, &mut collection)?;
     print_collection(args, &collection)?;
     Ok(())
@@ -114,24 +165,14 @@ fn main() -> Result<ExitCode, Error> {
     let args = Args::parse();
 
     let file = &args.file;
-    let maybe_extension = file.extension();
     let contents = fs::read_to_string(file)?;
 
-    match maybe_extension {
-        #[cfg(feature = "pinboard")]
-        Some(ext) if ext.as_encoded_bytes() == b"html" => html(&args, &contents)?,
-        #[cfg(feature = "pinboard")]
-        Some(ext) if ext.as_encoded_bytes() == b"json" => json(&args, &contents)?,
-        #[cfg(feature = "pinboard")]
-        Some(ext) if ext.as_encoded_bytes() == b"xml" => xml(&args, &contents)?,
-        Some(ext) if ext.as_encoded_bytes() == b"md" => markdown(&args, &contents)?,
-        Some(ext) => {
-            return Err(Error::msg(format!("No parser for extension: {}", ext.to_string_lossy())));
-        }
-        _ => {
-            return Err(Error::msg(format!("No parser for file: {}", file.display())));
-        }
-    }
+    let input_format = match &args.from {
+        Some(format) => format.clone(),
+        None => detect_input_format(file)?,
+    };
+
+    process_input(&args, &contents, input_format)?;
 
     Ok(ExitCode::SUCCESS)
 }

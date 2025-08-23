@@ -31,7 +31,7 @@ fn test_missing_file() {
 #[test]
 fn test_basic_markdown() {
     Command::new(cargo_bin!("hbt"))
-        .arg("tests/cli/fixtures/basic.md")
+        .args(["--info", "tests/cli/fixtures/basic.md"])
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.md.stdout"));
@@ -40,7 +40,7 @@ fn test_basic_markdown() {
 #[test]
 fn test_dump_markdown() {
     Command::new(cargo_bin!("hbt"))
-        .args(["--dump", "tests/cli/fixtures/basic.md"])
+        .args(["-t", "yaml", "tests/cli/fixtures/basic.md"])
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.dump.stdout"));
@@ -50,7 +50,7 @@ fn test_dump_markdown() {
 #[test]
 fn test_basic_html() {
     Command::new(cargo_bin!("hbt"))
-        .arg("tests/cli/fixtures/basic.html")
+        .args(["--info", "tests/cli/fixtures/basic.html"])
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.html.stdout"));
@@ -60,7 +60,7 @@ fn test_basic_html() {
 #[test]
 fn test_dump_html() {
     Command::new(cargo_bin!("hbt"))
-        .args(["--dump", "tests/cli/fixtures/basic.html"])
+        .args(["-t", "yaml", "tests/cli/fixtures/basic.html"])
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.dump.stdout"));
@@ -70,7 +70,8 @@ fn test_dump_html() {
 fn test_mappings() {
     Command::new(cargo_bin!("hbt"))
         .args([
-            "--dump",
+            "-t",
+            "yaml",
             "--mappings",
             "tests/cli/fixtures/mappings.yaml",
             "tests/cli/fixtures/basic.md",
@@ -84,7 +85,8 @@ fn test_mappings() {
 fn test_empty_mappings() {
     Command::new(cargo_bin!("hbt"))
         .args([
-            "--dump",
+            "-t",
+            "yaml",
             "--mappings",
             "tests/cli/fixtures/mappings-empty.yaml",
             "tests/cli/fixtures/basic.md",
@@ -98,7 +100,8 @@ fn test_empty_mappings() {
 fn test_invalid_mappings() {
     Command::new(cargo_bin!("hbt"))
         .args([
-            "--dump",
+            "-t",
+            "yaml",
             "--mappings",
             "tests/cli/fixtures/mappings-invalid.yaml",
             "tests/cli/fixtures/basic.md",
@@ -111,7 +114,7 @@ fn test_invalid_mappings() {
 #[test]
 fn test_tags() {
     Command::new(cargo_bin!("hbt"))
-        .args(["--tags", "tests/cli/fixtures/basic.md"])
+        .args(["--list-tags", "tests/cli/fixtures/basic.md"])
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.tags.stdout"));
@@ -121,7 +124,7 @@ fn test_tags() {
 fn test_tags_with_mappings() {
     Command::new(cargo_bin!("hbt"))
         .args([
-            "--tags",
+            "--list-tags",
             "--mappings",
             "tests/cli/fixtures/mappings.yaml",
             "tests/cli/fixtures/basic.md",
@@ -129,4 +132,31 @@ fn test_tags_with_mappings() {
         .assert()
         .success()
         .stdout_eq(file!("cli/snapshots/basic.mapped.tags.stdout"));
+}
+
+#[test]
+fn test_explicit_input_format() {
+    Command::new(cargo_bin!("hbt"))
+        .args(["-f", "markdown", "--info", "tests/cli/fixtures/basic.md"])
+        .assert()
+        .success()
+        .stdout_eq(file!("cli/snapshots/basic.md.stdout"));
+}
+
+#[test]
+fn test_html_output() {
+    Command::new(cargo_bin!("hbt"))
+        .args(["-t", "html", "tests/cli/fixtures/basic.md"])
+        .assert()
+        .success()
+        .stdout_eq(file!("cli/snapshots/basic.html-output.stdout"));
+}
+
+#[test]
+fn test_missing_output() {
+    Command::new(cargo_bin!("hbt"))
+        .arg("tests/cli/fixtures/basic.md")
+        .assert()
+        .failure()
+        .stderr_eq(file!("cli/snapshots/missing-output.stderr"));
 }
