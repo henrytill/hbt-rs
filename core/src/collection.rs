@@ -792,8 +792,7 @@ mod netscape {
 
         let is_feed = attrs.get(ATTR_FEED).is_some_and(|val| val == "true");
 
-        let updated_at =
-            if let Some(last_mod) = last_modified { vec![last_mod] } else { Vec::new() };
+        let updated_at: Vec<Time> = last_modified.into_iter().collect();
 
         let entity = Entity::new(url, created_at, description.map(Name::from), labels)
             .with_extended(extended.map(Extended::from))
