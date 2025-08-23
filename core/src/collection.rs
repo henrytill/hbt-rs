@@ -628,9 +628,11 @@ impl<'de> Deserialize<'de> for Collection {
 }
 
 mod netscape {
-    use super::*;
-    use scraper::{ElementRef, Html, Selector};
     use std::collections::HashMap;
+
+    use scraper::{ElementRef, Html, Selector};
+
+    use super::*;
 
     #[derive(Debug)]
     enum StackItem<'a> {
