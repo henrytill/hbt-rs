@@ -60,7 +60,10 @@ struct Args {
 }
 
 #[cfg(feature = "pinboard")]
-fn create_collection(posts: Vec<Post>) -> Result<Collection, Error> {
+fn create_collection(mut posts: Vec<Post>) -> Result<Collection, Error> {
+    // Sort posts by timestamp to match OCaml version behavior
+    posts.sort_by(|a, b| a.time.cmp(&b.time));
+
     let mut ret = Collection::with_capacity(posts.len());
     for post in posts {
         let entity = Entity::try_from(post)?;
