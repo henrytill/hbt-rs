@@ -286,6 +286,8 @@ impl Entity {
         } else {
             self.updated_at.push(updated_at);
         }
+        // Sort updated_at to maintain chronological order
+        self.updated_at.sort();
         self.names.extend(names);
         self.labels.extend(labels);
         self
