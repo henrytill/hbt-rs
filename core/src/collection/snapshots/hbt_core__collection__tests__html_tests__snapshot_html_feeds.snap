@@ -29,10 +29,10 @@ value:
         - RSS Feeds
         - books
         - tech
-      extended: Technology insights and trends
       shared: true
       toRead: false
       isFeed: true
+      extended: Technology insights and trends
     edges: []
   - id: 2
     entity:
@@ -45,10 +45,10 @@ value:
         - RSS Feeds
         - functional
         - ocaml
-      extended: OCaml community blog aggregator
       shared: true
       toRead: false
       isFeed: true
+      extended: OCaml community blog aggregator
     edges: []
   - id: 3
     entity:
@@ -93,6 +93,6 @@ value:
         - tech
       shared: true
       toRead: false
-      lastVisitedAt: 1610064000
       isFeed: false
+      lastVisitedAt: 1610064000
     edges: []

@@ -237,13 +237,13 @@ pub struct Entity {
     updated_at: Vec<Time>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    extended: Option<Extended>,
     shared: bool,
     to_read: bool,
+    is_feed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    extended: Option<Extended>,
     #[serde(skip_serializing_if = "Option::is_none")]
     last_visited_at: Option<Time>,
-    is_feed: bool,
 }
 
 impl Entity {

@@ -29,10 +29,10 @@ value:
         - Programming
         - git
         - hosting
-      extended: Code hosting and collaboration
       shared: true
       toRead: false
       isFeed: false
+      extended: Code hosting and collaboration
     edges: []
   - id: 2
     entity:
@@ -61,10 +61,10 @@ value:
         - Programming
         - functional
         - ml
-      extended: Industrial-strength functional programming
       shared: true
       toRead: false
       isFeed: false
+      extended: Industrial-strength functional programming
     edges: []
   - id: 4
     entity:

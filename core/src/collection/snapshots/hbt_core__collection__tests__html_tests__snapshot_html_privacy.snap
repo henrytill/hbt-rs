@@ -15,10 +15,10 @@ value:
       labels:
         - example
         - public
-      extended: "This bookmark is public (PRIVATE=\"0\")"
       shared: true
       toRead: false
       isFeed: false
+      extended: "This bookmark is public (PRIVATE=\"0\")"
     edges: []
   - id: 1
     entity:
@@ -30,10 +30,10 @@ value:
       labels:
         - internal
         - work
-      extended: "This bookmark is private (PRIVATE=\"1\")"
       shared: false
       toRead: false
       isFeed: false
+      extended: "This bookmark is private (PRIVATE=\"1\")"
     edges: []
   - id: 2
     entity:
@@ -44,10 +44,10 @@ value:
         - GitHub (no privacy flag)
       labels:
         - programming
-      extended: This bookmark has no privacy flag (defaults to public)
       shared: true
       toRead: false
       isFeed: false
+      extended: This bookmark has no privacy flag (defaults to public)
     edges: []
   - id: 3
     entity:
@@ -59,11 +59,11 @@ value:
       labels:
         - project
         - secret
-      extended: Private bookmark with last visit time
       shared: false
       toRead: false
-      lastVisitedAt: 1609804800
       isFeed: false
+      extended: Private bookmark with last visit time
+      lastVisitedAt: 1609804800
     edges: []
   - id: 4
     entity:
@@ -75,10 +75,10 @@ value:
       labels:
         - feed
         - public
-      extended: Public feed bookmark
       shared: true
       toRead: false
       isFeed: true
+      extended: Public feed bookmark
     edges: []
   - id: 5
     entity:
@@ -90,8 +90,8 @@ value:
       labels:
         - feed
         - private
-      extended: Private feed bookmark
       shared: false
       toRead: false
       isFeed: true
+      extended: Private feed bookmark
     edges: []

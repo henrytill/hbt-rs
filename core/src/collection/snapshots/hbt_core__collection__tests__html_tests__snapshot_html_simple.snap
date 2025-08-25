@@ -16,10 +16,10 @@ value:
       labels:
         - example
         - test
-      extended: A simple example website for testing
       shared: true
       toRead: false
       isFeed: false
+      extended: A simple example website for testing
     edges: []
   - id: 1
     entity:
@@ -31,11 +31,11 @@ value:
       labels:
         - git
         - programming
-      extended: Code hosting platform
       shared: true
       toRead: false
-      lastVisitedAt: 1609632000
       isFeed: false
+      extended: Code hosting platform
+      lastVisitedAt: 1609632000
     edges: []
   - id: 2
     entity:
