@@ -830,7 +830,10 @@ mod netscape {
         env.add_template("netscape", TEMPLATE)?;
         let entities = collection.entities();
         let template = env.get_template("netscape")?;
-        let rendered = template.render(context! { entities })?;
+        let mut rendered = template.render(context! { entities })?;
+        if !rendered.ends_with('\n') {
+            rendered.push('\n');
+        }
         Ok(rendered)
     }
 }
