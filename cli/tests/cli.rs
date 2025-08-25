@@ -6,7 +6,7 @@ macro_rules! cli_to_yaml_test {
         #[test]
         fn $test_name() {
             Command::new(cargo_bin!("hbt"))
-                .args(["-t", "yaml", concat!("tests/", $input)])
+                .args(["-t", "yaml", $input])
                 .assert()
                 .success()
                 .stdout_eq(file!($output));
@@ -19,7 +19,7 @@ macro_rules! cli_to_html_test {
         #[test]
         fn $test_name() {
             Command::new(cargo_bin!("hbt"))
-                .args(["-t", "html", concat!("tests/", $input)])
+                .args(["-t", "html", $input])
                 .assert()
                 .success()
                 .stdout_eq(file!($output));
@@ -27,5 +27,4 @@ macro_rules! cli_to_html_test {
     };
 }
 
-// Include auto-generated tests
 include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
