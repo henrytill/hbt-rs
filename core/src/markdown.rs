@@ -125,12 +125,11 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 _ => {}
             },
             // Code (for handling backticks in link text)
-            Event::Code(text) => match &current_tag {
-                Some(Tag::Link { link_type: LinkType::Inline, .. }) => {
+            Event::Code(text) => {
+                if let Some(Tag::Link { link_type: LinkType::Inline, .. }) = &current_tag {
                     name_parts.push(format!("`{}`", text));
                 }
-                _ => {}
-            },
+            }
             // End
             Event::End(TagEnd::List(_)) => {
                 let _ = parents.pop();

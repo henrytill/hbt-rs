@@ -94,7 +94,7 @@ fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> R
                 .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid path prefix"))?;
             let absolute_output = std::fs::canonicalize(&file_path)?;
 
-            write_test_macro(f, "cli_to_yaml_test", &test_name, &relative_input, &absolute_output)?;
+            write_test_macro(f, "cli_to_yaml_test", &test_name, relative_input, &absolute_output)?;
         }
     }
 
@@ -136,7 +136,7 @@ fn generate_html_export_tests(f: &mut fs::File, input_dir: &str, export_dir: &st
                     f,
                     "cli_to_html_test",
                     &test_name,
-                    &relative_input,
+                    relative_input,
                     &absolute_export,
                 )?;
             }
