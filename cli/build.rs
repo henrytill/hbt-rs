@@ -32,20 +32,19 @@ fn commit_info_env() {
     }
 }
 
-struct Env {
-    manifest_dir_path: PathBuf,
-    test_data_path: PathBuf,
+struct Env<'a> {
+    manifest_dir_path: &'a Path,
+    test_data_path: &'a Path,
 }
 
-fn find_input_file<P: AsRef<Path>>(path: P, dir_path: &str) -> Option<PathBuf> {
+fn find_input_file<P: AsRef<Path>, Q: AsRef<Path>>(path: P, dir_path: Q) -> Option<PathBuf> {
     const INPUT_EXTENSIONS: [&str; 4] = ["html", "md", "json", "xml"];
 
     let file_stem = path.as_ref().file_stem()?;
-    let dir = Path::new(dir_path);
 
     INPUT_EXTENSIONS
         .iter()
-        .map(|ext| dir.join(file_stem).with_extension(ext))
+        .map(|ext| dir_path.as_ref().join(file_stem).with_extension(ext))
         .find(|path| path.exists())
 }
 
@@ -70,21 +69,20 @@ fn write_test_macro<P: AsRef<Path>, Q: AsRef<Path>>(
     )
 }
 
-fn generate_tests_for_dir<P: AsRef<Path>>(
+fn generate_tests_for_dir(
     f: &mut fs::File,
-    manifest_dir_path: P,
-    dir_path: &str,
+    env: &Env,
     category: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     const YAML_EXT: &str = "yaml";
 
-    let path = Path::new(dir_path);
+    let path = env.test_data_path.join(category);
 
     if !path.exists() {
         return Ok(());
     }
 
-    for entry in fs::read_dir(path)? {
+    for entry in fs::read_dir(&path)? {
         let entry = entry?;
         let file_path = entry.path();
 
@@ -92,14 +90,16 @@ fn generate_tests_for_dir<P: AsRef<Path>>(
             continue;
         }
 
+        // println!("cargo::warning={}", file_path.to_string_lossy());
+
         let file_stem = file_path
             .file_stem()
             .and_then(OsStr::to_str)
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "Invalid file stem"))?;
 
-        if let Some(input_path) = find_input_file(&file_path, dir_path) {
+        if let Some(input_path) = find_input_file(&file_path, &path) {
             let test_name = format!("{}_{}", category, file_stem);
-            let output_path = manifest_dir_path.as_ref().join(file_path);
+            let output_path = env.manifest_dir_path.join(file_path);
             write_test_macro(f, "cli_to_yaml_test", &test_name, &input_path, &output_path)?;
         }
     }
@@ -151,7 +151,7 @@ fn generate_html_export_tests<P: AsRef<Path>>(
     Ok(())
 }
 
-fn generate_tests(env: Env) -> Result<(), Box<dyn std::error::Error>> {
+fn generate_tests(env: &Env) -> Result<(), Box<dyn std::error::Error>> {
     let out_dir = std::env::var("OUT_DIR")?;
     let dest_path = Path::new(&out_dir).join("generated_tests.rs");
     let mut f = fs::File::create(&dest_path)?;
@@ -159,9 +159,9 @@ fn generate_tests(env: Env) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(f, "// Auto-generated test cases")?;
     writeln!(f)?;
 
-    generate_tests_for_dir(&mut f, &env.manifest_dir_path, "tests/data/html", "html")?;
-    generate_tests_for_dir(&mut f, &env.manifest_dir_path, "tests/data/markdown", "markdown")?;
-    generate_tests_for_dir(&mut f, &env.manifest_dir_path, "tests/data/pinboard", "pinboard")?;
+    generate_tests_for_dir(&mut f, &env, "html")?;
+    generate_tests_for_dir(&mut f, &env, "markdown")?;
+    generate_tests_for_dir(&mut f, &env, "pinboard")?;
 
     generate_html_export_tests(
         &mut f,
@@ -177,8 +177,7 @@ fn generate_tests(env: Env) -> Result<(), Box<dyn std::error::Error>> {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
-    let manifest_dir_path = PathBuf::from(&manifest_dir);
-    println!("cargo::warning={}", manifest_dir_path.to_string_lossy());
+    let manifest_dir_path = Path::new(&manifest_dir);
 
     let cargo_workspace_dir_path = manifest_dir_path
         .parent()
@@ -190,16 +189,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         commit_info_env();
     }
 
-    let test_data_path = {
-        let mut tmp = manifest_dir_path.clone();
-        tmp.push("test");
-        tmp.push("data");
-        tmp
-    };
-
+    let test_data_path = &manifest_dir_path.join("tests/data");
     let env = Env { manifest_dir_path, test_data_path };
-
-    generate_tests(env)?;
+    generate_tests(&env)?;
 
     Ok(())
 }
