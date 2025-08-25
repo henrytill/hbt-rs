@@ -1,7 +1,12 @@
 use std::fs;
-use std::io::Write;
+use std::io::{Error, ErrorKind, Result, Write};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+const INPUT_EXTENSIONS: &[&str] = &["html", "md", "json", "xml"];
+const YAML_EXT: &str = "yaml";
+const HTML_EXT: &str = "html";
+const EXPORT_SUFFIX: &str = "_export";
 
 fn commit_info_git() {
     let output = match Command::new("git")
@@ -31,23 +36,38 @@ fn commit_info_env() {
     }
 }
 
-fn generate_tests() {
-    let out_dir = std::env::var("OUT_DIR").unwrap();
-    let dest_path = Path::new(&out_dir).join("generated_tests.rs");
-    let mut f = fs::File::create(&dest_path).unwrap();
+fn find_input_file(yaml_path: &Path, dir_path: &str) -> Option<PathBuf> {
+    let file_stem = yaml_path.file_stem()?;
+    let dir = Path::new(dir_path);
 
-    writeln!(f, "// Auto-generated test cases").unwrap();
-    writeln!(f).unwrap();
-
-    // Generate tests for each directory
-    generate_tests_for_dir(&mut f, "tests/data/html", "html").unwrap();
-    generate_tests_for_dir(&mut f, "tests/data/markdown", "markdown").unwrap();
-    generate_tests_for_dir(&mut f, "tests/data/pinboard", "pinboard").unwrap();
-
-    println!("cargo:rerun-if-changed=tests/data");
+    INPUT_EXTENSIONS
+        .iter()
+        .map(|ext| dir.join(file_stem).with_extension(ext))
+        .find(|path| path.exists())
 }
 
-fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> std::io::Result<()> {
+fn has_extension(path: &Path, expected_ext: &str) -> bool {
+    path.extension().is_some_and(|ext| ext == expected_ext)
+}
+
+fn write_test_macro(
+    f: &mut fs::File,
+    macro_name: &str,
+    test_name: &str,
+    relative_input: &Path,
+    absolute_output: &Path,
+) -> Result<()> {
+    writeln!(
+        f,
+        r#"{}!({}, "{}", "{}");"#,
+        macro_name,
+        test_name,
+        relative_input.display(),
+        absolute_output.display()
+    )
+}
+
+fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> Result<()> {
     let path = Path::new(dir_path);
 
     if !path.exists() {
@@ -58,26 +78,23 @@ fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> s
         let entry = entry?;
         let file_path = entry.path();
 
-        // Skip if it's not a .yaml file (these are our expected outputs)
-        if file_path.extension().and_then(|s| s.to_str()) != Some("yaml") {
+        if !has_extension(&file_path, YAML_EXT) {
             continue;
         }
 
-        let file_stem = file_path.file_stem().unwrap().to_str().unwrap();
+        let file_stem = file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid file stem"))?;
 
-        // Find the corresponding input file
         if let Some(input_path) = find_input_file(&file_path, dir_path) {
             let test_name = format!("{}_{}", category, file_stem);
-            let relative_input = input_path.strip_prefix("tests/").unwrap();
-            let absolute_output = std::fs::canonicalize(&file_path).unwrap();
+            let relative_input = input_path
+                .strip_prefix("tests/")
+                .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid path prefix"))?;
+            let absolute_output = std::fs::canonicalize(&file_path)?;
 
-            writeln!(
-                f,
-                r#"cli_to_yaml_test!({}, "{}", "{}");"#,
-                test_name,
-                relative_input.display().to_string().replace('\\', "/"),
-                absolute_output.display().to_string().replace('\\', "/")
-            )?;
+            write_test_macro(f, "cli_to_yaml_test", &test_name, &relative_input, &absolute_output)?;
         }
     }
 
@@ -85,21 +102,66 @@ fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> s
     Ok(())
 }
 
-fn find_input_file(yaml_path: &Path, dir_path: &str) -> Option<PathBuf> {
-    let file_stem = yaml_path.file_stem()?.to_str()?;
-    let dir = Path::new(dir_path);
+fn generate_html_export_tests(f: &mut fs::File, input_dir: &str, export_dir: &str) -> Result<()> {
+    let export_path = Path::new(export_dir);
 
-    // Common extensions to check for input files
-    let extensions = ["html", "md", "json", "xml"];
+    if !export_path.exists() {
+        return Ok(());
+    }
 
-    for ext in &extensions {
-        let input_path = dir.join(format!("{}.{}", file_stem, ext));
-        if input_path.exists() {
-            return Some(input_path);
+    for entry in fs::read_dir(export_path)? {
+        let entry = entry?;
+        let export_file_path = entry.path();
+
+        if !has_extension(&export_file_path, HTML_EXT) {
+            continue;
+        }
+
+        let file_stem = export_file_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid file stem"))?;
+
+        if let Some(original_name) = file_stem.strip_suffix(EXPORT_SUFFIX) {
+            let input_file = Path::new(input_dir).join(original_name).with_extension(HTML_EXT);
+
+            if input_file.exists() {
+                let test_name = format!("html_export_{}", original_name);
+                let relative_input = input_file
+                    .strip_prefix("tests/")
+                    .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid path prefix"))?;
+                let absolute_export = std::fs::canonicalize(&export_file_path)?;
+
+                write_test_macro(
+                    f,
+                    "cli_to_html_test",
+                    &test_name,
+                    &relative_input,
+                    &absolute_export,
+                )?;
+            }
         }
     }
 
-    None
+    writeln!(f)?;
+    Ok(())
+}
+
+fn generate_tests() {
+    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let dest_path = Path::new(&out_dir).join("generated_tests.rs");
+    let mut f = fs::File::create(&dest_path).unwrap();
+
+    writeln!(f, "// Auto-generated test cases").unwrap();
+    writeln!(f).unwrap();
+
+    generate_tests_for_dir(&mut f, "tests/data/html", "html").unwrap();
+    generate_tests_for_dir(&mut f, "tests/data/markdown", "markdown").unwrap();
+    generate_tests_for_dir(&mut f, "tests/data/pinboard", "pinboard").unwrap();
+
+    generate_html_export_tests(&mut f, "tests/data/html", "tests/data/html/export").unwrap();
+
+    println!("cargo:rerun-if-changed=tests/data");
 }
 
 fn main() {
