@@ -49,6 +49,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
     let mut ret = Collection::new();
 
     let mut name: Option<Name> = None;
+    let mut name_parts: Vec<String> = Vec::new();
     let mut date: Option<Date> = None;
     let mut url: Option<Url> = None;
     let mut labels: Vec<Label> = Vec::new();
@@ -63,6 +64,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // Start
             Event::Start(tag @ Tag::Heading { level: HeadingLevel::H1, .. }) => {
                 name = None;
+                name_parts.clear();
                 date = None;
                 url = None;
                 labels.clear();
@@ -87,6 +89,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 ref tag @ Tag::Link { link_type: LinkType::Inline, ref dest_url, ref title, .. },
             ) => {
                 current_tag = Some(tag.to_owned());
+                name_parts.clear();
                 let parsed =
                     Url::parse(dest_url).map_err(|e| Error::ParseUrl(e, dest_url.to_string()))?;
                 url = Some(parsed);
@@ -99,6 +102,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             ) => {
                 current_tag = Some(tag.to_owned());
                 name = None;
+                name_parts.clear();
                 let parsed =
                     Url::parse(dest_url).map_err(|e| Error::ParseUrl(e, dest_url.to_string()))?;
                 url = Some(parsed);
@@ -119,7 +123,14 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     labels.push(label);
                 }
                 (Some(Tag::Link { link_type: LinkType::Inline, .. }), _) => {
-                    name = Some(Name::new(text.to_string()));
+                    name_parts.push(text.to_string());
+                }
+                _ => {}
+            },
+            // Code (for handling backticks in link text)
+            Event::Code(text) => match &current_tag {
+                Some(Tag::Link { link_type: LinkType::Inline, .. }) => {
+                    name_parts.push(format!("`{}`", text));
                 }
                 _ => {}
             },
@@ -132,7 +143,12 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 let url = url.take().ok_or(Error::MissingUrl)?;
                 let date = date.ok_or(Error::MissingDate)?;
                 let datetime = OffsetDateTime::new_utc(date, time::Time::MIDNIGHT);
-                let name = name.take();
+                let name = if name_parts.is_empty() {
+                    name.take()
+                } else {
+                    Some(Name::new(name_parts.join("")))
+                };
+                name_parts.clear();
                 let labels = labels.iter().cloned().collect();
                 let entity = Entity::new(url, datetime.into(), name, labels);
                 let id = ret.upsert(entity);
