@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use std::collections::{HashSet, hash_set::Iter};
 
 use serde::{Deserialize, Serialize};

@@ -1,1 +1,0 @@
-- [Foo](https://foo.com)

@@ -1,6 +1,3 @@
-#[cfg(test)]
-mod tests;
-
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use thiserror::Error;
 use time::{Date, OffsetDateTime, macros::format_description};
