@@ -8,10 +8,11 @@ use std::{
 
 use anyhow::Error;
 use clap::Parser;
+use schemars::schema_for;
 
-use hbt_core::collection::Collection;
 #[cfg(feature = "pinboard")]
 use hbt_core::collection::Entity;
+use hbt_core::collection::{Collection, SerializedCollection};
 use hbt_core::markdown;
 #[cfg(feature = "pinboard")]
 use hbt_core::pinboard::Post;
@@ -52,11 +53,14 @@ struct Args {
     /// List all tags
     #[arg(long = "list-tags")]
     list_tags: bool,
+    /// Output Collection JSON schema
+    #[arg(long = "schema")]
+    schema: bool,
     /// Read mappings from <FILE>
     #[arg(long = "mappings", value_name = "FILE")]
     mappings: Option<PathBuf>,
     /// Input file
-    file: PathBuf,
+    file: Option<PathBuf>,
 }
 
 #[cfg(feature = "pinboard")]
@@ -116,7 +120,8 @@ fn write_output(writer: &mut dyn Write, content: &str) -> Result<(), Error> {
 fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
     let output = if args.info {
         let length = collection.len();
-        format!("{}: {} entities\n", args.file.to_string_lossy(), length)
+        let file_name = args.file.as_ref().map(|f| f.to_string_lossy()).unwrap_or("input".into());
+        format!("{}: {} entities\n", file_name, length)
     } else if args.list_tags {
         let mut all_tags = BTreeSet::new();
         for entity in collection.entities() {
@@ -169,7 +174,20 @@ fn process_input(args: &Args, input: &str, format: InputFormat) -> Result<(), Er
 fn main() -> Result<ExitCode, Error> {
     let args = Args::parse();
 
-    let file = &args.file;
+    // Handle schema output (no input file required)
+    if args.schema {
+        let schema = schema_for!(SerializedCollection);
+        let schema_json = serde_json::to_string_pretty(&schema)?;
+        if let Some(output_file) = &args.output {
+            let mut file = std::fs::File::create(output_file)?;
+            write_output(&mut file, &schema_json)?;
+        } else {
+            write_output(&mut io::stdout(), &schema_json)?;
+        }
+        return Ok(ExitCode::SUCCESS);
+    }
+
+    let file = args.file.as_ref().ok_or_else(|| Error::msg("Input file required"))?;
     let contents = fs::read_to_string(file)?;
 
     let input_format = match &args.from {

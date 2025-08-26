@@ -7,6 +7,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use minijinja::{Environment, context};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
@@ -40,7 +41,7 @@ impl From<scraper::error::SelectorErrorKind<'_>> for Error {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 struct Version(semver::Version);
 
 impl Version {
@@ -64,7 +65,9 @@ impl fmt::Display for Version {
 }
 
 /// An [`Id`] is a unique identifier for an [`Entity`].
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 pub struct Id(usize);
 
 impl Id {
@@ -80,7 +83,7 @@ impl From<Id> for usize {
 }
 
 /// A [`Name`] describes an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Name(String);
 
 impl Name {
@@ -113,7 +116,7 @@ impl From<&str> for Name {
 }
 
 /// A [`Label`] is text that can be attached to an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Label(String);
 
 impl Label {
@@ -144,8 +147,14 @@ impl From<&str> for Label {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct Time(#[serde(with = "chrono::serde::ts_seconds")] DateTime<Utc>);
+#[derive(
+    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+pub struct Time(
+    #[serde(with = "chrono::serde::ts_seconds")]
+    #[schemars(with = "i64")]
+    DateTime<Utc>,
+);
 
 impl Time {
     pub const fn new(time: DateTime<Utc>) -> Time {
@@ -190,7 +199,7 @@ impl Default for Time {
 }
 
 /// A [`Extended`] is text that can be attached to an [`Entity`].
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Extended(String);
 
 impl Extended {
@@ -223,7 +232,7 @@ impl From<&str> for Extended {
 }
 
 /// An [`Entity`] is a page in the collection.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Entity {
     #[serde(rename = "uri")]
@@ -539,7 +548,7 @@ impl Collection {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct SerializedNode {
     id: Id,
@@ -547,9 +556,9 @@ struct SerializedNode {
     edges: Vec<Id>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct SerializedCollection {
+pub struct SerializedCollection {
     version: Version,
     length: usize,
     value: Vec<SerializedNode>,

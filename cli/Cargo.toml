@@ -11,6 +11,8 @@ pinboard = ["hbt-core/pinboard"]
 anyhow = "1.0.82"
 clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
 hbt-core = { path = "../core" }
+schemars = "1.0.4"
+serde_json.workspace = true
 serde_yaml = "0.9.34"
 
 [dev-dependencies]

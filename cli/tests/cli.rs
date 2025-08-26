@@ -14,4 +14,13 @@ macro_rules! cli_test {
     };
 }
 
+#[test]
+fn schema_output() {
+    Command::new(cargo_bin!("hbt"))
+        .args(["--schema"])
+        .assert()
+        .success()
+        .stdout_eq(file!["data/collection.schema.json"]);
+}
+
 include!(concat!(env!("OUT_DIR"), "/generated_tests.rs"));
