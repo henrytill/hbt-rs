@@ -5,12 +5,10 @@ use std::{
     ops::{Index, IndexMut},
 };
 
+use chrono::{DateTime, Utc};
 use minijinja::{Environment, context};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-#[cfg(feature = "pinboard")]
-use time::format_description::well_known::Rfc3339;
-use time::{OffsetDateTime, serde::timestamp};
 use url::Url;
 
 #[cfg(feature = "pinboard")]
@@ -26,10 +24,10 @@ pub enum Error {
     ParseUrl(#[from] url::ParseError),
     #[error("integer parsing error: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
-    #[error("time parsing error: {0}")]
-    ParseTime(#[from] time::error::ComponentRange),
+    #[error("time parsing error")]
+    ParseTime,
     #[error("time format parsing error: {0}")]
-    ParseTimeFormat(#[from] time::error::Parse),
+    ParseTimeFormat(#[from] chrono::ParseError),
     #[error("HTML selector error: {0}")]
     HtmlSelector(String),
     #[error("template error: {0}")]
@@ -147,23 +145,23 @@ impl From<&str> for Label {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct Time(#[serde(with = "timestamp")] OffsetDateTime);
+pub struct Time(#[serde(with = "chrono::serde::ts_seconds")] DateTime<Utc>);
 
 impl Time {
-    pub const fn new(time: OffsetDateTime) -> Time {
+    pub const fn new(time: DateTime<Utc>) -> Time {
         Time(time)
     }
 
     #[cfg(feature = "pinboard")]
     fn parse(time: &str) -> Result<Time, Error> {
         let timestamp: i64 = time.parse()?;
-        let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
+        let time = DateTime::from_timestamp(timestamp, 0).ok_or_else(|| Error::ParseTime)?;
         Ok(Time(time))
     }
 
     #[cfg(feature = "pinboard")]
     fn parse_iso8601(time: &str) -> Result<Time, Error> {
-        let time = OffsetDateTime::parse(time, &Rfc3339)?;
+        let time = DateTime::parse_from_rfc3339(time)?.with_timezone(&Utc);
         Ok(Time(time))
     }
 
@@ -179,15 +177,15 @@ impl Time {
     }
 }
 
-impl From<OffsetDateTime> for Time {
-    fn from(time: OffsetDateTime) -> Time {
+impl From<DateTime<Utc>> for Time {
+    fn from(time: DateTime<Utc>) -> Time {
         Time(time)
     }
 }
 
 impl Default for Time {
     fn default() -> Time {
-        Time(OffsetDateTime::UNIX_EPOCH)
+        Time(DateTime::UNIX_EPOCH)
     }
 }
 
@@ -817,7 +815,7 @@ mod netscape {
                 return Ok(None);
             }
             let timestamp: i64 = trimmed.parse()?;
-            let time = OffsetDateTime::from_unix_timestamp(timestamp)?;
+            let time = DateTime::from_timestamp(timestamp, 0).ok_or_else(|| Error::ParseTime)?;
             Ok(Some(Time::new(time)))
         } else {
             Ok(None)

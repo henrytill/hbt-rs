@@ -1,6 +1,6 @@
+use chrono::{NaiveDate, TimeZone, Utc};
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use thiserror::Error;
-use time::{Date, OffsetDateTime, macros::format_description};
 use url::Url;
 
 use crate::collection::{Collection, Entity, Id, Label, Name};
@@ -14,7 +14,7 @@ pub enum Error {
     #[error("URL parsing error: {0}, {1}")]
     ParseUrl(#[source] url::ParseError, String),
     #[error("date parsing error: {0}, {1}")]
-    ParseDate(#[source] time::error::Parse, String),
+    ParseDate(#[source] chrono::ParseError, String),
 }
 
 struct HeadingLevelExt(HeadingLevel);
@@ -41,13 +41,13 @@ impl From<HeadingLevelExt> for usize {
 pub fn parse(input: &str) -> Result<Collection, Error> {
     let parser = Parser::new(input);
 
-    let date_format = format_description!("[month repr:long] [day padding:none], [year]");
+    let date_format = "%B %-d, %Y";
 
     let mut ret = Collection::new();
 
     let mut name: Option<Name> = None;
     let mut name_parts: Vec<String> = Vec::new();
-    let mut date: Option<Date> = None;
+    let mut date: Option<NaiveDate> = None;
     let mut url: Option<Url> = None;
     let mut labels: Vec<Label> = Vec::new();
 
@@ -111,7 +111,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // Text
             Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
-                    let parsed = Date::parse(text.as_ref(), date_format)
+                    let parsed = NaiveDate::parse_from_str(text.as_ref(), date_format)
                         .map_err(|err| Error::ParseDate(err, text.to_string()))?;
                     date = Some(parsed);
                 }
@@ -138,7 +138,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             Event::End(TagEnd::Link) => {
                 let url = url.take().ok_or(Error::MissingUrl)?;
                 let date = date.ok_or(Error::MissingDate)?;
-                let datetime = OffsetDateTime::new_utc(date, time::Time::MIDNIGHT);
+                let datetime = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
                 let name = if name_parts.is_empty() {
                     name.take()
                 } else {
