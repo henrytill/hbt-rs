@@ -1,12 +1,8 @@
-use std::fs;
-use std::io::{Error, ErrorKind, Result, Write};
-use std::path::{Path, PathBuf};
+use std::ffi::OsStr;
+use std::io::{self, Write};
+use std::path::Path;
 use std::process::Command;
-
-const INPUT_EXTENSIONS: &[&str] = &["html", "md", "json", "xml"];
-const YAML_EXT: &str = "yaml";
-const HTML_EXT: &str = "html";
-const EXPORT_SUFFIX: &str = "_export";
+use std::{env, fs};
 
 fn commit_info_git() {
     let output = match Command::new("git")
@@ -36,65 +32,87 @@ fn commit_info_env() {
     }
 }
 
-fn find_input_file(yaml_path: &Path, dir_path: &str) -> Option<PathBuf> {
-    let file_stem = yaml_path.file_stem()?;
-    let dir = Path::new(dir_path);
+struct Env<'a> {
+    manifest_dir_path: &'a Path,
+    test_data_path: &'a Path,
+}
 
-    INPUT_EXTENSIONS
+fn find_input_extension(file_name: &str) -> Option<&str> {
+    const INPUT_EXTENSIONS: &[&str] = &[".input.html", ".input.md", ".input.json", ".input.xml"];
+    INPUT_EXTENSIONS.iter().find_map(|ext| file_name.strip_suffix(ext))
+}
+
+fn find_output_extension(file_name: &str) -> Option<(&str, &str)> {
+    const OUTPUT_EXTENSIONS: &[(&str, &str)] =
+        &[(".expected.yaml", "yaml"), (".expected.html", "html")];
+    OUTPUT_EXTENSIONS
         .iter()
-        .map(|ext| dir.join(file_stem).with_extension(ext))
-        .find(|path| path.exists())
+        .find_map(|(ext, format)| file_name.strip_suffix(ext).map(|stem| (stem, *format)))
 }
 
-fn has_extension(path: &Path, expected_ext: &str) -> bool {
-    path.extension().is_some_and(|ext| ext == expected_ext)
+fn generate_test_name(category: &str, stem: &str, format: &str) -> String {
+    match format {
+        "html" => format!("html_export_{}", stem),
+        _ => format!("{}_{}", category, stem),
+    }
 }
 
-fn write_test_macro(
+fn write_test_macro<P: AsRef<Path>, Q: AsRef<Path>>(
     f: &mut fs::File,
-    macro_name: &str,
     test_name: &str,
-    relative_input: &Path,
-    absolute_output: &Path,
-) -> Result<()> {
+    format: &str,
+    relative_input: P,
+    absolute_output: Q,
+) -> Result<(), io::Error> {
     writeln!(
         f,
-        r#"{}!({}, "{}", "{}");"#,
-        macro_name,
+        r#"cli_test!({}, "{}", "{}", "{}");"#,
         test_name,
-        relative_input.display(),
-        absolute_output.display()
+        format,
+        relative_input.as_ref().display(),
+        absolute_output.as_ref().display()
     )
 }
 
-fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> Result<()> {
-    let path = Path::new(dir_path);
+fn generate_tests_for_dir(
+    f: &mut fs::File,
+    env: &Env,
+    category: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let path = env.test_data_path.join(category);
 
     if !path.exists() {
         return Ok(());
     }
 
-    for entry in fs::read_dir(path)? {
+    // Single-pass directory processing
+    let mut input_files = std::collections::HashMap::new();
+    let mut output_tests = Vec::new();
+
+    for entry in fs::read_dir(&path)? {
         let entry = entry?;
         let file_path = entry.path();
+        let file_name = match file_path.file_name().and_then(OsStr::to_str) {
+            Some(name) => name,
+            None => continue,
+        };
 
-        if !has_extension(&file_path, YAML_EXT) {
-            continue;
+        // Check for input files
+        if let Some(stem) = find_input_extension(file_name) {
+            input_files.insert(stem.to_string(), file_path);
         }
+        // Check for output files
+        else if let Some((stem, format)) = find_output_extension(file_name) {
+            output_tests.push((stem.to_string(), format.to_string(), file_path));
+        }
+    }
 
-        let file_stem = file_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid file stem"))?;
-
-        if let Some(input_path) = find_input_file(&file_path, dir_path) {
-            let test_name = format!("{}_{}", category, file_stem);
-            let relative_input = input_path
-                .strip_prefix("tests/")
-                .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid path prefix"))?;
-            let absolute_output = std::fs::canonicalize(&file_path)?;
-
-            write_test_macro(f, "cli_to_yaml_test", &test_name, relative_input, &absolute_output)?;
+    // Generate test macros for matched input/output pairs
+    for (stem, format, output_path) in output_tests {
+        if let Some(input_path) = input_files.get(&stem) {
+            let test_name = generate_test_name(category, &stem, &format);
+            let absolute_output_path = env.manifest_dir_path.join(&output_path);
+            write_test_macro(f, &test_name, &format, input_path, &absolute_output_path)?;
         }
     }
 
@@ -102,74 +120,42 @@ fn generate_tests_for_dir(f: &mut fs::File, dir_path: &str, category: &str) -> R
     Ok(())
 }
 
-fn generate_html_export_tests(f: &mut fs::File, input_dir: &str, export_dir: &str) -> Result<()> {
-    let export_path = Path::new(export_dir);
+fn generate_tests(env: &Env) -> Result<(), Box<dyn std::error::Error>> {
+    const TEST_CATEGORIES: &[&str] = &["html", "markdown", "pinboard"];
 
-    if !export_path.exists() {
-        return Ok(());
-    }
-
-    for entry in fs::read_dir(export_path)? {
-        let entry = entry?;
-        let export_file_path = entry.path();
-
-        if !has_extension(&export_file_path, HTML_EXT) {
-            continue;
-        }
-
-        let file_stem = export_file_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Invalid file stem"))?;
-
-        if let Some(original_name) = file_stem.strip_suffix(EXPORT_SUFFIX) {
-            let input_file = Path::new(input_dir).join(original_name).with_extension(HTML_EXT);
-
-            if input_file.exists() {
-                let test_name = format!("html_export_{}", original_name);
-                let relative_input = input_file
-                    .strip_prefix("tests/")
-                    .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid path prefix"))?;
-                let absolute_export = std::fs::canonicalize(&export_file_path)?;
-
-                write_test_macro(
-                    f,
-                    "cli_to_html_test",
-                    &test_name,
-                    relative_input,
-                    &absolute_export,
-                )?;
-            }
-        }
-    }
-
-    writeln!(f)?;
-    Ok(())
-}
-
-fn generate_tests() {
-    let out_dir = std::env::var("OUT_DIR").unwrap();
+    let out_dir = std::env::var("OUT_DIR")?;
     let dest_path = Path::new(&out_dir).join("generated_tests.rs");
-    let mut f = fs::File::create(&dest_path).unwrap();
+    let mut f = fs::File::create(&dest_path)?;
 
-    writeln!(f, "// Auto-generated test cases").unwrap();
-    writeln!(f).unwrap();
+    writeln!(f, "// Auto-generated test cases")?;
+    writeln!(f)?;
 
-    generate_tests_for_dir(&mut f, "tests/data/html", "html").unwrap();
-    generate_tests_for_dir(&mut f, "tests/data/markdown", "markdown").unwrap();
-    generate_tests_for_dir(&mut f, "tests/data/pinboard", "pinboard").unwrap();
-
-    generate_html_export_tests(&mut f, "tests/data/html", "tests/data/html/export").unwrap();
+    for category in TEST_CATEGORIES {
+        generate_tests_for_dir(&mut f, &env, category)?;
+    }
 
     println!("cargo:rerun-if-changed=tests/data");
+
+    Ok(())
 }
 
-fn main() {
-    if Path::new("../.git").exists() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
+    let manifest_dir_path = Path::new(&manifest_dir);
+
+    let cargo_workspace_dir_path = manifest_dir_path
+        .parent()
+        .ok_or(io::Error::new(io::ErrorKind::NotADirectory, "Failed to find workspace dir"))?;
+
+    if cargo_workspace_dir_path.join(".git").exists() {
         commit_info_git();
     } else {
         commit_info_env();
     }
 
-    generate_tests();
+    let test_data_path = &manifest_dir_path.join("tests/data");
+    let env = Env { manifest_dir_path, test_data_path };
+    generate_tests(&env)?;
+
+    Ok(())
 }
