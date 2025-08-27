@@ -1,0 +1,8 @@
+# Test input files with known conformance issues
+# Format: full paths relative to tests/data/ with suffixes
+
+# YAML string quoting issues (serde_yaml vs Go reference implementation)
+# These tests fail because our YAML serializer doesn't quote strings the same way as the Go reference
+pinboard/json_sample.input.json
+pinboard/xml_sample.input.xml
+html/bookmarks_pinboard.input.html

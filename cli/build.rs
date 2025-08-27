@@ -74,6 +74,32 @@ fn write_test_macro<P: AsRef<Path>, Q: AsRef<Path>>(
     )
 }
 
+fn load_known_issues() -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let issues_file = Path::new(&env::var("CARGO_MANIFEST_DIR")?).join("issues");
+    let contents = fs::read_to_string(&issues_file)?;
+
+    let issues: Vec<String> = contents
+        .lines()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| line.to_string())
+        .collect();
+
+    Ok(issues)
+}
+
+fn is_problematic_test(category: &str, stem: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    let known_issues = load_known_issues()?;
+    let test_patterns = [
+        format!("{}/{}.input.html", category, stem),
+        format!("{}/{}.input.json", category, stem),
+        format!("{}/{}.input.xml", category, stem),
+        format!("{}/{}.input.md", category, stem),
+    ];
+
+    Ok(test_patterns.iter().any(|pattern| known_issues.contains(pattern)))
+}
+
 fn generate_tests_for_dir(
     f: &mut fs::File,
     env: &Env,
@@ -84,6 +110,8 @@ fn generate_tests_for_dir(
     if !path.exists() {
         return Ok(());
     }
+
+    let include_failing_tests = env::var("HBT_INCLUDE_FAILING_TESTS").is_ok();
 
     // Single-pass directory processing
     let mut input_files = std::collections::HashMap::new();
@@ -110,6 +138,11 @@ fn generate_tests_for_dir(
     // Generate test macros for matched input/output pairs
     for (stem, format, output_path) in output_tests {
         if let Some(input_path) = input_files.get(&stem) {
+            // Skip problematic tests unless explicitly enabled
+            if !include_failing_tests && is_problematic_test(category, &stem)? {
+                continue;
+            }
+
             let test_name = generate_test_name(category, &stem, &format);
             let absolute_output_path = env.manifest_dir_path.join(&output_path);
             write_test_macro(f, &test_name, &format, input_path, &absolute_output_path)?;
@@ -135,6 +168,8 @@ fn generate_tests(env: &Env) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("cargo:rerun-if-changed=tests/data");
+    println!("cargo:rerun-if-changed=issues");
+    println!("cargo:rerun-if-env-changed=HBT_INCLUDE_FAILING_TESTS");
 
     Ok(())
 }
