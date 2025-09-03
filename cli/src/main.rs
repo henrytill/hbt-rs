@@ -13,6 +13,7 @@ use schemars::schema_for;
 #[cfg(feature = "pinboard")]
 use hbt_core::collection::Entity;
 use hbt_core::collection::{Collection, SerializedCollection};
+use hbt_core::html;
 use hbt_core::markdown;
 #[cfg(feature = "pinboard")]
 use hbt_core::pinboard::Post;
@@ -132,7 +133,7 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
     } else if let Some(format) = &args.to {
         match format {
             OutputFormat::Yaml => serde_yaml::to_string(collection)?,
-            OutputFormat::Html => collection.to_html()?,
+            OutputFormat::Html => html::to_html(collection)?,
         }
     } else {
         return Err(Error::msg(
@@ -152,7 +153,7 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
 
 fn process_input(args: &Args, input: &str, format: InputFormat) -> Result<(), Error> {
     let mut collection = match format {
-        InputFormat::Html => Collection::from_html_str(input)?,
+        InputFormat::Html => html::from_html(input)?,
         #[cfg(feature = "pinboard")]
         InputFormat::Json => {
             let posts = Post::from_json(input)?;
