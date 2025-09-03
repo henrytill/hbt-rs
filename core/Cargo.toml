@@ -3,14 +3,10 @@ name = "hbt-core"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-default = ["pinboard"]
-pinboard = ["dep:quick-xml"]
-
 [dependencies]
 minijinja = "2.11.0"
 pulldown-cmark = { version = "0.13.0", default-features = false, features = ["simd"] }
-quick-xml = { version = "0.38.0", optional = true }
+quick-xml = { version = "0.38.0" }
 schemars = { version = "1.0.4", features = ["chrono04", "url2", "semver1"] }
 scraper = { version = "0.23.1", default-features = false }
 semver = { version = "1.0.25", features = ["serde"] }

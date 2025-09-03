@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
-#[cfg(feature = "pinboard")]
 use crate::pinboard::Post;
 
 #[derive(Debug, Error)]
@@ -160,20 +159,17 @@ impl Time {
         Time(time)
     }
 
-    #[cfg(feature = "pinboard")]
     fn parse(time: &str) -> Result<Time, Error> {
         let timestamp: i64 = time.parse()?;
         let time = DateTime::from_timestamp(timestamp, 0).ok_or_else(|| Error::ParseTime)?;
         Ok(Time(time))
     }
 
-    #[cfg(feature = "pinboard")]
     fn parse_iso8601(time: &str) -> Result<Time, Error> {
         let time = DateTime::parse_from_rfc3339(time)?.with_timezone(&Utc);
         Ok(Time(time))
     }
 
-    #[cfg(feature = "pinboard")]
     fn parse_flexible(time: &str) -> Result<Time, Error> {
         // Try Unix timestamp first (all digits, possibly with leading/trailing whitespace)
         if time.trim().chars().all(|c| c.is_ascii_digit()) {
@@ -375,7 +371,6 @@ impl Entity {
     }
 }
 
-#[cfg(feature = "pinboard")]
 impl TryFrom<Post> for Entity {
     type Error = Error;
 

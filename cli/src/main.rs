@@ -10,12 +10,10 @@ use anyhow::Error;
 use clap::Parser;
 use schemars::schema_for;
 
-#[cfg(feature = "pinboard")]
 use hbt_core::collection::Entity;
 use hbt_core::collection::{Collection, SerializedCollection};
 use hbt_core::html;
 use hbt_core::markdown;
-#[cfg(feature = "pinboard")]
 use hbt_core::pinboard::Post;
 
 use hbt::version;
@@ -23,9 +21,7 @@ use hbt::version;
 #[derive(clap::ValueEnum, Debug, Clone)]
 enum InputFormat {
     Html,
-    #[cfg(feature = "pinboard")]
     Json,
-    #[cfg(feature = "pinboard")]
     Xml,
     Markdown,
 }
@@ -64,7 +60,6 @@ struct Args {
     file: Option<PathBuf>,
 }
 
-#[cfg(feature = "pinboard")]
 fn create_collection(mut posts: Vec<Post>) -> Result<Collection, Error> {
     // Sort posts by timestamp to match OCaml version behavior
     posts.sort_by(|a, b| a.time.cmp(&b.time));
@@ -81,9 +76,7 @@ fn detect_input_format(file: &Path) -> Result<InputFormat, Error> {
     let maybe_extension = file.extension();
     match maybe_extension {
         Some(ext) if ext.as_encoded_bytes() == b"html" => Ok(InputFormat::Html),
-        #[cfg(feature = "pinboard")]
         Some(ext) if ext.as_encoded_bytes() == b"json" => Ok(InputFormat::Json),
-        #[cfg(feature = "pinboard")]
         Some(ext) if ext.as_encoded_bytes() == b"xml" => Ok(InputFormat::Xml),
         Some(ext) if ext.as_encoded_bytes() == b"md" => Ok(InputFormat::Markdown),
         Some(ext) => Err(Error::msg(format!("No parser for extension: {}", ext.to_string_lossy()))),
@@ -154,12 +147,10 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
 fn process_input(args: &Args, input: &str, format: InputFormat) -> Result<(), Error> {
     let mut collection = match format {
         InputFormat::Html => html::from_html(input)?,
-        #[cfg(feature = "pinboard")]
         InputFormat::Json => {
             let posts = Post::from_json(input)?;
             create_collection(posts)?
         }
-        #[cfg(feature = "pinboard")]
         InputFormat::Xml => {
             let posts = Post::from_xml(input)?;
             create_collection(posts)?

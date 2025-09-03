@@ -3,10 +3,6 @@ name = "hbt"
 version = "0.1.0"
 edition = "2024"
 
-[features]
-default = ["pinboard"]
-pinboard = ["hbt-core/pinboard"]
-
 [dependencies]
 anyhow = "1.0.82"
 clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
