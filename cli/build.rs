@@ -164,7 +164,7 @@ fn generate_tests(env: &Env) -> Result<(), Box<dyn std::error::Error>> {
     writeln!(f)?;
 
     for category in TEST_CATEGORIES {
-        generate_tests_for_dir(&mut f, &env, category)?;
+        generate_tests_for_dir(&mut f, env, category)?;
     }
 
     println!("cargo:rerun-if-changed=tests/data");
