@@ -258,6 +258,7 @@ name = "hbt-core"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "clap",
  "minijinja",
  "pulldown-cmark",
  "quick-xml",
@@ -266,6 +267,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "serde_yaml",
  "thiserror",
  "url",
 ]
