@@ -1,5 +1,6 @@
 use std::path::Path;
 
+#[cfg(feature = "clap")]
 use clap::{ValueEnum, builder::PossibleValue};
 
 use crate::{
@@ -72,16 +73,17 @@ impl Format<{ INPUT | OUTPUT }> {
     const HTML: Self = Format(FormatKind::Html);
 }
 
-const ALL_INPUT_FORMATS: &[Format<INPUT>] = &[
+pub const ALL_INPUT_FORMATS: &[Format<INPUT>] = &[
     Format::<INPUT>::JSON,
     Format::<INPUT>::XML,
     Format::<INPUT>::MARKDOWN,
     Format::<{ INPUT | OUTPUT }>::HTML.as_input(),
 ];
 
-const ALL_OUTPUT_FORMATS: &[Format<OUTPUT>] =
+pub const ALL_OUTPUT_FORMATS: &[Format<OUTPUT>] =
     &[Format::<{ INPUT | OUTPUT }>::HTML.as_output(), Format::<OUTPUT>::YAML];
 
+#[cfg(feature = "clap")]
 impl ValueEnum for Format<INPUT> {
     fn value_variants<'a>() -> &'a [Self] {
         ALL_INPUT_FORMATS
@@ -97,6 +99,7 @@ impl ValueEnum for Format<INPUT> {
     }
 }
 
+#[cfg(feature = "clap")]
 impl ValueEnum for Format<OUTPUT> {
     fn value_variants<'a>() -> &'a [Self] {
         ALL_OUTPUT_FORMATS

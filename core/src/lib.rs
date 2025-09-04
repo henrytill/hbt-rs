@@ -4,4 +4,6 @@ pub mod html;
 pub mod markdown;
 pub mod pinboard;
 
-pub use format::{Format, INPUT, OUTPUT, ParseError, UnparseError};
+pub use format::{
+    ALL_INPUT_FORMATS, ALL_OUTPUT_FORMATS, Format, INPUT, OUTPUT, ParseError, UnparseError,
+};

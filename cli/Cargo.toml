@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.82"
 clap.workspace = true
-hbt-core = { path = "../core" }
+hbt-core = { path = "../core", features = ["clap"] }
 schemars = "1.0.4"
 serde_json.workspace = true
 serde_yaml.workspace = true
