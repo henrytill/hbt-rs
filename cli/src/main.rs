@@ -20,10 +20,10 @@ use hbt::version;
 struct Args {
     /// Input format
     #[arg(short = 'f', long = "from", value_enum)]
-    from: Option<Format<{ INPUT }>>,
+    from: Option<Format<INPUT>>,
     /// Output format
     #[arg(short = 't', long = "to", value_enum)]
-    to: Option<Format<{ OUTPUT }>>,
+    to: Option<Format<OUTPUT>>,
     /// Output file (defaults to stdout)
     #[arg(short = 'o', long = "output")]
     output: Option<PathBuf>,
@@ -100,7 +100,7 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
     Ok(())
 }
 
-fn process_input(args: &Args, input: &str, format: Format<{ INPUT }>) -> Result<(), Error> {
+fn process_input(args: &Args, input: &str, format: Format<INPUT>) -> Result<(), Error> {
     let mut collection = format.parse(input)?;
     update_collection(args, &mut collection)?;
     print_collection(args, &collection)?;
@@ -128,7 +128,7 @@ fn main() -> Result<ExitCode, Error> {
 
     let input_format = match &args.from {
         Some(format) => *format,
-        None => Format::<{ INPUT }>::detect(file)
+        None => Format::<INPUT>::detect(file)
             .ok_or_else(|| Error::msg(format!("No parser for file: {}", file.display())))?,
     };
 
