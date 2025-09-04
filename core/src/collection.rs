@@ -23,20 +23,10 @@ pub enum Error {
     ParseUrl(#[from] url::ParseError),
     #[error("integer parsing error: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
-    #[error("time parsing error")]
-    ParseTime,
+    #[error("time parsing error: {0}")]
+    ParseTime(i64),
     #[error("time format parsing error: {0}")]
     ParseTimeFormat(#[from] chrono::ParseError),
-    #[error("HTML selector error: {0}")]
-    HtmlSelector(String),
-    #[error("template error: {0}")]
-    Template(#[from] minijinja::Error),
-}
-
-impl From<scraper::error::SelectorErrorKind<'_>> for Error {
-    fn from(value: scraper::error::SelectorErrorKind<'_>) -> Self {
-        Error::HtmlSelector(value.to_string())
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
@@ -159,9 +149,10 @@ impl Time {
         Time(time)
     }
 
-    fn parse(time: &str) -> Result<Time, Error> {
+    pub fn parse(time: &str) -> Result<Time, Error> {
         let timestamp: i64 = time.parse()?;
-        let time = DateTime::from_timestamp(timestamp, 0).ok_or_else(|| Error::ParseTime)?;
+        let time =
+            DateTime::from_timestamp(timestamp, 0).ok_or_else(|| Error::ParseTime(timestamp))?;
         Ok(Time(time))
     }
 
@@ -173,11 +164,10 @@ impl Time {
     fn parse_flexible(time: &str) -> Result<Time, Error> {
         // Try Unix timestamp first (all digits, possibly with leading/trailing whitespace)
         if time.trim().chars().all(|c| c.is_ascii_digit()) {
-            Self::parse(time.trim())
-        } else {
-            // Try ISO 8601 format
-            Self::parse_iso8601(time.trim())
+            return Self::parse(time.trim());
         }
+        // Try ISO 8601 format
+        Self::parse_iso8601(time.trim())
     }
 }
 

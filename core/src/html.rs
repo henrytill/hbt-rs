@@ -1,11 +1,29 @@
 use std::collections::{BTreeSet, HashMap};
 
-use chrono::DateTime;
 use minijinja::{Environment, context};
 use scraper::{ElementRef, Html, Selector};
+use thiserror::Error;
 use url::Url;
 
-use crate::collection::{Collection, Entity, Error, Extended, Label, Name, Time};
+use crate::collection::{Collection, Entity, Extended, Label, Name, Time};
+
+#[derive(Debug, Error)]
+pub enum Error {
+    #[error("URL parsing error: {0}")]
+    ParseUrl(#[from] url::ParseError),
+    #[error("HTML selector error: {0}")]
+    HtmlSelector(String),
+    #[error("HTML missing required attribute: {0}")]
+    HtmlAttribute(String),
+    #[error("Template error: {0}")]
+    Template(#[from] minijinja::Error),
+}
+
+impl From<scraper::error::SelectorErrorKind<'_>> for Error {
+    fn from(value: scraper::error::SelectorErrorKind<'_>) -> Self {
+        Error::HtmlSelector(value.to_string())
+    }
+}
 
 #[derive(Debug)]
 enum StackItem<'a> {
@@ -21,9 +39,8 @@ fn parse_timestamp_attr_opt(attrs: &Attributes, key: &str) -> Result<Option<Time
         if trimmed.is_empty() {
             return Ok(None);
         }
-        let timestamp: i64 = trimmed.parse()?;
-        let time = DateTime::from_timestamp(timestamp, 0).ok_or_else(|| Error::ParseTime)?;
-        Ok(Some(Time::new(time)))
+        let time = Time::parse(trimmed).unwrap(); // TODO
+        Ok(Some(time))
     } else {
         Ok(None)
     }
@@ -50,7 +67,7 @@ fn add_pending(
     const ATTR_FEED: &str = "feed";
 
     let url = {
-        let href = attrs.get(ATTR_HREF).ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
+        let href = attrs.get(ATTR_HREF).ok_or(Error::HtmlAttribute(String::from(ATTR_HREF)))?;
         Url::parse(href)?
     };
 

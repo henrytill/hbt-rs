@@ -125,7 +125,7 @@ pub enum ParseError {
     Markdown(#[from] markdown::Error),
 
     #[error("HTML parsing error: {0}")]
-    Html(collection::Error),
+    Html(#[from] html::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -134,7 +134,7 @@ pub enum UnparseError {
     Yaml(#[from] serde_yaml::Error),
 
     #[error("HTML formatting error: {0}")]
-    Html(#[from] collection::Error),
+    Html(#[from] html::Error),
 }
 
 fn create_collection_from_posts(mut posts: Vec<Post>) -> Result<Collection, collection::Error> {
