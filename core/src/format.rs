@@ -4,7 +4,7 @@ use std::path::Path;
 use clap::{ValueEnum, builder::PossibleValue};
 
 use crate::{
-    collection::{self, Collection, Entity},
+    collection::{Collection, Entity, entity},
     html, markdown,
     pinboard::{self, Post},
 };
@@ -118,8 +118,8 @@ pub enum ParseError {
     #[error("Pinboard parsing error: {0}")]
     Pinboard(#[from] pinboard::Error),
 
-    #[error("Collection creation error: {0}")]
-    Collection(#[from] collection::Error),
+    #[error("Entity creation error: {0}")]
+    Entity(#[from] entity::Error),
 
     #[error("Markdown parsing error: {0}")]
     Markdown(#[from] markdown::Error),
@@ -137,7 +137,7 @@ pub enum UnparseError {
     Html(#[from] html::Error),
 }
 
-fn create_collection_from_posts(mut posts: Vec<Post>) -> Result<Collection, collection::Error> {
+fn create_collection_from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
     posts.sort_by(|a, b| a.time.cmp(&b.time));
 
     let mut collection = Collection::with_capacity(posts.len());
