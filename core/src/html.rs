@@ -1,22 +1,44 @@
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    num,
+};
 
 use minijinja::{Environment, context};
 use scraper::{ElementRef, Html, Selector};
 use thiserror::Error;
 use url::Url;
 
-use crate::collection::{Collection, Entity, Extended, Label, Name, Time};
+use crate::collection::{Collection, Entity, Extended, Label, Name, Time, entity};
 
 #[derive(Debug, Error)]
 pub enum Error {
+    // Entity-related variants
     #[error("URL parsing error: {0}")]
     ParseUrl(#[from] url::ParseError),
+    #[error("integer parsing error: {0}")]
+    ParseInt(#[from] num::ParseIntError),
+    #[error("time parsing error: {0}")]
+    ParseTime(i64),
+    #[error("time format parsing error: {0}")]
+    ParseTimeFormat(#[from] chrono::ParseError),
+    // Local variants
     #[error("HTML selector error: {0}")]
     HtmlSelector(String),
     #[error("HTML missing required attribute: {0}")]
     HtmlAttribute(String),
     #[error("Template error: {0}")]
     Template(#[from] minijinja::Error),
+}
+
+impl From<entity::Error> for Error {
+    fn from(err: entity::Error) -> Self {
+        match err {
+            entity::Error::ParseUrl(e) => Error::ParseUrl(e),
+            entity::Error::ParseInt(e) => Error::ParseInt(e),
+            entity::Error::ParseTime(t) => Error::ParseTime(t),
+            entity::Error::ParseTimeFormat(e) => Error::ParseTimeFormat(e),
+        }
+    }
 }
 
 impl From<scraper::error::SelectorErrorKind<'_>> for Error {
@@ -39,7 +61,7 @@ fn parse_timestamp_attr_opt(attrs: &Attributes, key: &str) -> Result<Option<Time
         if trimmed.is_empty() {
             return Ok(None);
         }
-        let time = Time::parse(trimmed).unwrap(); // TODO
+        let time = Time::parse(trimmed)?;
         Ok(Some(time))
     } else {
         Ok(None)
