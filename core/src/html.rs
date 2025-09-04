@@ -8,7 +8,10 @@ use scraper::{ElementRef, Html, Selector};
 use thiserror::Error;
 use url::Url;
 
-use crate::collection::{Collection, Entity, Extended, Label, Name, Time, entity};
+use crate::{
+    collection::Collection,
+    entity::{self, Entity, Extended, Label, Name, Time},
+};
 
 #[derive(Debug, Error)]
 pub enum Error {

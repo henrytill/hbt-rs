@@ -1,5 +1,3 @@
-pub mod entity;
-
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fmt,
@@ -12,7 +10,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-pub use entity::{Entity, Extended, Label, Name, Time};
+use crate::entity::{Entity, Label};
 
 #[derive(Debug, Error)]
 pub enum Error {

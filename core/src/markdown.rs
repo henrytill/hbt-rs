@@ -3,7 +3,10 @@ use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use thiserror::Error;
 use url::Url;
 
-use crate::collection::{Collection, Entity, Id, Label, Name};
+use crate::{
+    collection::{Collection, Id},
+    entity::{Entity, Label, Name},
+};
 
 #[derive(Debug, Error)]
 pub enum Error {

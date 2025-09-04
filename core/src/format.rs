@@ -4,7 +4,8 @@ use std::path::Path;
 use clap::{ValueEnum, builder::PossibleValue};
 
 use crate::{
-    collection::{Collection, Entity, entity},
+    collection::Collection,
+    entity::{self, Entity},
     html, markdown,
     pinboard::{self, Post},
 };
