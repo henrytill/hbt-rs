@@ -46,9 +46,7 @@ impl<const CAPS: u8> Format<CAPS> {
     const fn is_output() -> bool {
         CAPS & OUTPUT != 0
     }
-}
 
-impl<const CAPS: u8> Format<CAPS> {
     const fn as_input(self) -> Format<INPUT> {
         assert!(Format::<CAPS>::is_input());
         unsafe { std::mem::transmute(self) }
