@@ -152,15 +152,15 @@ impl Format<INPUT> {
     pub fn parse(&self, content: &str) -> Result<Collection, ParseError> {
         match self.0 {
             FormatKind::Json => {
-                let posts = Post::from_json(content).map_err(ParseError::Pinboard)?;
-                create_collection_from_posts(posts).map_err(ParseError::Collection)
+                let posts = Post::from_json(content)?;
+                create_collection_from_posts(posts).map_err(Into::into)
             }
             FormatKind::Xml => {
-                let posts = Post::from_xml(content).map_err(ParseError::Pinboard)?;
-                create_collection_from_posts(posts).map_err(ParseError::Collection)
+                let posts = Post::from_xml(content)?;
+                create_collection_from_posts(posts).map_err(Into::into)
             }
-            FormatKind::Markdown => markdown::parse(content).map_err(ParseError::Markdown),
-            FormatKind::Html => html::from_html(content).map_err(ParseError::Html),
+            FormatKind::Markdown => markdown::parse(content).map_err(Into::into),
+            FormatKind::Html => html::from_html(content).map_err(Into::into),
             FormatKind::Yaml => {
                 panic!("Invariant violated: Format<INPUT> contains output-only format {:?}", self.0)
             }
@@ -181,8 +181,8 @@ impl Format<INPUT> {
 impl Format<OUTPUT> {
     pub fn unparse(&self, collection: &Collection) -> Result<String, UnparseError> {
         match self.0 {
-            FormatKind::Yaml => serde_yaml::to_string(collection).map_err(UnparseError::Yaml),
-            FormatKind::Html => html::to_html(collection).map_err(UnparseError::Html),
+            FormatKind::Yaml => serde_yaml::to_string(collection).map_err(Into::into),
+            FormatKind::Html => html::to_html(collection).map_err(Into::into),
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
                 panic!("Invariant violated: Format<OUTPUT> contains input-only format {:?}", self.0)
             }
