@@ -24,7 +24,7 @@ impl std::fmt::Display for FormatKind {
         match self {
             FormatKind::Json => write!(f, "json"),
             FormatKind::Xml => write!(f, "xml"),
-            FormatKind::Markdown => write!(f, "markdown"),
+            FormatKind::Markdown => write!(f, "md"),
             FormatKind::Html => write!(f, "html"),
             FormatKind::Yaml => write!(f, "yaml"),
         }
