@@ -79,10 +79,6 @@ impl Post {
     pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {
         serde_json::from_str(input).map_err(Into::into)
     }
-
-    pub fn from_xml(input: &str) -> Result<Vec<Post>, Error> {
-        xml::parse(input)
-    }
 }
 
 mod json {
@@ -124,7 +120,7 @@ mod json {
     }
 }
 
-mod xml {
+pub mod xml {
     use quick_xml::{
         events::{
             Event,
@@ -135,92 +131,77 @@ mod xml {
 
     use super::{Error, Post};
 
-    pub fn extract_post(attrs: Attributes) -> Result<Post, Error> {
-        const KEY_HREF: &[u8] = b"href";
-        const KEY_TIME: &[u8] = b"time";
-        const KEY_DESCRIPTION: &[u8] = b"description";
-        const KEY_EXTENDED: &[u8] = b"extended";
-        const KEY_TAG: &[u8] = b"tag";
-        const KEY_HASH: &[u8] = b"hash";
-        const KEY_SHARED: &[u8] = b"shared";
-        const KEY_TOREAD: &[u8] = b"toread";
-        const YES: &[u8] = b"yes";
+    impl Post {
+        fn from_xml_attributes(attrs: Attributes) -> Result<Post, Error> {
+            const KEY_HREF: &[u8] = b"href";
+            const KEY_TIME: &[u8] = b"time";
+            const KEY_DESCRIPTION: &[u8] = b"description";
+            const KEY_EXTENDED: &[u8] = b"extended";
+            const KEY_TAG: &[u8] = b"tag";
+            const KEY_HASH: &[u8] = b"hash";
+            const KEY_SHARED: &[u8] = b"shared";
+            const KEY_TOREAD: &[u8] = b"toread";
+            const YES: &[u8] = b"yes";
 
-        let mut ret = Post::default();
+            let mut post = Post::default();
 
-        for attr in attrs {
-            let Attribute { key, value } = attr?;
-            match key.local_name().as_ref() {
-                KEY_HREF => ret.href = String::from_utf8(value.into_owned())?,
-                KEY_TIME => ret.time = String::from_utf8(value.into_owned())?,
-                KEY_DESCRIPTION => {
-                    ret.description = if value.is_empty() {
-                        None
-                    } else {
+            for attr in attrs {
+                let Attribute { key, value } = attr?;
+                match key.local_name().as_ref() {
+                    KEY_HREF => post.href = String::from_utf8(value.into_owned())?,
+                    KEY_TIME => post.time = String::from_utf8(value.into_owned())?,
+                    KEY_DESCRIPTION if !value.is_empty() => {
                         let s = String::from_utf8(value.into_owned())?;
-                        Some(s)
-                    };
-                }
-                KEY_EXTENDED => {
-                    ret.extended = if value.is_empty() {
-                        None
-                    } else {
-                        let s = String::from_utf8(value.into_owned())?;
-                        Some(s)
-                    };
-                }
-                KEY_TAG => {
-                    ret.tags = if value.is_empty() {
-                        Vec::new()
-                    } else {
-                        let s = String::from_utf8(value.into_owned())?;
-                        s.split_whitespace().map(ToOwned::to_owned).collect()
+                        post.description = Some(s);
                     }
-                }
-                KEY_HASH => {
-                    ret.hash = if value.is_empty() {
-                        None
-                    } else {
+                    KEY_EXTENDED if !value.is_empty() => {
                         let s = String::from_utf8(value.into_owned())?;
-                        Some(s)
-                    };
+                        post.extended = Some(s);
+                    }
+                    KEY_TAG if !value.is_empty() => {
+                        let s = String::from_utf8(value.into_owned())?;
+                        post.tags = s.split_whitespace().map(ToOwned::to_owned).collect();
+                    }
+                    KEY_HASH if !value.is_empty() => {
+                        let s = String::from_utf8(value.into_owned())?;
+                        post.hash = Some(s);
+                    }
+                    KEY_SHARED => {
+                        post.shared = value.as_ref() == YES;
+                    }
+                    KEY_TOREAD => {
+                        post.toread = value.as_ref() == YES;
+                    }
+                    _ => (),
                 }
-                KEY_SHARED => {
-                    ret.shared = value.as_ref() == YES;
-                }
-                KEY_TOREAD => {
-                    ret.toread = value.as_ref() == YES;
-                }
-                _ => (),
             }
+
+            Ok(post)
         }
 
-        Ok(ret)
-    }
+        pub fn from_xml(input: &str) -> Result<Vec<Post>, Error> {
+            const EVENT_POSTS: &[u8] = b"posts";
+            const EVENT_POST: &[u8] = b"post";
 
-    #[inline]
-    pub fn parse(input: &str) -> Result<Vec<Post>, Error> {
-        const EVENT_POSTS: &[u8] = b"posts";
-        const EVENT_POST: &[u8] = b"post";
+            let mut ret = Vec::new();
+            let mut reader = Reader::from_str(input);
+            reader.config_mut().trim_text(true);
 
-        let mut ret = Vec::new();
-        let mut reader = Reader::from_str(input);
-        reader.config_mut().trim_text(true);
-
-        loop {
-            match reader.read_event()? {
-                Event::Start(e) if e.name().as_ref() == EVENT_POSTS => {
-                    // nothing at the moment
+            loop {
+                match reader.read_event()? {
+                    Event::Start(e) if e.name().as_ref() == EVENT_POSTS => {
+                        // nothing at the moment
+                    }
+                    Event::Empty(e) if e.name().as_ref() == EVENT_POST => {
+                        let post = Post::from_xml_attributes(e.attributes())?;
+                        ret.push(post);
+                    }
+                    Event::Eof => break,
+                    _ => (),
                 }
-                Event::Empty(e) if e.name().as_ref() == EVENT_POST => {
-                    let pinboard = extract_post(e.attributes())?;
-                    ret.push(pinboard);
-                }
-                Event::Eof => break,
-                _ => (),
             }
-        }
 
-        Ok(ret)
+            Ok(ret)
+        }
     }
 }
