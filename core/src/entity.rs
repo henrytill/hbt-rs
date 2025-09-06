@@ -285,36 +285,6 @@ impl Entity {
     pub fn extended(&self) -> Option<&Extended> {
         self.extended.as_ref()
     }
-
-    pub fn with_extended(mut self, extended: Option<Extended>) -> Entity {
-        self.extended = extended;
-        self
-    }
-
-    pub fn with_shared(mut self, shared: bool) -> Entity {
-        self.shared = shared;
-        self
-    }
-
-    pub fn with_to_read(mut self, to_read: bool) -> Entity {
-        self.to_read = to_read;
-        self
-    }
-
-    pub fn with_last_visited_at(mut self, last_visited_at: Option<Time>) -> Entity {
-        self.last_visited_at = last_visited_at;
-        self
-    }
-
-    pub fn with_is_feed(mut self, is_feed: bool) -> Entity {
-        self.is_feed = is_feed;
-        self
-    }
-
-    pub fn with_updated_at(mut self, updated_at: Vec<Time>) -> Entity {
-        self.updated_at = updated_at;
-        self
-    }
 }
 
 impl TryFrom<Post> for Entity {
@@ -343,5 +313,95 @@ impl TryFrom<Post> for Entity {
             last_visited_at,
             is_feed,
         })
+    }
+}
+
+pub mod html {
+    use super::{Entity, Error, Extended, Label, Name, Time};
+    use std::collections::{BTreeSet, HashMap};
+    use url::Url;
+
+    pub type Attributes = HashMap<String, String>;
+
+    fn parse_timestamp(value: &str) -> Result<Time, Error> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() { Ok(Time::default()) } else { Time::parse(trimmed) }
+    }
+
+    fn parse_timestamp_opt(value: &str) -> Result<Option<Time>, Error> {
+        let trimmed = value.trim();
+        if trimmed.is_empty() { Ok(None) } else { Ok(Some(Time::parse(trimmed)?)) }
+    }
+
+    impl Entity {
+        pub fn from_html_attributes(
+            attrs: &Attributes,
+            names: BTreeSet<Name>,
+            labels: BTreeSet<Label>,
+            extended: Option<Extended>,
+        ) -> Result<Entity, Error> {
+            const KEY_HREF: &str = "href";
+            const KEY_ADD_DATE: &str = "add_date";
+            const KEY_LAST_MODIFIED: &str = "last_modified";
+            const KEY_LAST_VISIT: &str = "last_visit";
+            const KEY_TAGS: &str = "tags";
+            const KEY_PRIVATE: &str = "private";
+            const KEY_TOREAD: &str = "toread";
+            const KEY_FEED: &str = "feed";
+
+            let href = attrs.get(KEY_HREF).ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
+            let url = Url::parse(href)?;
+
+            let mut entity = Entity {
+                url,
+                created_at: Time::default(),
+                updated_at: Vec::new(),
+                names,
+                labels,
+                extended,
+                shared: true, // Default to shared
+                to_read: false,
+                last_visited_at: None,
+                is_feed: false,
+            };
+
+            let mut tag_string = String::new();
+
+            for (key, value) in attrs {
+                match key.to_lowercase().as_str() {
+                    KEY_ADD_DATE => entity.created_at = parse_timestamp(value)?,
+                    KEY_LAST_MODIFIED if !value.is_empty() => {
+                        if let Some(time) = parse_timestamp_opt(value)? {
+                            entity.updated_at = vec![time];
+                        }
+                    }
+                    KEY_LAST_VISIT if !value.is_empty() => {
+                        entity.last_visited_at = parse_timestamp_opt(value)?;
+                    }
+                    KEY_TAGS if !value.is_empty() => {
+                        tag_string = value.clone();
+                    }
+                    KEY_PRIVATE => entity.shared = value != "1",
+                    KEY_TOREAD => entity.to_read = value == "1",
+                    KEY_FEED => entity.is_feed = value == "true",
+                    _ => {}
+                }
+            }
+
+            if !tag_string.is_empty() {
+                const VALUE_TOREAD: &str = "toread";
+
+                let tags: Vec<String> =
+                    tag_string.split(',').map(|s| s.trim().to_string()).collect();
+                let filtered_tags: Vec<String> =
+                    tags.iter().filter(|&tag| tag != VALUE_TOREAD).cloned().collect();
+                let tag_labels: BTreeSet<Label> =
+                    filtered_tags.into_iter().map(Label::from).collect();
+                entity.labels.extend(tag_labels);
+                entity.to_read = entity.to_read || tags.contains(&VALUE_TOREAD.to_string());
+            }
+
+            Ok(entity)
+        }
     }
 }

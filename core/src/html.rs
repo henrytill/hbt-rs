@@ -6,11 +6,10 @@ use std::{
 use minijinja::{Environment, context};
 use scraper::{ElementRef, Html, Selector};
 use thiserror::Error;
-use url::Url;
 
 use crate::{
     collection::Collection,
-    entity::{self, Entity, Extended, Label, Name, Time},
+    entity::{self, Entity, Extended, Label, Name},
 };
 
 #[derive(Debug, Error)]
@@ -64,23 +63,6 @@ enum StackItem<'a> {
 
 type Attributes = HashMap<String, String>;
 
-fn parse_timestamp_attr_opt(attrs: &Attributes, key: &str) -> Result<Option<Time>, Error> {
-    if let Some(timestamp_str) = attrs.get(key) {
-        let trimmed = timestamp_str.trim();
-        if trimmed.is_empty() {
-            return Ok(None);
-        }
-        let time = Time::parse(trimmed)?;
-        Ok(Some(time))
-    } else {
-        Ok(None)
-    }
-}
-
-fn parse_timestamp_attr(attrs: &Attributes, key: &str) -> Result<Time, Error> {
-    parse_timestamp_attr_opt(attrs, key).map(Option::unwrap_or_default)
-}
-
 fn add_pending(
     collection: &mut Collection,
     folder_stack: &[String],
@@ -88,55 +70,12 @@ fn add_pending(
     description: Option<String>,
     extended: Option<String>,
 ) -> Result<(), Error> {
-    const ATTR_HREF: &str = "href";
-    const ATTR_ADD_DATE: &str = "add_date";
-    const ATTR_LAST_MODIFIED: &str = "last_modified";
-    const ATTR_LAST_VISIT: &str = "last_visit";
-    const ATTR_TAGS: &str = "tags";
-    const ATTR_TOREAD: &str = "toread";
-    const ATTR_PRIVATE: &str = "private";
-    const ATTR_FEED: &str = "feed";
+    let names = description.into_iter().map(Name::from).collect();
+    let folder_labels: BTreeSet<Label> =
+        folder_stack.iter().map(|s| Label::from(s.clone())).collect();
+    let maybe_extended = extended.map(Extended::from);
 
-    let url = {
-        let href = attrs.get(ATTR_HREF).ok_or(Error::HtmlAttribute(String::from(ATTR_HREF)))?;
-        Url::parse(href)?
-    };
-
-    let created_at = parse_timestamp_attr(&attrs, ATTR_ADD_DATE)?;
-    let last_modified = parse_timestamp_attr_opt(&attrs, ATTR_LAST_MODIFIED)?;
-    let last_visited_at = parse_timestamp_attr_opt(&attrs, ATTR_LAST_VISIT)?;
-
-    let tag_string = attrs.get(ATTR_TAGS).cloned().unwrap_or_default();
-    let tags: Vec<String> = if tag_string.is_empty() {
-        Vec::new()
-    } else {
-        tag_string.split(',').map(|s| s.trim().to_string()).collect()
-    };
-
-    let labels: BTreeSet<Label> = folder_stack
-        .iter()
-        .chain(tags.iter())
-        .filter(|&tag| tag != ATTR_TOREAD)
-        .map(|tag| Label::from(tag.clone()))
-        .collect();
-
-    let shared = !matches!(attrs.get(ATTR_PRIVATE), Some(val) if val == "1");
-
-    let to_read =
-        attrs.get(ATTR_TOREAD).is_some_and(|val| val == "1") || tag_string.contains(ATTR_TOREAD);
-
-    let is_feed = attrs.get(ATTR_FEED).is_some_and(|val| val == "true");
-
-    let updated_at: Vec<Time> = last_modified.into_iter().collect();
-
-    let entity = Entity::new(url, created_at, description.map(Name::from), labels)
-        .with_extended(extended.map(Extended::from))
-        .with_shared(shared)
-        .with_to_read(to_read)
-        .with_last_visited_at(last_visited_at)
-        .with_is_feed(is_feed)
-        .with_updated_at(updated_at);
-
+    let entity = Entity::from_html_attributes(&attrs, names, folder_labels, maybe_extended)?;
     collection.upsert(entity);
 
     Ok(())
