@@ -23,6 +23,7 @@ pub enum Error {
     ParseDate(#[source] chrono::ParseError, String),
 }
 
+#[derive(Copy, Clone)]
 struct HeadingLevelExt(HeadingLevel);
 
 impl From<HeadingLevel> for HeadingLevelExt {
