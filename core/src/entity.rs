@@ -16,10 +16,13 @@ use crate::pinboard::Post;
 pub enum Error {
     #[error("URL parsing error: {0}")]
     ParseUrl(#[from] url::ParseError),
+
     #[error("integer parsing error: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
+
     #[error("time parsing error: {0}")]
     ParseTime(i64),
+
     #[error("time format parsing error: {0}")]
     ParseTimeFormat(#[from] chrono::ParseError),
 }

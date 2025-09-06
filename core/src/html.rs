@@ -18,17 +18,23 @@ pub enum Error {
     // Entity-related variants
     #[error("URL parsing error: {0}")]
     ParseUrl(#[from] url::ParseError),
+
     #[error("integer parsing error: {0}")]
     ParseInt(#[from] num::ParseIntError),
+
     #[error("time parsing error: {0}")]
     ParseTime(i64),
+
     #[error("time format parsing error: {0}")]
     ParseTimeFormat(#[from] chrono::ParseError),
+
     // Local variants
     #[error("HTML selector error: {0}")]
     HtmlSelector(String),
+
     #[error("HTML missing required attribute: {0}")]
     HtmlAttribute(String),
+
     #[error("Template error: {0}")]
     Template(#[from] minijinja::Error),
 }

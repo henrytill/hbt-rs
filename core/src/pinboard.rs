@@ -7,10 +7,13 @@ use thiserror::Error;
 pub enum Error {
     #[error("XML attribute error: {0}")]
     XmlAttribute(#[from] quick_xml::events::attributes::AttrError),
+
     #[error("XML parsing error: {0}")]
     ParseXml(#[from] quick_xml::Error),
+
     #[error("invalid UTF-8: {0}")]
     ParseUtf8(#[from] std::string::FromUtf8Error),
+
     #[error("JSON parsing error: {0}")]
     ParseJson(#[from] serde_json::Error),
 }

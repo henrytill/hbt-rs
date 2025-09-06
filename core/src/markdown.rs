@@ -12,10 +12,13 @@ use crate::{
 pub enum Error {
     #[error("missing URL")]
     MissingUrl,
+
     #[error("missing date")]
     MissingDate,
+
     #[error("URL parsing error: {0}, {1}")]
     ParseUrl(#[source] url::ParseError, String),
+
     #[error("date parsing error: {0}, {1}")]
     ParseDate(#[source] chrono::ParseError, String),
 }

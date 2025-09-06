@@ -16,6 +16,7 @@ use crate::entity::{Entity, Label};
 pub enum Error {
     #[error("incompatible version: {0}, expected: {1}")]
     IncompatibleVersion(String, String),
+
     #[error("version parsing error: {0}")]
     ParseSemver(#[from] semver::Error),
 }
