@@ -1,5 +1,3 @@
-use std::collections::{HashSet, hash_set::Iter};
-
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -18,35 +16,6 @@ pub enum Error {
     ParseJson(#[from] serde_json::Error),
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct Tags<'a>(HashSet<&'a str>);
-
-impl Tags<'_> {
-    pub fn contains(&self, value: impl AsRef<str>) -> bool {
-        self.0.contains(value.as_ref())
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn iter(&self) -> Iter<'_, &str> {
-        self.0.iter()
-    }
-}
-
-#[cfg(test)]
-impl<'a> From<&'a [String]> for Tags<'a> {
-    fn from(tags: &'a [String]) -> Tags<'a> {
-        let inner = tags.iter().map(String::as_str).collect();
-        Tags(inner)
-    }
-}
-
 #[derive(Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Post {
     pub href: String,
@@ -63,16 +32,6 @@ pub struct Post {
     pub shared: bool,
     #[serde(deserialize_with = "json::deserialize_yes_no")]
     pub toread: bool,
-}
-
-impl<'a> From<&'a [Post]> for Tags<'a> {
-    fn from(posts: &'a [Post]) -> Tags<'a> {
-        let mut inner = HashSet::new();
-        for post in posts {
-            inner.extend(post.tags.iter().map(String::as_str));
-        }
-        Tags(inner)
-    }
 }
 
 impl Post {
