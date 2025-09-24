@@ -365,8 +365,11 @@ pub mod html {
 
             for tag in tags.split(',') {
                 let s = tag.trim();
-                entity.to_read = s == "toread" || entity.to_read;
-                entity.labels.insert(Label::from(tag));
+                if s == "toread" {
+                    entity.to_read = true;
+                    continue;
+                }
+                entity.labels.insert(Label::from(s));
             }
 
             Ok(entity)
