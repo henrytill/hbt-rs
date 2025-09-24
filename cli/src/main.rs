@@ -10,7 +10,7 @@ use anyhow::Error;
 use clap::Parser;
 use schemars::schema_for;
 
-use hbt_core::collection::{Collection, SerializedCollection};
+use hbt_core::collection::{Collection, CollectionRepr};
 use hbt_core::format::{Format, INPUT, OUTPUT};
 
 use hbt::version;
@@ -112,7 +112,7 @@ fn main() -> Result<ExitCode, Error> {
 
     // Handle schema output (no input file required)
     if args.schema {
-        let schema = schema_for!(SerializedCollection);
+        let schema = schema_for!(CollectionRepr);
         let schema_json = serde_json::to_string_pretty(&schema)?;
         if let Some(output_file) = &args.output {
             let mut file = std::fs::File::create(output_file)?;

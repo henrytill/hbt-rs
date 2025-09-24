@@ -205,7 +205,7 @@ impl Collection {
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct SerializedNode {
+struct NodeRepr {
     id: Id,
     entity: Entity,
     edges: Vec<Id>,
@@ -213,14 +213,14 @@ struct SerializedNode {
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SerializedCollection {
+pub struct CollectionRepr {
     version: Version,
     length: usize,
-    value: Vec<SerializedNode>,
+    value: Vec<NodeRepr>,
 }
 
-impl From<&Collection> for SerializedCollection {
-    fn from(collection: &Collection) -> SerializedCollection {
+impl From<&Collection> for CollectionRepr {
+    fn from(collection: &Collection) -> CollectionRepr {
         let version = Version::EXPECTED;
 
         let length = collection.len();
@@ -230,19 +230,19 @@ impl From<&Collection> for SerializedCollection {
                 let id = Id::new(i);
                 let entity = collection.entity(id).clone();
                 let edges = collection.edges(id).to_vec();
-                SerializedNode { id, entity, edges }
+                NodeRepr { id, entity, edges }
             })
             .collect();
 
-        SerializedCollection { version, length, value }
+        CollectionRepr { version, length, value }
     }
 }
 
-impl TryFrom<SerializedCollection> for Collection {
+impl TryFrom<CollectionRepr> for Collection {
     type Error = Error;
 
-    fn try_from(serialized_collection: SerializedCollection) -> Result<Collection, Self::Error> {
-        let SerializedCollection { version, length, mut value } = serialized_collection;
+    fn try_from(repr: CollectionRepr) -> Result<Collection, Self::Error> {
+        let CollectionRepr { version, length, mut value } = repr;
 
         let is_compatible_version = version.matches_requirement()?;
 
@@ -257,7 +257,7 @@ impl TryFrom<SerializedCollection> for Collection {
 
         value.sort();
 
-        for SerializedNode { id, entity, edges } in value {
+        for NodeRepr { id, entity, edges } in value {
             assert_eq!(id.0, ret.len());
             let url = entity.url().clone();
             ret.nodes.push(entity);
@@ -274,7 +274,7 @@ impl Serialize for Collection {
     where
         S: serde::Serializer,
     {
-        SerializedCollection::from(self).serialize(serializer)
+        CollectionRepr::from(self).serialize(serializer)
     }
 }
 
@@ -283,7 +283,7 @@ impl<'de> Deserialize<'de> for Collection {
     where
         D: serde::Deserializer<'de>,
     {
-        let collection = SerializedCollection::deserialize(deserializer)?;
+        let collection = CollectionRepr::deserialize(deserializer)?;
         Collection::try_from(collection).map_err(serde::de::Error::custom)
     }
 }
