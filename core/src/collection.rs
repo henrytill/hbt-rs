@@ -4,11 +4,10 @@ use std::{
     ops::{Index, IndexMut},
 };
 
-use url::Url;
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use url::Url;
 
 use crate::entity::{Entity, Label};
 
