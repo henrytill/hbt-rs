@@ -252,44 +252,12 @@ impl Entity {
         &self.url
     }
 
-    pub fn created_at(&self) -> &Time {
-        &self.created_at
-    }
-
-    pub fn updated_at(&self) -> &[Time] {
-        &self.updated_at
-    }
-
-    pub fn names(&self) -> &BTreeSet<Name> {
-        &self.names
-    }
-
     pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
     }
 
     pub fn labels_mut(&mut self) -> &mut BTreeSet<Label> {
         &mut self.labels
-    }
-
-    pub fn last_visited_at(&self) -> Option<&Time> {
-        self.last_visited_at.as_ref()
-    }
-
-    pub fn is_feed(&self) -> bool {
-        self.is_feed
-    }
-
-    pub fn shared(&self) -> bool {
-        self.shared
-    }
-
-    pub fn to_read(&self) -> bool {
-        self.to_read
-    }
-
-    pub fn extended(&self) -> Option<&Extended> {
-        self.extended.as_ref()
     }
 }
 
