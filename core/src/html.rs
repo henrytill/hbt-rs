@@ -65,19 +65,16 @@ type Attributes = HashMap<String, String>;
 
 fn add_pending(
     collection: &mut Collection,
-    folder_stack: &[String],
     attrs: Attributes,
-    description: Option<String>,
-    extended: Option<String>,
+    folders: impl IntoIterator<Item = impl Into<Label>>,
+    maybe_name: Option<impl Into<Name>>,
+    maybe_extended: Option<impl Into<Extended>>,
 ) -> Result<(), Error> {
-    let names = description.into_iter().map(Name::from).collect();
-    let folder_labels: BTreeSet<Label> =
-        folder_stack.iter().map(|s| Label::from(s.clone())).collect();
-    let maybe_extended = extended.map(Extended::from);
-
-    let entity = Entity::from_html_attributes(&attrs, names, folder_labels, maybe_extended)?;
+    let names = maybe_name.into_iter().map(Into::into).collect();
+    let labels: BTreeSet<Label> = folders.into_iter().map(Into::into).collect();
+    let maybe_extended = maybe_extended.map(Into::into);
+    let entity = Entity::from_attrs(attrs, names, labels, maybe_extended)?;
     collection.upsert(entity);
-
     Ok(())
 }
 
@@ -126,10 +123,10 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
                         if let Some((attrs, maybe_description)) = pending_bookmark.take() {
                             add_pending(
                                 &mut collection,
-                                &folder_stack,
                                 attrs,
+                                &folder_stack,
                                 maybe_description,
-                                None, // No extended
+                                None::<String>, // No extended
                             )?;
                         }
                         if let Some(h3_element) = element.select(&h3_selector).next() {
@@ -147,8 +144,8 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
                             let maybe_extended = maybe_element_text(element);
                             add_pending(
                                 &mut collection,
-                                &folder_stack,
                                 attrs,
+                                &folder_stack,
                                 maybe_description,
                                 maybe_extended,
                             )?;
@@ -167,7 +164,13 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
             }
             StackItem::PopGroup => {
                 if let Some((attrs, maybe_description)) = pending_bookmark.take() {
-                    add_pending(&mut collection, &folder_stack, attrs, maybe_description, None)?;
+                    add_pending(
+                        &mut collection,
+                        attrs,
+                        &folder_stack,
+                        maybe_description,
+                        None::<String>,
+                    )?;
                 }
                 folder_stack.pop();
             }

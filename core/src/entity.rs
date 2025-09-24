@@ -86,6 +86,12 @@ impl From<String> for Label {
     }
 }
 
+impl From<&String> for Label {
+    fn from(label: &String) -> Label {
+        Label(label.to_owned())
+    }
+}
+
 impl From<&str> for Label {
     fn from(label: &str) -> Label {
         Label(label.into())
@@ -321,21 +327,20 @@ pub mod html {
     use std::collections::{BTreeSet, HashMap};
     use url::Url;
 
-    pub type Attributes = HashMap<String, String>;
+    pub type Attrs = HashMap<String, String>;
 
-    fn parse_timestamp(value: &str) -> Result<Time, Error> {
-        let trimmed = value.trim();
-        if trimmed.is_empty() { Ok(Time::default()) } else { Time::parse(trimmed) }
-    }
-
-    fn parse_timestamp_opt(value: &str) -> Result<Option<Time>, Error> {
+    fn parse_time_opt(value: String) -> Result<Option<Time>, Error> {
         let trimmed = value.trim();
         if trimmed.is_empty() { Ok(None) } else { Ok(Some(Time::parse(trimmed)?)) }
     }
 
+    fn parse_time(value: String) -> Result<Time, Error> {
+        parse_time_opt(value).map(Option::unwrap_or_default)
+    }
+
     impl Entity {
-        pub fn from_html_attributes(
-            attrs: &Attributes,
+        pub fn from_attrs(
+            attrs: Attrs,
             names: BTreeSet<Name>,
             labels: BTreeSet<Label>,
             extended: Option<Extended>,
@@ -359,27 +364,25 @@ pub mod html {
                 names,
                 labels,
                 extended,
-                shared: true, // Default to shared
+                shared: true,
                 to_read: false,
                 last_visited_at: None,
                 is_feed: false,
             };
 
-            let mut tag_string = String::new();
+            let mut tags = String::new();
 
             for (key, value) in attrs {
                 match key.to_lowercase().as_str() {
-                    KEY_ADD_DATE => entity.created_at = parse_timestamp(value)?,
+                    KEY_ADD_DATE if !value.is_empty() => entity.created_at = parse_time(value)?,
                     KEY_LAST_MODIFIED if !value.is_empty() => {
-                        if let Some(time) = parse_timestamp_opt(value)? {
-                            entity.updated_at = vec![time];
-                        }
+                        entity.updated_at = parse_time_opt(value)?.into_iter().collect();
                     }
                     KEY_LAST_VISIT if !value.is_empty() => {
-                        entity.last_visited_at = parse_timestamp_opt(value)?;
+                        entity.last_visited_at = parse_time_opt(value)?;
                     }
                     KEY_TAGS if !value.is_empty() => {
-                        tag_string = value.clone();
+                        tags = value;
                     }
                     KEY_PRIVATE => entity.shared = value != "1",
                     KEY_TOREAD => entity.to_read = value == "1",
@@ -388,17 +391,14 @@ pub mod html {
                 }
             }
 
-            if !tag_string.is_empty() {
-                const VALUE_TOREAD: &str = "toread";
+            if tags.is_empty() {
+                return Ok(entity);
+            }
 
-                let tags: Vec<String> =
-                    tag_string.split(',').map(|s| s.trim().to_string()).collect();
-                let filtered_tags: Vec<String> =
-                    tags.iter().filter(|&tag| tag != VALUE_TOREAD).cloned().collect();
-                let tag_labels: BTreeSet<Label> =
-                    filtered_tags.into_iter().map(Label::from).collect();
-                entity.labels.extend(tag_labels);
-                entity.to_read = entity.to_read || tags.contains(&VALUE_TOREAD.to_string());
+            for tag in tags.split(',') {
+                let s = tag.trim();
+                entity.to_read = s == "toread" || entity.to_read;
+                entity.labels.insert(Label::from(tag));
             }
 
             Ok(entity)
