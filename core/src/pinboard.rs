@@ -98,7 +98,7 @@ pub mod xml {
     use super::{Error, Post};
 
     impl Post {
-        fn from_xml_attributes(attrs: Attributes) -> Result<Post, Error> {
+        fn from_attrs(attrs: Attributes) -> Result<Post, Error> {
             const KEY_HREF: &[u8] = b"href";
             const KEY_TIME: &[u8] = b"time";
             const KEY_DESCRIPTION: &[u8] = b"description";
@@ -159,7 +159,7 @@ pub mod xml {
                         // nothing at the moment
                     }
                     Event::Empty(e) if e.name().as_ref() == EVENT_POST => {
-                        let post = Post::from_xml_attributes(e.attributes())?;
+                        let post = Post::from_attrs(e.attributes())?;
                         ret.push(post);
                     }
                     Event::Eof => break,

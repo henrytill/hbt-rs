@@ -45,10 +45,18 @@ impl From<HeadingLevelExt> for usize {
     }
 }
 
+const DATE_FORMAT: &str = "%B %-d, %Y";
+
+fn parse_date(s: &str) -> Result<NaiveDate, Error> {
+    NaiveDate::parse_from_str(s, DATE_FORMAT).map_err(|err| Error::ParseDate(err, s.to_string()))
+}
+
+fn parse_url(s: &str) -> Result<Url, Error> {
+    Url::parse(s).map_err(|err| Error::ParseUrl(err, s.to_string()))
+}
+
 pub fn parse(input: &str) -> Result<Collection, Error> {
     let parser = Parser::new(input);
-
-    let date_format = "%B %-d, %Y";
 
     let mut ret = Collection::new();
 
@@ -85,32 +93,22 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             }
             Event::Start(tag @ Tag::List(_)) => {
                 current_tag = Some(tag);
-                if let Some(last_id) = maybe_parent {
-                    parents.push(last_id);
+                if let Some(parent) = maybe_parent {
+                    parents.push(parent);
                 }
             }
-            Event::Start(
-                ref tag @ Tag::Link { link_type: LinkType::Inline, ref dest_url, ref title, .. },
-            ) => {
+            Event::Start(ref tag @ Tag::Link { link_type: LinkType::Inline, ref dest_url, .. }) => {
                 current_tag = Some(tag.to_owned());
                 name_parts.clear();
-                let parsed =
-                    Url::parse(dest_url).map_err(|e| Error::ParseUrl(e, dest_url.to_string()))?;
-                url = Some(parsed);
-                assert!(title.is_empty());
+                url = Some(parse_url(dest_url)?);
             }
             Event::Start(
-                ref tag @ Tag::Link {
-                    link_type: LinkType::Autolink, ref dest_url, ref title, ..
-                },
+                ref tag @ Tag::Link { link_type: LinkType::Autolink, ref dest_url, .. },
             ) => {
                 current_tag = Some(tag.to_owned());
                 name = None;
                 name_parts.clear();
-                let parsed =
-                    Url::parse(dest_url).map_err(|e| Error::ParseUrl(e, dest_url.to_string()))?;
-                url = Some(parsed);
-                assert!(title.is_empty());
+                url = Some(parse_url(dest_url)?);
             }
             Event::Start(tag) => {
                 current_tag = Some(tag);
@@ -118,8 +116,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             // Text
             Event::Text(text) => match (&current_tag, current_heading_level) {
                 (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
-                    let parsed = NaiveDate::parse_from_str(text.as_ref(), date_format)
-                        .map_err(|err| Error::ParseDate(err, text.to_string()))?;
+                    let parsed = parse_date(text.as_ref())?;
                     date = Some(parsed);
                 }
                 (Some(Tag::Heading { .. }), _) => {

@@ -21,46 +21,54 @@ struct Args {
     /// Input format
     #[arg(short = 'f', long = "from", value_enum)]
     from: Option<Format<INPUT>>,
+
     /// Output format
     #[arg(short = 't', long = "to", value_enum)]
     to: Option<Format<OUTPUT>>,
+
     /// Output file (defaults to stdout)
     #[arg(short = 'o', long = "output")]
     output: Option<PathBuf>,
+
     /// Show collection info (entity count)
     #[arg(long = "info")]
     info: bool,
+
     /// List all tags
     #[arg(long = "list-tags")]
     list_tags: bool,
+
     /// Output Collection JSON schema
     #[arg(long = "schema")]
     schema: bool,
+
     /// Read mappings from <FILE>
     #[arg(long = "mappings", value_name = "FILE")]
     mappings: Option<PathBuf>,
+
     /// Input file
     file: Option<PathBuf>,
 }
 
-fn update_collection(args: &Args, collection: &mut Collection) -> Result<(), Error> {
-    if let Some(mappings) = &args.mappings {
-        let contents = fs::read_to_string(mappings)?;
-        let yaml_value: serde_yaml::Value = serde_yaml::from_str(&contents)?;
+fn update_collection(args: &Args, coll: &mut Collection) -> Result<(), Error> {
+    let Some(mappings) = &args.mappings else { return Ok(()) };
 
-        let mappings = yaml_value
-            .as_mapping()
-            .ok_or_else(|| Error::msg("Mapping file must contain a YAML mapping"))?
-            .iter()
-            .filter_map(|(k, v)| {
-                let key = k.as_str()?.to_string();
-                let value = v.as_str()?.to_string();
-                Some((key, value))
-            })
-            .collect::<Vec<_>>();
+    let contents = fs::read_to_string(mappings)?;
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&contents)?;
 
-        collection.update_labels(mappings)?;
-    }
+    let mappings = yaml
+        .as_mapping()
+        .ok_or_else(|| Error::msg("Mapping file must contain a YAML mapping"))?
+        .iter()
+        .filter_map(|(k, v)| {
+            let key = k.as_str()?.to_string();
+            let value = v.as_str()?.to_string();
+            Some((key, value))
+        })
+        .collect::<Vec<_>>();
+
+    coll.update_labels(mappings)?;
+
     Ok(())
 }
 
@@ -70,20 +78,20 @@ fn write_output(writer: &mut dyn Write, content: &str) -> Result<(), Error> {
     Ok(())
 }
 
-fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
+fn print_collection(args: &Args, coll: &Collection) -> Result<(), Error> {
     let output = if args.info {
-        let length = collection.len();
+        let length = coll.len();
         let file_name = args.file.as_ref().map(|f| f.to_string_lossy()).unwrap_or("input".into());
         format!("{}: {} entities\n", file_name, length)
     } else if args.list_tags {
         let mut all_tags = BTreeSet::new();
-        for entity in collection.entities() {
+        for entity in coll.entities() {
             all_tags.extend(entity.labels())
         }
         let tags_output = all_tags.iter().map(|tag| tag.as_str()).collect::<Vec<_>>().join("\n");
         if tags_output.is_empty() { String::new() } else { format!("{}\n", tags_output) }
     } else if let Some(format) = &args.to {
-        format.unparse(collection)?
+        format.unparse(coll)?
     } else {
         return Err(Error::msg(
             "Must specify an output format (-t) or analysis flag (--info, --list-tags)",
@@ -101,9 +109,9 @@ fn print_collection(args: &Args, collection: &Collection) -> Result<(), Error> {
 }
 
 fn process_input(args: &Args, input: &str, format: Format<INPUT>) -> Result<(), Error> {
-    let mut collection = format.parse(input)?;
-    update_collection(args, &mut collection)?;
-    print_collection(args, &collection)?;
+    let mut coll = format.parse(input)?;
+    update_collection(args, &mut coll)?;
+    print_collection(args, &coll)?;
     Ok(())
 }
 
@@ -128,8 +136,10 @@ fn main() -> Result<ExitCode, Error> {
 
     let input_format = match &args.from {
         Some(format) => *format,
-        None => Format::<INPUT>::detect(file)
-            .ok_or_else(|| Error::msg(format!("No parser for file: {}", file.display())))?,
+        None => {
+            let no_parser = || Error::msg(format!("No parser for file: {}", file.display()));
+            Format::<INPUT>::detect(file).ok_or_else(no_parser)?
+        }
     };
 
     process_input(&args, &contents, input_format)?;

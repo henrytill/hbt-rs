@@ -61,31 +61,31 @@ enum StackItem<'a> {
     PopGroup,
 }
 
-type Attributes = HashMap<String, String>;
+type Attrs = HashMap<String, String>;
 
-fn add_pending(
-    collection: &mut Collection,
-    attrs: Attributes,
+fn add(
+    coll: &mut Collection,
+    attrs: Attrs,
     folders: impl IntoIterator<Item = impl Into<Label>>,
     maybe_name: Option<impl Into<Name>>,
-    maybe_extended: Option<impl Into<Extended>>,
+    maybe_ext: Option<impl Into<Extended>>,
 ) -> Result<(), Error> {
     let names = maybe_name.into_iter().map(Into::into).collect();
     let labels: BTreeSet<Label> = folders.into_iter().map(Into::into).collect();
-    let maybe_extended = maybe_extended.map(Into::into);
-    let entity = Entity::from_attrs(attrs, names, labels, maybe_extended)?;
-    collection.upsert(entity);
+    let maybe_ext = maybe_ext.map(Into::into);
+    let entity = Entity::from_attrs(attrs, names, labels, maybe_ext)?;
+    coll.upsert(entity);
     Ok(())
 }
 
-fn maybe_element_text(element: ElementRef) -> Option<String> {
-    let trimmed = element.text().collect::<String>().trim().to_string();
+fn extract_text(elt: ElementRef) -> Option<String> {
+    let trimmed = elt.text().collect::<String>().trim().to_string();
     if trimmed.is_empty() { None } else { Some(trimmed) }
 }
 
-fn extract_attributes(element: ElementRef) -> Attributes {
+fn extract_attrs(elt: ElementRef) -> Attrs {
     let mut attrs = HashMap::new();
-    for (name, value) in element.value().attrs() {
+    for (name, value) in elt.value().attrs() {
         attrs.insert(name.to_lowercase(), value.to_string());
     }
     attrs
@@ -95,10 +95,10 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
     let document = Html::parse_document(html);
     let root = document.root_element();
 
-    let mut collection = Collection::new();
+    let mut coll = Collection::new();
     let mut stack: Vec<StackItem> = Vec::new();
-    let mut folder_stack: Vec<String> = Vec::new();
-    let mut pending_bookmark: Option<(Attributes, Option<String>)> = None;
+    let mut folders: Vec<String> = Vec::new();
+    let mut pending: Option<(Attrs, Option<String>)> = None;
 
     const A: &str = "a";
     const H3: &str = "h3";
@@ -110,45 +110,34 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
     let h3_selector = Selector::parse(H3)?;
 
     for child in root.children().rev() {
-        if let Some(child_element) = ElementRef::wrap(child) {
-            stack.push(StackItem::Element(child_element));
+        if let Some(child_elt) = ElementRef::wrap(child) {
+            stack.push(StackItem::Element(child_elt));
         }
     }
 
     while let Some(item) = stack.pop() {
         match item {
-            StackItem::Element(element) => {
-                match element.value().name() {
+            StackItem::Element(elt) => {
+                match elt.value().name() {
                     DT => {
-                        if let Some((attrs, maybe_description)) = pending_bookmark.take() {
-                            add_pending(
-                                &mut collection,
-                                attrs,
-                                &folder_stack,
-                                maybe_description,
-                                None::<String>, // No extended
-                            )?;
+                        if let Some((attrs, maybe_desc)) = pending.take() {
+                            add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
                         }
-                        if let Some(h3_element) = element.select(&h3_selector).next() {
-                            if let Some(folder_name) = maybe_element_text(h3_element) {
-                                folder_stack.push(folder_name);
+
+                        if let Some(h3_elt) = elt.select(&h3_selector).next() {
+                            if let Some(folder) = extract_text(h3_elt) {
+                                folders.push(folder);
                             }
-                        } else if let Some(a_element) = element.select(&a_selector).next() {
-                            let attrs = extract_attributes(a_element);
-                            let maybe_description = maybe_element_text(a_element);
-                            pending_bookmark = Some((attrs, maybe_description));
+                        } else if let Some(a_elt) = elt.select(&a_selector).next() {
+                            let attrs = extract_attrs(a_elt);
+                            let maybe_desc = extract_text(a_elt);
+                            pending = Some((attrs, maybe_desc));
                         }
                     }
                     DD => {
-                        if let Some((attrs, maybe_description)) = pending_bookmark.take() {
-                            let maybe_extended = maybe_element_text(element);
-                            add_pending(
-                                &mut collection,
-                                attrs,
-                                &folder_stack,
-                                maybe_description,
-                                maybe_extended,
-                            )?;
+                        if let Some((attrs, maybe_desc)) = pending.take() {
+                            let maybe_ext = extract_text(elt);
+                            add(&mut coll, attrs, &folders, maybe_desc, maybe_ext)?;
                         }
                     }
                     DL => {
@@ -156,37 +145,31 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
                     }
                     _ => {}
                 }
-                for child in element.children().rev() {
-                    if let Some(child_element) = ElementRef::wrap(child) {
-                        stack.push(StackItem::Element(child_element));
+                for child in elt.children().rev() {
+                    if let Some(child_elt) = ElementRef::wrap(child) {
+                        stack.push(StackItem::Element(child_elt));
                     }
                 }
             }
             StackItem::PopGroup => {
-                if let Some((attrs, maybe_description)) = pending_bookmark.take() {
-                    add_pending(
-                        &mut collection,
-                        attrs,
-                        &folder_stack,
-                        maybe_description,
-                        None::<String>,
-                    )?;
+                if let Some((attrs, maybe_desc)) = pending.take() {
+                    add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
                 }
-                folder_stack.pop();
+                folders.pop();
             }
         }
     }
 
-    assert!(pending_bookmark.is_none());
+    assert!(pending.is_none());
 
-    Ok(collection)
+    Ok(coll)
 }
 
-pub fn to_html(collection: &Collection) -> Result<String, Error> {
+pub fn to_html(coll: &Collection) -> Result<String, Error> {
     const TEMPLATE: &str = include_str!("html/netscape_bookmarks.jinja");
     let mut env = Environment::new();
     env.add_template("netscape", TEMPLATE)?;
-    let entities = collection.entities();
+    let entities = coll.entities();
     let template = env.get_template("netscape")?;
     let mut rendered = template.render(context! { entities })?;
     if !rendered.ends_with('\n') {

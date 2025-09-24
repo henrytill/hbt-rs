@@ -283,7 +283,7 @@ impl<'de> Deserialize<'de> for Collection {
     where
         D: serde::Deserializer<'de>,
     {
-        let collection = CollectionRepr::deserialize(deserializer)?;
-        Collection::try_from(collection).map_err(serde::de::Error::custom)
+        let coll = CollectionRepr::deserialize(deserializer)?;
+        Collection::try_from(coll).map_err(serde::de::Error::custom)
     }
 }

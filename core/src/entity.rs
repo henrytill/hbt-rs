@@ -204,24 +204,17 @@ impl Entity {
         maybe_name: Option<Name>,
         labels: BTreeSet<Label>,
     ) -> Entity {
-        let updated_at = Vec::new();
-        let names = maybe_name.into_iter().collect();
-        let extended = None;
-        let shared = false;
-        let to_read = false;
-        let last_visited_at = None;
-        let is_feed = false;
         Entity {
             url,
             created_at,
-            updated_at,
-            names,
+            updated_at: Vec::new(),
+            names: maybe_name.into_iter().collect(),
             labels,
-            extended,
-            shared,
-            to_read,
-            last_visited_at,
-            is_feed,
+            extended: None,
+            shared: false,
+            to_read: false,
+            last_visited_at: None,
+            is_feed: false,
         }
     }
 
@@ -265,27 +258,17 @@ impl TryFrom<Post> for Entity {
     type Error = Error;
 
     fn try_from(post: Post) -> Result<Entity, Self::Error> {
-        let url = Url::parse(&post.href)?;
-        let created_at = Time::parse_flexible(&post.time)?;
-        let updated_at: Vec<Time> = Vec::new();
-        let names = post.description.into_iter().map(Name::new).collect();
-        let labels = post.tags.into_iter().map(Label::new).collect();
-        let extended = post.extended.map(Extended::new);
-        let shared = post.shared;
-        let to_read = post.toread;
-        let last_visited_at = None;
-        let is_feed = false;
         Ok(Entity {
-            url,
-            created_at,
-            updated_at,
-            names,
-            labels,
-            extended,
-            shared,
-            to_read,
-            last_visited_at,
-            is_feed,
+            url: Url::parse(&post.href)?,
+            created_at: Time::parse_flexible(&post.time)?,
+            updated_at: Vec::new(),
+            names: post.description.into_iter().map(Name::new).collect(),
+            labels: post.tags.into_iter().map(Label::new).collect(),
+            extended: post.extended.map(Extended::new),
+            shared: post.shared,
+            to_read: post.toread,
+            last_visited_at: None,
+            is_feed: false,
         })
     }
 }
@@ -294,8 +277,6 @@ pub mod html {
     use super::{Entity, Error, Extended, Label, Name, Time};
     use std::collections::{BTreeSet, HashMap};
     use url::Url;
-
-    pub type Attrs = HashMap<String, String>;
 
     fn parse_time_opt(value: String) -> Result<Option<Time>, Error> {
         let trimmed = value.trim();
@@ -308,7 +289,7 @@ pub mod html {
 
     impl Entity {
         pub fn from_attrs(
-            attrs: Attrs,
+            attrs: HashMap<String, String>,
             names: BTreeSet<Name>,
             labels: BTreeSet<Label>,
             extended: Option<Extended>,

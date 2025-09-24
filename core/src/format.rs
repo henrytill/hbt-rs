@@ -136,15 +136,14 @@ pub enum UnparseError {
     Html(#[from] html::Error),
 }
 
-fn create_collection_from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
+fn create_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
     posts.sort_by(|a, b| a.time.cmp(&b.time));
-
-    let mut collection = Collection::with_capacity(posts.len());
+    let mut coll = Collection::with_capacity(posts.len());
     for post in posts {
         let entity = Entity::try_from(post)?;
-        collection.insert(entity);
+        coll.insert(entity);
     }
-    Ok(collection)
+    Ok(coll)
 }
 
 impl Format<INPUT> {
@@ -152,11 +151,11 @@ impl Format<INPUT> {
         match self.0 {
             FormatKind::Json => {
                 let posts = Post::from_json(content)?;
-                create_collection_from_posts(posts).map_err(Into::into)
+                create_collection(posts).map_err(Into::into)
             }
             FormatKind::Xml => {
                 let posts = Post::from_xml(content)?;
-                create_collection_from_posts(posts).map_err(Into::into)
+                create_collection(posts).map_err(Into::into)
             }
             FormatKind::Markdown => markdown::parse(content).map_err(Into::into),
             FormatKind::Html => html::from_html(content).map_err(Into::into),
@@ -178,10 +177,10 @@ impl Format<INPUT> {
 }
 
 impl Format<OUTPUT> {
-    pub fn unparse(&self, collection: &Collection) -> Result<String, UnparseError> {
+    pub fn unparse(&self, coll: &Collection) -> Result<String, UnparseError> {
         match self.0 {
-            FormatKind::Yaml => serde_yaml::to_string(collection).map_err(Into::into),
-            FormatKind::Html => html::to_html(collection).map_err(Into::into),
+            FormatKind::Yaml => serde_yaml::to_string(coll).map_err(Into::into),
+            FormatKind::Html => html::to_html(coll).map_err(Into::into),
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
                 panic!("Invariant violated: Format<OUTPUT> contains input-only format {:?}", self.0)
             }
