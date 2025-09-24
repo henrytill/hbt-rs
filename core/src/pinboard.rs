@@ -19,17 +19,24 @@ pub enum Error {
 #[derive(Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
 pub struct Post {
     pub href: String,
+
     pub time: String,
+
     #[serde(deserialize_with = "json::deserialize_empty_string")]
     pub description: Option<String>,
+
     #[serde(deserialize_with = "json::deserialize_empty_string")]
     pub extended: Option<String>,
+
     #[serde(deserialize_with = "json::deserialize_tags", default)]
     pub tags: Vec<String>,
+
     #[serde(deserialize_with = "json::deserialize_empty_string")]
     pub hash: Option<String>,
+
     #[serde(deserialize_with = "json::deserialize_yes_no")]
     pub shared: bool,
+
     #[serde(deserialize_with = "json::deserialize_yes_no")]
     pub toread: bool,
 }
