@@ -50,7 +50,7 @@ struct Args {
     file: Option<PathBuf>,
 }
 
-fn update_collection(args: &Args, coll: &mut Collection) -> Result<(), Error> {
+fn update(args: &Args, coll: &mut Collection) -> Result<(), Error> {
     let Some(mappings) = &args.mappings else {
         return Ok(());
     };
@@ -74,7 +74,7 @@ fn update_collection(args: &Args, coll: &mut Collection) -> Result<(), Error> {
     Ok(())
 }
 
-fn print_collection(args: &Args, coll: &Collection) -> Result<(), Error> {
+fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
     if args.info {
         let length = coll.len();
         let file_name = args
@@ -158,8 +158,8 @@ fn main() -> Result<ExitCode, Error> {
     let f = File::open(file)?;
     let mut reader = BufReader::new(f);
     let mut coll = input_format.parse(&mut reader)?;
-    update_collection(&args, &mut coll)?;
-    print_collection(&args, &coll)?;
+    update(&args, &mut coll)?;
+    print(&args, &coll)?;
 
     Ok(ExitCode::SUCCESS)
 }

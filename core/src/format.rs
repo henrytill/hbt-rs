@@ -158,6 +158,16 @@ fn make_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
 }
 
 impl Format<INPUT> {
+    pub fn detect(path: impl AsRef<Path>) -> Option<Format<INPUT>> {
+        match path.as_ref().extension()?.to_str()? {
+            "json" => Some(Format::<INPUT>::JSON),
+            "xml" => Some(Format::<INPUT>::XML),
+            "md" => Some(Format::<INPUT>::MARKDOWN),
+            "html" => Some(Format::<{ INPUT | OUTPUT }>::HTML.as_input()),
+            _ => None,
+        }
+    }
+
     pub fn parse(&self, reader: &mut impl BufRead) -> Result<Collection, ParseError> {
         match self.0 {
             FormatKind::Json => {
@@ -184,16 +194,6 @@ impl Format<INPUT> {
                     self.0
                 )
             }
-        }
-    }
-
-    pub fn detect(path: impl AsRef<Path>) -> Option<Format<INPUT>> {
-        match path.as_ref().extension()?.to_str()? {
-            "json" => Some(Format::<INPUT>::JSON),
-            "xml" => Some(Format::<INPUT>::XML),
-            "md" => Some(Format::<INPUT>::MARKDOWN),
-            "html" => Some(Format::<{ INPUT | OUTPUT }>::HTML.as_input()),
-            _ => None,
         }
     }
 }

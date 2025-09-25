@@ -147,13 +147,12 @@ impl Collection {
     }
 
     pub fn upsert(&mut self, other: Entity) -> Id {
-        if let Some(id) = self.id(other.url()) {
-            let entity = &mut self.nodes[id];
-            entity.merge(other);
-            id
-        } else {
-            self.insert(other)
-        }
+        let Some(id) = self.id(other.url()) else {
+            return self.insert(other);
+        };
+        let entity = &mut self.nodes[id];
+        entity.merge(other);
+        id
     }
 
     pub fn add_edge(&mut self, from: Id, to: Id) {
@@ -185,10 +184,10 @@ impl Collection {
         &self.nodes
     }
 
-    pub fn update_labels<M>(&mut self, mappings: M) -> Result<(), Error>
-    where
-        M: IntoIterator<Item = (String, String)>,
-    {
+    pub fn update_labels(
+        &mut self,
+        mappings: impl IntoIterator<Item = (String, String)>,
+    ) -> Result<(), Error> {
         let mapping: BTreeMap<Label, Label> = mappings
             .into_iter()
             .map(|(k, v)| (Label::from(k), Label::from(v)))
@@ -203,6 +202,7 @@ impl Collection {
             labels.retain(|label| !mapping.contains_key(label));
             labels.extend(to_add);
         }
+
         Ok(())
     }
 }
@@ -249,27 +249,19 @@ impl From<&Collection> for CollectionRepr {
 impl TryFrom<CollectionRepr> for Collection {
     type Error = Error;
 
-    fn try_from(repr: CollectionRepr) -> Result<Collection, Self::Error> {
-        let CollectionRepr {
-            version,
-            length,
-            mut value,
-        } = repr;
-
-        let is_compatible_version = version.matches_requirement()?;
-
-        if !is_compatible_version {
+    fn try_from(mut repr: CollectionRepr) -> Result<Collection, Self::Error> {
+        if !repr.version.matches_requirement()? {
             return Err(Error::IncompatibleVersion(
-                version.to_string(),
+                repr.version.to_string(),
                 Version::EXPECTED_REQ.to_string(),
             ));
         }
 
-        let mut ret = Collection::with_capacity(length);
+        let mut ret = Collection::with_capacity(repr.length);
 
-        value.sort();
+        repr.value.sort();
 
-        for NodeRepr { id, entity, edges } in value {
+        for NodeRepr { id, entity, edges } in repr.value {
             assert_eq!(id.0, ret.len());
             let url = entity.url().clone();
             ret.nodes.push(entity);

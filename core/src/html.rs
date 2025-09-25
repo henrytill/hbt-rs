@@ -99,6 +99,12 @@ fn extract_attrs(elt: ElementRef) -> Attrs {
     attrs
 }
 
+const A: &str = "a";
+const H3: &str = "h3";
+const DT: &str = "dt";
+const DD: &str = "dd";
+const DL: &str = "dl";
+
 pub fn from_html(html: &str) -> Result<Collection, Error> {
     let document = Html::parse_document(html);
     let root = document.root_element();
@@ -107,12 +113,6 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
     let mut stack: Vec<StackItem> = Vec::new();
     let mut folders: Vec<String> = Vec::new();
     let mut pending: Option<(Attrs, Option<String>)> = None;
-
-    const A: &str = "a";
-    const H3: &str = "h3";
-    const DT: &str = "dt";
-    const DD: &str = "dd";
-    const DL: &str = "dl";
 
     let a_selector = Selector::parse(A)?;
     let h3_selector = Selector::parse(H3)?;

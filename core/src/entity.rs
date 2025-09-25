@@ -278,6 +278,15 @@ pub mod html {
     use std::collections::{BTreeSet, HashMap};
     use url::Url;
 
+    const KEY_HREF: &str = "href";
+    const KEY_ADD_DATE: &str = "add_date";
+    const KEY_LAST_MODIFIED: &str = "last_modified";
+    const KEY_LAST_VISIT: &str = "last_visit";
+    const KEY_TAGS: &str = "tags";
+    const KEY_PRIVATE: &str = "private";
+    const KEY_TOREAD: &str = "toread";
+    const KEY_FEED: &str = "feed";
+
     fn parse_time_opt(value: String) -> Result<Option<Time>, Error> {
         let trimmed = value.trim();
         if trimmed.is_empty() {
@@ -298,19 +307,12 @@ pub mod html {
             labels: BTreeSet<Label>,
             extended: Option<Extended>,
         ) -> Result<Entity, Error> {
-            const KEY_HREF: &str = "href";
-            const KEY_ADD_DATE: &str = "add_date";
-            const KEY_LAST_MODIFIED: &str = "last_modified";
-            const KEY_LAST_VISIT: &str = "last_visit";
-            const KEY_TAGS: &str = "tags";
-            const KEY_PRIVATE: &str = "private";
-            const KEY_TOREAD: &str = "toread";
-            const KEY_FEED: &str = "feed";
-
-            let href = attrs
-                .get(KEY_HREF)
-                .ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
-            let url = Url::parse(href)?;
+            let url = {
+                let href = attrs
+                    .get(KEY_HREF)
+                    .ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
+                Url::parse(href)?
+            };
 
             let mut entity = Entity {
                 url,
@@ -329,7 +331,9 @@ pub mod html {
 
             for (key, value) in attrs {
                 match key.to_lowercase().as_str() {
-                    KEY_ADD_DATE if !value.is_empty() => entity.created_at = parse_time(value)?,
+                    KEY_ADD_DATE if !value.is_empty() => {
+                        entity.created_at = parse_time(value)?;
+                    }
                     KEY_LAST_MODIFIED if !value.is_empty() => {
                         entity.updated_at = parse_time_opt(value)?.into_iter().collect();
                     }
@@ -339,9 +343,15 @@ pub mod html {
                     KEY_TAGS if !value.is_empty() => {
                         tags = value;
                     }
-                    KEY_PRIVATE => entity.shared = value != "1",
-                    KEY_TOREAD => entity.to_read = value == "1",
-                    KEY_FEED => entity.is_feed = value == "true",
+                    KEY_PRIVATE => {
+                        entity.shared = value != "1";
+                    }
+                    KEY_TOREAD => {
+                        entity.to_read = value == "1";
+                    }
+                    KEY_FEED => {
+                        entity.is_feed = value == "true";
+                    }
                     _ => {}
                 }
             }

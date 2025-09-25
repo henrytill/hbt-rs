@@ -1,4 +1,4 @@
-use chrono::{NaiveDate, TimeZone, Utc};
+use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use thiserror::Error;
 use url::Url;
@@ -47,8 +47,11 @@ impl From<HeadingLevelExt> for usize {
 
 const DATE_FORMAT: &str = "%B %-d, %Y";
 
-fn parse_date(s: &str) -> Result<NaiveDate, Error> {
-    NaiveDate::parse_from_str(s, DATE_FORMAT).map_err(|err| Error::ParseDate(err, s.to_string()))
+fn parse_date(s: &str) -> Result<DateTime<Utc>, Error> {
+    let date = NaiveDate::parse_from_str(s, DATE_FORMAT)
+        .map_err(|err| Error::ParseDate(err, s.to_string()))?;
+    let datetime = date.and_hms_opt(0, 0, 0).unwrap();
+    Ok(Utc.from_utc_datetime(&datetime))
 }
 
 fn parse_url(s: &str) -> Result<Url, Error> {
@@ -62,7 +65,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
 
     let mut name: Option<Name> = None;
     let mut name_parts: Vec<String> = Vec::new();
-    let mut date: Option<NaiveDate> = None;
+    let mut date: Option<DateTime<Utc>> = None;
     let mut url: Option<Url> = None;
     let mut labels: Vec<Label> = Vec::new();
 
@@ -167,7 +170,6 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
             Event::End(TagEnd::Link) => {
                 let url = url.take().ok_or(Error::MissingUrl)?;
                 let date = date.ok_or(Error::MissingDate)?;
-                let datetime = Utc.from_utc_datetime(&date.and_hms_opt(0, 0, 0).unwrap());
                 let name = if name_parts.is_empty() {
                     name.take()
                 } else {
@@ -175,7 +177,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 };
                 name_parts.clear();
                 let labels = labels.iter().cloned().collect();
-                let entity = Entity::new(url, datetime.into(), name, labels);
+                let entity = Entity::new(url, date.into(), name, labels);
                 let id = ret.upsert(entity);
                 if let Some(parent) = parents.last() {
                     ret.add_edges(*parent, id);

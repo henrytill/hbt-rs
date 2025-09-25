@@ -24,22 +24,22 @@ pub struct Post {
 
     pub time: String,
 
-    #[serde(deserialize_with = "json::deserialize_empty_string")]
+    #[serde(deserialize_with = "json::empty_string")]
     pub description: Option<String>,
 
-    #[serde(deserialize_with = "json::deserialize_empty_string")]
+    #[serde(deserialize_with = "json::empty_string")]
     pub extended: Option<String>,
 
-    #[serde(deserialize_with = "json::deserialize_tags", default)]
+    #[serde(deserialize_with = "json::tags", default)]
     pub tags: Vec<String>,
 
-    #[serde(deserialize_with = "json::deserialize_empty_string")]
+    #[serde(deserialize_with = "json::empty_string")]
     pub hash: Option<String>,
 
-    #[serde(deserialize_with = "json::deserialize_yes_no")]
+    #[serde(deserialize_with = "json::yes_no")]
     pub shared: bool,
 
-    #[serde(deserialize_with = "json::deserialize_yes_no")]
+    #[serde(deserialize_with = "json::yes_no")]
     pub toread: bool,
 }
 
@@ -52,7 +52,7 @@ impl Post {
 mod json {
     use serde::{Deserialize, Deserializer};
 
-    pub fn deserialize_empty_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+    pub fn empty_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -60,7 +60,7 @@ mod json {
         if s.is_empty() { Ok(None) } else { Ok(Some(s)) }
     }
 
-    pub fn deserialize_tags<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
+    pub fn tags<'de, D>(deserializer: D) -> Result<Vec<String>, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -72,7 +72,7 @@ mod json {
         }
     }
 
-    pub fn deserialize_yes_no<'de, D>(deserializer: D) -> Result<bool, D::Error>
+    pub fn yes_no<'de, D>(deserializer: D) -> Result<bool, D::Error>
     where
         D: Deserializer<'de>,
     {
@@ -103,58 +103,62 @@ pub mod xml {
 
     use super::{Error, Post};
 
+    const KEY_HREF: &[u8] = b"href";
+    const KEY_TIME: &[u8] = b"time";
+    const KEY_DESCRIPTION: &[u8] = b"description";
+    const KEY_EXTENDED: &[u8] = b"extended";
+    const KEY_TAG: &[u8] = b"tag";
+    const KEY_HASH: &[u8] = b"hash";
+    const KEY_SHARED: &[u8] = b"shared";
+    const KEY_TOREAD: &[u8] = b"toread";
+    const YES: &[u8] = b"yes";
+
+    const EVENT_POSTS: &[u8] = b"posts";
+    const EVENT_POST: &[u8] = b"post";
+
     impl Post {
         fn from_attrs(attrs: Attributes) -> Result<Post, Error> {
-            const KEY_HREF: &[u8] = b"href";
-            const KEY_TIME: &[u8] = b"time";
-            const KEY_DESCRIPTION: &[u8] = b"description";
-            const KEY_EXTENDED: &[u8] = b"extended";
-            const KEY_TAG: &[u8] = b"tag";
-            const KEY_HASH: &[u8] = b"hash";
-            const KEY_SHARED: &[u8] = b"shared";
-            const KEY_TOREAD: &[u8] = b"toread";
-            const YES: &[u8] = b"yes";
-
-            let mut post = Post::default();
+            let mut ret = Post::default();
 
             for attr in attrs {
                 let Attribute { key, value } = attr?;
                 match key.local_name().as_ref() {
-                    KEY_HREF => post.href = String::from_utf8(value.into_owned())?,
-                    KEY_TIME => post.time = String::from_utf8(value.into_owned())?,
+                    KEY_HREF => {
+                        ret.href = String::from_utf8(value.into_owned())?;
+                    }
+                    KEY_TIME => {
+                        ret.time = String::from_utf8(value.into_owned())?;
+                    }
                     KEY_DESCRIPTION if !value.is_empty() => {
                         let s = String::from_utf8(value.into_owned())?;
-                        post.description = Some(s);
+                        ret.description = Some(s);
                     }
                     KEY_EXTENDED if !value.is_empty() => {
                         let s = String::from_utf8(value.into_owned())?;
-                        post.extended = Some(s);
+                        ret.extended = Some(s);
                     }
                     KEY_TAG if !value.is_empty() => {
                         let s = String::from_utf8(value.into_owned())?;
-                        post.tags = s.split_whitespace().map(ToOwned::to_owned).collect();
+                        ret.tags = s.split_whitespace().map(ToOwned::to_owned).collect();
                     }
                     KEY_HASH if !value.is_empty() => {
                         let s = String::from_utf8(value.into_owned())?;
-                        post.hash = Some(s);
+                        ret.hash = Some(s);
                     }
                     KEY_SHARED => {
-                        post.shared = value.as_ref() == YES;
+                        ret.shared = value.as_ref() == YES;
                     }
                     KEY_TOREAD => {
-                        post.toread = value.as_ref() == YES;
+                        ret.toread = value.as_ref() == YES;
                     }
                     _ => (),
                 }
             }
 
-            Ok(post)
+            Ok(ret)
         }
 
         pub fn from_xml(reader: &mut impl BufRead) -> Result<Vec<Post>, Error> {
-            const EVENT_POSTS: &[u8] = b"posts";
-            const EVENT_POST: &[u8] = b"post";
-
             let mut ret = Vec::new();
             let mut reader = Reader::from_reader(reader);
             reader.config_mut().trim_text(true);
