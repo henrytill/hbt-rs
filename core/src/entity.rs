@@ -27,7 +27,6 @@ pub enum Error {
     ParseTimeFormat(#[from] chrono::ParseError),
 }
 
-/// A [`Name`] describes an [`Entity`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Name(String);
 
@@ -60,7 +59,6 @@ impl From<&str> for Name {
     }
 }
 
-/// A [`Label`] is text that can be attached to an [`Entity`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Label(String);
 
@@ -145,7 +143,6 @@ impl Default for Time {
     }
 }
 
-/// A [`Extended`] is text that can be attached to an [`Entity`].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Extended(String);
 
@@ -178,7 +175,6 @@ impl From<&str> for Extended {
     }
 }
 
-/// An [`Entity`] is a page in the collection.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Entity {

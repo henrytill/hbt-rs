@@ -20,7 +20,6 @@ pub enum Error {
     ParseSemver(#[from] semver::Error),
 }
 
-/// An [`Id`] is a unique identifier for an [`Entity`].
 #[derive(
     Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
 )]
@@ -63,10 +62,6 @@ impl fmt::Display for Version {
 
 pub type Edges = Vec<Id>;
 
-/// A collection of entities.
-///
-/// This is a graph structure where a nodes are represented by a vector of entities and edges are
-/// represented by an adjacency list.
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Collection {
     nodes: Vec<Entity>,
