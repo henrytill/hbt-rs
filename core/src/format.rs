@@ -145,7 +145,7 @@ pub enum UnparseError {
     Io(#[from] io::Error),
 }
 
-fn create_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
+fn make_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
     posts.sort_by(|a, b| a.time.cmp(&b.time));
     let mut coll = Collection::with_capacity(posts.len());
     for post in posts {
@@ -160,11 +160,11 @@ impl Format<INPUT> {
         match self.0 {
             FormatKind::Json => {
                 let posts = Post::from_json(reader)?;
-                create_collection(posts).map_err(Into::into)
+                make_collection(posts).map_err(Into::into)
             }
             FormatKind::Xml => {
                 let posts = Post::from_xml(reader)?;
-                create_collection(posts).map_err(Into::into)
+                make_collection(posts).map_err(Into::into)
             }
             FormatKind::Markdown => {
                 let mut buf = String::new();
