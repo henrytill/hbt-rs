@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeSet,
-    fs,
-    io::{self, Write},
+    fs::{self},
+    io::{self, BufWriter, Write},
     path::PathBuf,
     process::ExitCode,
 };
@@ -72,61 +72,59 @@ fn update_collection(args: &Args, coll: &mut Collection) -> Result<(), Error> {
     Ok(())
 }
 
-fn write_output(writer: &mut dyn Write, content: &str) -> Result<(), Error> {
-    writer.write_all(content.as_bytes())?;
-    writer.flush()?;
-    Ok(())
-}
-
 fn print_collection(args: &Args, coll: &Collection) -> Result<(), Error> {
-    let output = if args.info {
+    if args.info {
         let length = coll.len();
         let file_name = args.file.as_ref().map(|f| f.to_string_lossy()).unwrap_or("input".into());
-        format!("{}: {} entities\n", file_name, length)
+        let output = format!("{}: {} entities\n", file_name, length);
+        let stdout = io::stdout();
+        let mut writer = BufWriter::new(stdout);
+        writer.write_all(output.as_bytes())?;
     } else if args.list_tags {
         let mut all_tags = BTreeSet::new();
         for entity in coll.entities() {
             all_tags.extend(entity.labels())
         }
         let tags_output = all_tags.iter().map(|tag| tag.as_str()).collect::<Vec<_>>().join("\n");
-        if tags_output.is_empty() { String::new() } else { format!("{}\n", tags_output) }
+        let output =
+            if tags_output.is_empty() { String::new() } else { format!("{}\n", tags_output) };
+        let stdout = io::stdout();
+        let mut writer = BufWriter::new(stdout);
+        writer.write_all(output.as_bytes())?;
     } else if let Some(format) = &args.to {
-        format.unparse(coll)?
+        if let Some(output_file) = &args.output {
+            let file = std::fs::File::create(output_file)?;
+            let writer = BufWriter::new(file);
+            format.unparse(writer, coll)?
+        } else {
+            let stdout = io::stdout();
+            let writer = BufWriter::new(stdout);
+            format.unparse(writer, coll)?
+        };
     } else {
         return Err(Error::msg(
             "Must specify an output format (-t) or analysis flag (--info, --list-tags)",
         ));
     };
 
-    if let Some(output_file) = &args.output {
-        let mut file = std::fs::File::create(output_file)?;
-        write_output(&mut file, &output)?;
-    } else {
-        write_output(&mut io::stdout(), &output)?;
-    }
-
-    Ok(())
-}
-
-fn process_input(args: &Args, input: &str, format: Format<INPUT>) -> Result<(), Error> {
-    let mut coll = format.parse(input)?;
-    update_collection(args, &mut coll)?;
-    print_collection(args, &coll)?;
     Ok(())
 }
 
 fn main() -> Result<ExitCode, Error> {
     let args = Args::parse();
 
-    // Handle schema output (no input file required)
     if args.schema {
         let schema = schema_for!(CollectionRepr);
-        let schema_json = serde_json::to_string_pretty(&schema)?;
         if let Some(output_file) = &args.output {
-            let mut file = std::fs::File::create(output_file)?;
-            write_output(&mut file, &schema_json)?;
+            let file = std::fs::File::create(output_file)?;
+            let mut writer = BufWriter::new(file);
+            serde_json::to_writer_pretty(&mut writer, &schema)?;
+            writer.flush()?;
         } else {
-            write_output(&mut io::stdout(), &schema_json)?;
+            let stdout = io::stdout();
+            let mut writer = BufWriter::new(stdout);
+            serde_json::to_writer_pretty(&mut writer, &schema)?;
+            writer.flush()?;
         }
         return Ok(ExitCode::SUCCESS);
     }
@@ -142,7 +140,9 @@ fn main() -> Result<ExitCode, Error> {
         }
     };
 
-    process_input(&args, &contents, input_format)?;
+    let mut coll = input_format.parse(&contents)?;
+    update_collection(&args, &mut coll)?;
+    print_collection(&args, &coll)?;
 
     Ok(ExitCode::SUCCESS)
 }

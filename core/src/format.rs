@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{
+    io::{self, Write},
+    path::Path,
+};
 
 #[cfg(feature = "clap")]
 use clap::{ValueEnum, builder::PossibleValue};
@@ -134,6 +137,9 @@ pub enum UnparseError {
 
     #[error("HTML formatting error: {0}")]
     Html(#[from] html::Error),
+
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
 }
 
 fn create_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
@@ -177,13 +183,14 @@ impl Format<INPUT> {
 }
 
 impl Format<OUTPUT> {
-    pub fn unparse(&self, coll: &Collection) -> Result<String, UnparseError> {
+    pub fn unparse(&self, mut writer: impl Write, coll: &Collection) -> Result<(), UnparseError> {
         match self.0 {
-            FormatKind::Yaml => serde_yaml::to_string(coll).map_err(Into::into),
-            FormatKind::Html => html::to_html(coll).map_err(Into::into),
+            FormatKind::Yaml => serde_yaml::to_writer(&mut writer, coll)?,
+            FormatKind::Html => html::to_html(&mut writer, coll)?,
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
                 panic!("Invariant violated: Format<OUTPUT> contains input-only format {:?}", self.0)
             }
-        }
+        };
+        writer.flush().map_err(Into::into)
     }
 }

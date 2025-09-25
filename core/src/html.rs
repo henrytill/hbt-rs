@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeSet, HashMap},
+    io::{self, Write},
     num,
 };
 
@@ -36,6 +37,9 @@ pub enum Error {
 
     #[error("Template error: {0}")]
     Template(#[from] minijinja::Error),
+
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
 }
 
 impl From<entity::Error> for Error {
@@ -165,15 +169,14 @@ pub fn from_html(html: &str) -> Result<Collection, Error> {
     Ok(coll)
 }
 
-pub fn to_html(coll: &Collection) -> Result<String, Error> {
+pub fn to_html(mut writer: impl Write, coll: &Collection) -> Result<(), Error> {
     const TEMPLATE: &str = include_str!("html/netscape_bookmarks.jinja");
     let mut env = Environment::new();
     env.add_template("netscape", TEMPLATE)?;
     let entities = coll.entities();
     let template = env.get_template("netscape")?;
-    let mut rendered = template.render(context! { entities })?;
-    if !rendered.ends_with('\n') {
-        rendered.push('\n');
-    }
-    Ok(rendered)
+    template.render_to_write(context! { entities }, &mut writer)?;
+    writer.write_all(b"\n")?;
+    writer.flush()?;
+    Ok(())
 }
