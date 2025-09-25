@@ -7,7 +7,7 @@ edition = "2024"
 anyhow = "1.0.82"
 clap.workspace = true
 hbt-core = { path = "../core", features = ["clap"] }
-schemars = "1.0.4"
+schemars.workspace = true
 serde_json.workspace = true
 serde_yaml.workspace = true
 

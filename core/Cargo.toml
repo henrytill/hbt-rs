@@ -11,7 +11,7 @@ clap = ["dep:clap"]
 minijinja = "2.11.0"
 pulldown-cmark = { version = "0.13.0", default-features = false, features = ["simd"] }
 quick-xml = { version = "0.38.0" }
-schemars = { version = "1.0.4", features = ["chrono04", "url2", "semver1"] }
+schemars.workspace = true
 scraper = { version = "0.23.1", default-features = false }
 semver = { version = "1.0.25", features = ["serde"] }
 serde.workspace = true
