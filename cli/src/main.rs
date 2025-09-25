@@ -1,7 +1,7 @@
 use std::{
     collections::BTreeSet,
-    fs::{self},
-    io::{self, BufWriter, Write},
+    fs::{self, File},
+    io::{self, BufReader, BufWriter, Write},
     path::PathBuf,
     process::ExitCode,
 };
@@ -130,7 +130,6 @@ fn main() -> Result<ExitCode, Error> {
     }
 
     let file = args.file.as_ref().ok_or_else(|| Error::msg("Input file required"))?;
-    let contents = fs::read_to_string(file)?;
 
     let input_format = match &args.from {
         Some(format) => *format,
@@ -140,7 +139,9 @@ fn main() -> Result<ExitCode, Error> {
         }
     };
 
-    let mut coll = input_format.parse(&contents)?;
+    let f = File::open(file)?;
+    let mut reader = BufReader::new(f);
+    let mut coll = input_format.parse(&mut reader)?;
     update_collection(&args, &mut coll)?;
     print_collection(&args, &coll)?;
 

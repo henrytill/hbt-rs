@@ -1,5 +1,5 @@
 use std::{
-    io::{self, Write},
+    io::{self, BufRead, Write},
     path::Path,
 };
 
@@ -128,6 +128,9 @@ pub enum ParseError {
 
     #[error("HTML parsing error: {0}")]
     Html(#[from] html::Error),
+
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -153,18 +156,26 @@ fn create_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> 
 }
 
 impl Format<INPUT> {
-    pub fn parse(&self, content: &str) -> Result<Collection, ParseError> {
+    pub fn parse(&self, reader: &mut impl BufRead) -> Result<Collection, ParseError> {
         match self.0 {
             FormatKind::Json => {
-                let posts = Post::from_json(content)?;
+                let posts = Post::from_json(reader)?;
                 create_collection(posts).map_err(Into::into)
             }
             FormatKind::Xml => {
-                let posts = Post::from_xml(content)?;
+                let posts = Post::from_xml(reader)?;
                 create_collection(posts).map_err(Into::into)
             }
-            FormatKind::Markdown => markdown::parse(content).map_err(Into::into),
-            FormatKind::Html => html::from_html(content).map_err(Into::into),
+            FormatKind::Markdown => {
+                let mut buf = String::new();
+                reader.read_to_string(&mut buf)?;
+                markdown::parse(&buf).map_err(Into::into)
+            }
+            FormatKind::Html => {
+                let mut buf = String::new();
+                reader.read_to_string(&mut buf)?;
+                html::from_html(&buf).map_err(Into::into)
+            }
             FormatKind::Yaml => {
                 panic!("Invariant violated: Format<INPUT> contains output-only format {:?}", self.0)
             }

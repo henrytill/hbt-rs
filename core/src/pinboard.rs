@@ -1,3 +1,5 @@
+use std::io::BufRead;
+
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -42,8 +44,8 @@ pub struct Post {
 }
 
 impl Post {
-    pub fn from_json(input: &str) -> Result<Vec<Post>, Error> {
-        serde_json::from_str(input).map_err(Into::into)
+    pub fn from_json(input: &mut impl BufRead) -> Result<Vec<Post>, Error> {
+        serde_json::from_reader(input).map_err(Into::into)
     }
 }
 
@@ -87,6 +89,8 @@ mod json {
 }
 
 pub mod xml {
+    use std::io::BufRead;
+
     use quick_xml::{
         events::{
             Event,
@@ -145,16 +149,18 @@ pub mod xml {
             Ok(post)
         }
 
-        pub fn from_xml(input: &str) -> Result<Vec<Post>, Error> {
+        pub fn from_xml(reader: &mut impl BufRead) -> Result<Vec<Post>, Error> {
             const EVENT_POSTS: &[u8] = b"posts";
             const EVENT_POST: &[u8] = b"post";
 
             let mut ret = Vec::new();
-            let mut reader = Reader::from_str(input);
+            let mut reader = Reader::from_reader(reader);
             reader.config_mut().trim_text(true);
 
+            let mut buf = Vec::new();
+
             loop {
-                match reader.read_event()? {
+                match reader.read_event_into(&mut buf)? {
                     Event::Start(e) if e.name().as_ref() == EVENT_POSTS => {
                         // nothing at the moment
                     }
