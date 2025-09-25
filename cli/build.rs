@@ -80,8 +80,8 @@ fn write_test_macro<P: AsRef<Path>, Q: AsRef<Path>>(
     )
 }
 
-fn load_known_issues() -> Result<Vec<String>, Box<dyn std::error::Error>> {
-    let issues_file = Path::new(&env::var("CARGO_MANIFEST_DIR")?).join("issues");
+fn load_known_issues(env: &Env) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let issues_file = env.manifest_dir_path.join("issues");
     let contents = fs::read_to_string(&issues_file)?;
 
     let issues: Vec<String> = contents
@@ -94,8 +94,12 @@ fn load_known_issues() -> Result<Vec<String>, Box<dyn std::error::Error>> {
     Ok(issues)
 }
 
-fn is_problematic_test(category: &str, stem: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    let known_issues = load_known_issues()?;
+fn is_problematic_test(
+    env: &Env,
+    category: &str,
+    stem: &str,
+) -> Result<bool, Box<dyn std::error::Error>> {
+    let known_issues = load_known_issues(env)?;
     let test_patterns = [
         format!("{}/{}.input.html", category, stem),
         format!("{}/{}.input.json", category, stem),
@@ -147,7 +151,7 @@ fn generate_tests_for_dir(
     for (stem, format, output_path) in output_tests {
         if let Some(input_path) = input_files.get(&stem) {
             // Skip problematic tests unless explicitly enabled
-            if !include_failing_tests && is_problematic_test(category, &stem)? {
+            if !include_failing_tests && is_problematic_test(env, category, &stem)? {
                 continue;
             }
 
