@@ -189,13 +189,17 @@ impl Collection {
     where
         M: IntoIterator<Item = (String, String)>,
     {
-        let mapping: BTreeMap<Label, Label> =
-            mappings.into_iter().map(|(k, v)| (Label::from(k), Label::from(v))).collect();
+        let mapping: BTreeMap<Label, Label> = mappings
+            .into_iter()
+            .map(|(k, v)| (Label::from(k), Label::from(v)))
+            .collect();
 
         for node in self.nodes.iter_mut() {
             let labels = node.labels_mut();
-            let to_add: BTreeSet<Label> =
-                labels.iter().filter_map(|label| mapping.get(label).cloned()).collect();
+            let to_add: BTreeSet<Label> = labels
+                .iter()
+                .filter_map(|label| mapping.get(label).cloned())
+                .collect();
             labels.retain(|label| !mapping.contains_key(label));
             labels.extend(to_add);
         }
@@ -234,7 +238,11 @@ impl From<&Collection> for CollectionRepr {
             })
             .collect();
 
-        CollectionRepr { version, length, value }
+        CollectionRepr {
+            version,
+            length,
+            value,
+        }
     }
 }
 
@@ -242,7 +250,11 @@ impl TryFrom<CollectionRepr> for Collection {
     type Error = Error;
 
     fn try_from(repr: CollectionRepr) -> Result<Collection, Self::Error> {
-        let CollectionRepr { version, length, mut value } = repr;
+        let CollectionRepr {
+            version,
+            length,
+            mut value,
+        } = repr;
 
         let is_compatible_version = version.matches_requirement()?;
 

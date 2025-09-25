@@ -83,7 +83,9 @@ mod json {
         match s.to_lowercase().as_str() {
             YES => Ok(true),
             NO => Ok(false),
-            _ => Err(serde::de::Error::custom(format!("expected '{YES}' or '{NO}'"))),
+            _ => Err(serde::de::Error::custom(format!(
+                "expected '{YES}' or '{NO}'"
+            ))),
         }
     }
 }

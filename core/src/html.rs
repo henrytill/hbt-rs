@@ -84,7 +84,11 @@ fn add(
 
 fn extract_text(elt: ElementRef) -> Option<String> {
     let trimmed = elt.text().collect::<String>().trim().to_string();
-    if trimmed.is_empty() { None } else { Some(trimmed) }
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
 }
 
 fn extract_attrs(elt: ElementRef) -> Attrs {

@@ -74,7 +74,12 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
     for event in parser {
         match event {
             // Start
-            Event::Start(tag @ Tag::Heading { level: HeadingLevel::H1, .. }) => {
+            Event::Start(
+                tag @ Tag::Heading {
+                    level: HeadingLevel::H1,
+                    ..
+                },
+            ) => {
                 name = None;
                 name_parts.clear();
                 date = None;
@@ -97,13 +102,23 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     parents.push(parent);
                 }
             }
-            Event::Start(ref tag @ Tag::Link { link_type: LinkType::Inline, ref dest_url, .. }) => {
+            Event::Start(
+                ref tag @ Tag::Link {
+                    link_type: LinkType::Inline,
+                    ref dest_url,
+                    ..
+                },
+            ) => {
                 current_tag = Some(tag.to_owned());
                 name_parts.clear();
                 url = Some(parse_url(dest_url)?);
             }
             Event::Start(
-                ref tag @ Tag::Link { link_type: LinkType::Autolink, ref dest_url, .. },
+                ref tag @ Tag::Link {
+                    link_type: LinkType::Autolink,
+                    ref dest_url,
+                    ..
+                },
             ) => {
                 current_tag = Some(tag.to_owned());
                 name = None;
@@ -123,14 +138,24 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     let label = Label::new(text.to_string());
                     labels.push(label);
                 }
-                (Some(Tag::Link { link_type: LinkType::Inline, .. }), _) => {
+                (
+                    Some(Tag::Link {
+                        link_type: LinkType::Inline,
+                        ..
+                    }),
+                    _,
+                ) => {
                     name_parts.push(text.to_string());
                 }
                 _ => {}
             },
             // Code (for handling backticks in link text)
             Event::Code(text) => {
-                if let Some(Tag::Link { link_type: LinkType::Inline, .. }) = &current_tag {
+                if let Some(Tag::Link {
+                    link_type: LinkType::Inline,
+                    ..
+                }) = &current_tag
+                {
                     name_parts.push(format!("`{}`", text));
                 }
             }

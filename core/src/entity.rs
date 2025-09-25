@@ -280,7 +280,11 @@ pub mod html {
 
     fn parse_time_opt(value: String) -> Result<Option<Time>, Error> {
         let trimmed = value.trim();
-        if trimmed.is_empty() { Ok(None) } else { Ok(Some(Time::parse(trimmed)?)) }
+        if trimmed.is_empty() {
+            Ok(None)
+        } else {
+            Ok(Some(Time::parse(trimmed)?))
+        }
     }
 
     fn parse_time(value: String) -> Result<Time, Error> {
@@ -303,7 +307,9 @@ pub mod html {
             const KEY_TOREAD: &str = "toread";
             const KEY_FEED: &str = "feed";
 
-            let href = attrs.get(KEY_HREF).ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
+            let href = attrs
+                .get(KEY_HREF)
+                .ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
             let url = Url::parse(href)?;
 
             let mut entity = Entity {

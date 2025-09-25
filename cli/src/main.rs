@@ -51,7 +51,9 @@ struct Args {
 }
 
 fn update_collection(args: &Args, coll: &mut Collection) -> Result<(), Error> {
-    let Some(mappings) = &args.mappings else { return Ok(()) };
+    let Some(mappings) = &args.mappings else {
+        return Ok(());
+    };
 
     let contents = fs::read_to_string(mappings)?;
     let yaml: serde_yaml::Value = serde_yaml::from_str(&contents)?;
@@ -75,7 +77,11 @@ fn update_collection(args: &Args, coll: &mut Collection) -> Result<(), Error> {
 fn print_collection(args: &Args, coll: &Collection) -> Result<(), Error> {
     if args.info {
         let length = coll.len();
-        let file_name = args.file.as_ref().map(|f| f.to_string_lossy()).unwrap_or("input".into());
+        let file_name = args
+            .file
+            .as_ref()
+            .map(|f| f.to_string_lossy())
+            .unwrap_or("input".into());
         let output = format!("{}: {} entities\n", file_name, length);
         let stdout = io::stdout();
         let mut writer = BufWriter::new(stdout);
@@ -85,9 +91,16 @@ fn print_collection(args: &Args, coll: &Collection) -> Result<(), Error> {
         for entity in coll.entities() {
             all_tags.extend(entity.labels())
         }
-        let tags_output = all_tags.iter().map(|tag| tag.as_str()).collect::<Vec<_>>().join("\n");
-        let output =
-            if tags_output.is_empty() { String::new() } else { format!("{}\n", tags_output) };
+        let tags_output = all_tags
+            .iter()
+            .map(|tag| tag.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        let output = if tags_output.is_empty() {
+            String::new()
+        } else {
+            format!("{}\n", tags_output)
+        };
         let stdout = io::stdout();
         let mut writer = BufWriter::new(stdout);
         writer.write_all(output.as_bytes())?;
@@ -129,7 +142,10 @@ fn main() -> Result<ExitCode, Error> {
         return Ok(ExitCode::SUCCESS);
     }
 
-    let file = args.file.as_ref().ok_or_else(|| Error::msg("Input file required"))?;
+    let file = args
+        .file
+        .as_ref()
+        .ok_or_else(|| Error::msg("Input file required"))?;
 
     let input_format = match &args.from {
         Some(format) => *format,

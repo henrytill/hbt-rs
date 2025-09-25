@@ -25,7 +25,11 @@ fn commit_info_git() {
 }
 
 fn commit_info_env() {
-    for var in ["HBT_COMMIT_HASH", "HBT_COMMIT_SHORT_HASH", "HBT_COMMIT_DATE"] {
+    for var in [
+        "HBT_COMMIT_HASH",
+        "HBT_COMMIT_SHORT_HASH",
+        "HBT_COMMIT_DATE",
+    ] {
         if let Ok(value) = std::env::var(var) {
             println!("cargo:rustc-env={}={}", var, value);
         }
@@ -39,7 +43,9 @@ struct Env<'a> {
 
 fn find_input_extension(file_name: &str) -> Option<&str> {
     const INPUT_EXTENSIONS: &[&str] = &[".input.html", ".input.md", ".input.json", ".input.xml"];
-    INPUT_EXTENSIONS.iter().find_map(|ext| file_name.strip_suffix(ext))
+    INPUT_EXTENSIONS
+        .iter()
+        .find_map(|ext| file_name.strip_suffix(ext))
 }
 
 fn find_output_extension(file_name: &str) -> Option<(&str, &str)> {
@@ -97,7 +103,9 @@ fn is_problematic_test(category: &str, stem: &str) -> Result<bool, Box<dyn std::
         format!("{}/{}.input.md", category, stem),
     ];
 
-    Ok(test_patterns.iter().any(|pattern| known_issues.contains(pattern)))
+    Ok(test_patterns
+        .iter()
+        .any(|pattern| known_issues.contains(pattern)))
 }
 
 fn generate_tests_for_dir(
@@ -178,9 +186,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
     let manifest_dir_path = Path::new(&manifest_dir);
 
-    let cargo_workspace_dir_path = manifest_dir_path
-        .parent()
-        .ok_or(io::Error::new(io::ErrorKind::NotADirectory, "Failed to find workspace dir"))?;
+    let cargo_workspace_dir_path = manifest_dir_path.parent().ok_or(io::Error::new(
+        io::ErrorKind::NotADirectory,
+        "Failed to find workspace dir",
+    ))?;
 
     if cargo_workspace_dir_path.join(".git").exists() {
         commit_info_git();
@@ -189,7 +198,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let test_data_path = &manifest_dir_path.join("tests/data");
-    let env = Env { manifest_dir_path, test_data_path };
+    let env = Env {
+        manifest_dir_path,
+        test_data_path,
+    };
     generate_tests(&env)?;
 
     Ok(())

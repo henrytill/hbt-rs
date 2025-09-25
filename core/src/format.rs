@@ -82,8 +82,10 @@ pub const ALL_INPUT_FORMATS: &[Format<INPUT>] = &[
     Format::<{ INPUT | OUTPUT }>::HTML.as_input(),
 ];
 
-pub const ALL_OUTPUT_FORMATS: &[Format<OUTPUT>] =
-    &[Format::<{ INPUT | OUTPUT }>::HTML.as_output(), Format::<OUTPUT>::YAML];
+pub const ALL_OUTPUT_FORMATS: &[Format<OUTPUT>] = &[
+    Format::<{ INPUT | OUTPUT }>::HTML.as_output(),
+    Format::<OUTPUT>::YAML,
+];
 
 #[cfg(feature = "clap")]
 impl ValueEnum for Format<INPUT> {
@@ -177,7 +179,10 @@ impl Format<INPUT> {
                 html::from_html(&buf).map_err(Into::into)
             }
             FormatKind::Yaml => {
-                panic!("Invariant violated: Format<INPUT> contains output-only format {:?}", self.0)
+                panic!(
+                    "Invariant violated: Format<INPUT> contains output-only format {:?}",
+                    self.0
+                )
             }
         }
     }
@@ -199,7 +204,10 @@ impl Format<OUTPUT> {
             FormatKind::Yaml => serde_yaml::to_writer(&mut writer, coll)?,
             FormatKind::Html => html::to_html(&mut writer, coll)?,
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
-                panic!("Invariant violated: Format<OUTPUT> contains input-only format {:?}", self.0)
+                panic!(
+                    "Invariant violated: Format<OUTPUT> contains input-only format {:?}",
+                    self.0
+                )
             }
         };
         writer.flush().map_err(Into::into)
