@@ -177,6 +177,5 @@ pub fn to_html(mut writer: impl Write, coll: &Collection) -> Result<(), Error> {
     let template = env.get_template("netscape")?;
     template.render_to_write(context! { entities }, &mut writer)?;
     writer.write_all(b"\n")?;
-    writer.flush()?;
     Ok(())
 }
