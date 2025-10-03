@@ -119,32 +119,32 @@ impl ValueEnum for Format<OUTPUT> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("Pinboard parsing error: {0}")]
-    Pinboard(#[from] pinboard::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
 
     #[error("Entity creation error: {0}")]
     Entity(#[from] entity::Error),
 
-    #[error("Markdown parsing error: {0}")]
-    Markdown(#[from] markdown::Error),
-
     #[error("HTML parsing error: {0}")]
     Html(#[from] html::Error),
 
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
+    #[error("Markdown parsing error: {0}")]
+    Markdown(#[from] markdown::Error),
+
+    #[error("Pinboard parsing error: {0}")]
+    Pinboard(#[from] pinboard::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum UnparseError {
-    #[error("YAML formatting error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
+    #[error("IO error: {0}")]
+    Io(#[from] io::Error),
 
     #[error("HTML formatting error: {0}")]
     Html(#[from] html::Error),
 
-    #[error("IO error: {0}")]
-    Io(#[from] io::Error),
+    #[error("YAML formatting error: {0}")]
+    Yaml(#[from] serde_yaml::Error),
 }
 
 fn make_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
