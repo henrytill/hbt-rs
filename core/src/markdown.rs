@@ -58,21 +58,69 @@ fn parse_url(s: &str) -> Result<Url, Error> {
     Url::parse(s).map_err(|err| Error::ParseUrl(err, s.to_string()))
 }
 
+struct ParserState<'a> {
+    name: Option<Name>,
+    name_parts: Vec<String>,
+    date: Option<DateTime<Utc>>,
+    url: Option<Url>,
+    labels: Vec<Label>,
+    current_tag: Option<Tag<'a>>,
+    current_heading_level: HeadingLevel,
+    maybe_parent: Option<Id>,
+    parents: Vec<Id>,
+}
+
+impl<'a> ParserState<'a> {
+    fn new() -> Self {
+        Self {
+            name: None,
+            name_parts: Vec::new(),
+            date: None,
+            url: None,
+            labels: Vec::new(),
+            current_tag: None,
+            current_heading_level: HeadingLevel::H1,
+            maybe_parent: None,
+            parents: Vec::new(),
+        }
+    }
+
+    fn reset(&mut self) {
+        self.name = None;
+        self.name_parts.clear();
+        self.date = None;
+        self.url = None;
+        self.labels.clear();
+        self.current_heading_level = HeadingLevel::H1;
+        self.maybe_parent = None;
+        self.parents.clear();
+    }
+
+    fn save_entity(&mut self, collection: &mut Collection) -> Result<(), Error> {
+        let url = self.url.take().ok_or(Error::MissingUrl)?;
+        let date = self.date.ok_or(Error::MissingDate)?;
+        let name = if self.name_parts.is_empty() {
+            self.name.take()
+        } else {
+            Some(Name::new(self.name_parts.join("")))
+        };
+        self.name_parts.clear();
+        let labels = self.labels.iter().cloned().collect();
+        let entity = Entity::new(url, date.into(), name, labels);
+        let id = collection.upsert(entity);
+        if let Some(parent) = self.parents.last() {
+            collection.add_edges(*parent, id);
+        }
+        self.maybe_parent = Some(id);
+        Ok(())
+    }
+}
+
 pub fn parse(input: &str) -> Result<Collection, Error> {
     let parser = Parser::new(input);
 
-    let mut ret = Collection::new();
-
-    let mut name: Option<Name> = None;
-    let mut name_parts: Vec<String> = Vec::new();
-    let mut date: Option<DateTime<Utc>> = None;
-    let mut url: Option<Url> = None;
-    let mut labels: Vec<Label> = Vec::new();
-
-    let mut current_tag: Option<Tag> = None;
-    let mut current_heading_level: HeadingLevel = HeadingLevel::H1;
-    let mut maybe_parent: Option<Id> = None;
-    let mut parents: Vec<Id> = Vec::new();
+    let mut collection = Collection::new();
+    let mut state = ParserState::new();
 
     for event in parser {
         match event {
@@ -83,26 +131,19 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     ..
                 },
             ) => {
-                name = None;
-                name_parts.clear();
-                date = None;
-                url = None;
-                labels.clear();
-                current_tag = Some(tag);
-                current_heading_level = HeadingLevel::H1;
-                maybe_parent = None;
-                parents.clear();
+                state.reset();
+                state.current_tag = Some(tag);
             }
             Event::Start(tag @ Tag::Heading { level, .. }) => {
-                current_tag = Some(tag);
-                current_heading_level = level;
+                state.current_tag = Some(tag);
+                state.current_heading_level = level;
                 let level = usize::from(HeadingLevelExt::from(level));
-                labels.truncate(level - 2);
+                state.labels.truncate(level - 2);
             }
             Event::Start(tag @ Tag::List(_)) => {
-                current_tag = Some(tag);
-                if let Some(parent) = maybe_parent {
-                    parents.push(parent);
+                state.current_tag = Some(tag);
+                if let Some(parent) = state.maybe_parent {
+                    state.parents.push(parent);
                 }
             }
             Event::Start(
@@ -112,9 +153,9 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     ..
                 },
             ) => {
-                current_tag = Some(tag.to_owned());
-                name_parts.clear();
-                url = Some(parse_url(dest_url)?);
+                state.current_tag = Some(tag.to_owned());
+                state.name_parts.clear();
+                state.url = Some(parse_url(dest_url)?);
             }
             Event::Start(
                 ref tag @ Tag::Link {
@@ -123,23 +164,23 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     ..
                 },
             ) => {
-                current_tag = Some(tag.to_owned());
-                name = None;
-                name_parts.clear();
-                url = Some(parse_url(dest_url)?);
+                state.current_tag = Some(tag.to_owned());
+                state.name = None;
+                state.name_parts.clear();
+                state.url = Some(parse_url(dest_url)?);
             }
             Event::Start(tag) => {
-                current_tag = Some(tag);
+                state.current_tag = Some(tag);
             }
             // Text
-            Event::Text(text) => match (&current_tag, current_heading_level) {
+            Event::Text(text) => match (&state.current_tag, state.current_heading_level) {
                 (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
                     let parsed = parse_date(text.as_ref())?;
-                    date = Some(parsed);
+                    state.date = Some(parsed);
                 }
                 (Some(Tag::Heading { .. }), _) => {
                     let label = Label::new(text.to_string());
-                    labels.push(label);
+                    state.labels.push(label);
                 }
                 (
                     Some(Tag::Link {
@@ -148,7 +189,7 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                     }),
                     _,
                 ) => {
-                    name_parts.push(text.to_string());
+                    state.name_parts.push(text.to_string());
                 }
                 _ => {}
             },
@@ -157,36 +198,22 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 if let Some(Tag::Link {
                     link_type: LinkType::Inline,
                     ..
-                }) = &current_tag
+                }) = &state.current_tag
                 {
-                    name_parts.push(format!("`{}`", text));
+                    state.name_parts.push(format!("`{}`", text));
                 }
             }
             // End
             Event::End(TagEnd::List(_)) => {
-                let _ = parents.pop();
-                maybe_parent = None;
+                let _ = state.parents.pop();
+                state.maybe_parent = None;
             }
             Event::End(TagEnd::Link) => {
-                let url = url.take().ok_or(Error::MissingUrl)?;
-                let date = date.ok_or(Error::MissingDate)?;
-                let name = if name_parts.is_empty() {
-                    name.take()
-                } else {
-                    Some(Name::new(name_parts.join("")))
-                };
-                name_parts.clear();
-                let labels = labels.iter().cloned().collect();
-                let entity = Entity::new(url, date.into(), name, labels);
-                let id = ret.upsert(entity);
-                if let Some(parent) = parents.last() {
-                    ret.add_edges(*parent, id);
-                }
-                maybe_parent = Some(id);
+                state.save_entity(&mut collection)?;
             }
             _ => {}
         }
     }
 
-    Ok(ret)
+    Ok(collection)
 }
