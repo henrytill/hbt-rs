@@ -144,7 +144,7 @@ pub enum UnparseError {
     Html(#[from] html::Error),
 
     #[error("YAML formatting error: {0}")]
-    Yaml(#[from] serde_yaml::Error),
+    Yaml(#[from] serde_norway::Error),
 }
 
 fn make_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
@@ -201,7 +201,7 @@ impl Format<INPUT> {
 impl Format<OUTPUT> {
     pub fn unparse(&self, mut writer: impl Write, coll: &Collection) -> Result<(), UnparseError> {
         match self.0 {
-            FormatKind::Yaml => serde_yaml::to_writer(&mut writer, coll)?,
+            FormatKind::Yaml => serde_norway::to_writer(&mut writer, coll)?,
             FormatKind::Html => html::to_html(&mut writer, coll)?,
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
                 panic!(

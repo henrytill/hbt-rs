@@ -56,7 +56,7 @@ fn update(args: &Args, coll: &mut Collection) -> Result<(), Error> {
     };
 
     let contents = fs::read_to_string(mappings)?;
-    let yaml: serde_yaml::Value = serde_yaml::from_str(&contents)?;
+    let yaml: serde_norway::Value = serde_norway::from_str(&contents)?;
 
     let mappings = yaml
         .as_mapping()
