@@ -94,10 +94,7 @@ pub mod xml {
     use std::io::BufRead;
 
     use quick_xml::{
-        events::{
-            Event,
-            attributes::{Attribute, Attributes},
-        },
+        events::{Event, attributes::Attributes},
         reader::Reader,
     };
 
@@ -111,7 +108,8 @@ pub mod xml {
     const KEY_HASH: &[u8] = b"hash";
     const KEY_SHARED: &[u8] = b"shared";
     const KEY_TOREAD: &[u8] = b"toread";
-    const YES: &[u8] = b"yes";
+
+    const YES: &str = "yes";
 
     const EVENT_POSTS: &[u8] = b"posts";
     const EVENT_POST: &[u8] = b"post";
@@ -120,30 +118,32 @@ pub mod xml {
         fn from_attrs(attrs: Attributes) -> Result<Post, Error> {
             let mut ret = Post::default();
 
-            for attr in attrs {
-                let Attribute { key, value } = attr?;
+            for result in attrs {
+                let attr = result?;
+                let key = attr.key;
+                let value = attr.unescape_value()?;
                 match key.local_name().as_ref() {
                     KEY_HREF => {
-                        ret.href = String::from_utf8(value.into_owned())?;
+                        ret.href = value.into_owned();
                     }
                     KEY_TIME => {
-                        ret.time = String::from_utf8(value.into_owned())?;
+                        ret.time = value.into_owned();
                     }
                     KEY_DESCRIPTION if !value.is_empty() => {
-                        let s = String::from_utf8(value.into_owned())?;
-                        ret.description = Some(s);
+                        ret.description = Some(value.into_owned());
                     }
                     KEY_EXTENDED if !value.is_empty() => {
-                        let s = String::from_utf8(value.into_owned())?;
-                        ret.extended = Some(s);
+                        ret.extended = Some(value.into_owned());
                     }
                     KEY_TAG if !value.is_empty() => {
-                        let s = String::from_utf8(value.into_owned())?;
-                        ret.tags = s.split_whitespace().map(ToOwned::to_owned).collect();
+                        ret.tags = value
+                            .into_owned()
+                            .split_whitespace()
+                            .map(ToOwned::to_owned)
+                            .collect();
                     }
                     KEY_HASH if !value.is_empty() => {
-                        let s = String::from_utf8(value.into_owned())?;
-                        ret.hash = Some(s);
+                        ret.hash = Some(value.into_owned());
                     }
                     KEY_SHARED => {
                         ret.shared = value.as_ref() == YES;
