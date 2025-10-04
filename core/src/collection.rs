@@ -219,16 +219,16 @@ pub struct CollectionRepr {
 }
 
 impl From<&Collection> for CollectionRepr {
-    fn from(collection: &Collection) -> CollectionRepr {
+    fn from(coll: &Collection) -> CollectionRepr {
         let version = Version::EXPECTED;
 
-        let length = collection.len();
+        let length = coll.len();
 
         let value: Vec<_> = (0..length)
             .map(|i| {
                 let id = Id::new(i);
-                let entity = collection.entity(id).clone();
-                let edges = collection.edges(id).to_vec();
+                let entity = coll.entity(id).clone();
+                let edges = coll.edges(id).to_vec();
                 NodeRepr { id, entity, edges }
             })
             .collect();

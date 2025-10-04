@@ -96,7 +96,7 @@ impl<'a> ParserState<'a> {
         self.parents.clear();
     }
 
-    fn save_entity(&mut self, collection: &mut Collection) -> Result<(), Error> {
+    fn save_entity(&mut self, coll: &mut Collection) -> Result<(), Error> {
         let url = self.url.take().ok_or(Error::MissingUrl)?;
         let date = self.date.ok_or(Error::MissingDate)?;
         let name = if self.name_parts.is_empty() {
@@ -107,9 +107,9 @@ impl<'a> ParserState<'a> {
         self.name_parts.clear();
         let labels = self.labels.iter().cloned().collect();
         let entity = Entity::new(url, date.into(), name, labels);
-        let id = collection.upsert(entity);
+        let id = coll.upsert(entity);
         if let Some(parent) = self.parents.last() {
-            collection.add_edges(*parent, id);
+            coll.add_edges(*parent, id);
         }
         self.maybe_parent = Some(id);
         Ok(())
@@ -119,7 +119,7 @@ impl<'a> ParserState<'a> {
 pub fn parse(input: &str) -> Result<Collection, Error> {
     let parser = Parser::new(input);
 
-    let mut collection = Collection::new();
+    let mut coll = Collection::new();
     let mut state = ParserState::new();
 
     for event in parser {
@@ -209,11 +209,11 @@ pub fn parse(input: &str) -> Result<Collection, Error> {
                 state.maybe_parent = None;
             }
             Event::End(TagEnd::Link) => {
-                state.save_entity(&mut collection)?;
+                state.save_entity(&mut coll)?;
             }
             _ => {}
         }
     }
 
-    Ok(collection)
+    Ok(coll)
 }
