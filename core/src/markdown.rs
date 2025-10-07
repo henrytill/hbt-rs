@@ -116,104 +116,106 @@ impl<'a> ParserState<'a> {
     }
 }
 
-pub fn parse(input: &str) -> Result<Collection, Error> {
-    let parser = Parser::new(input);
+impl Collection {
+    pub fn from_markdown(input: &str) -> Result<Collection, Error> {
+        let parser = Parser::new(input);
 
-    let mut coll = Collection::new();
-    let mut state = ParserState::new();
+        let mut coll = Collection::new();
+        let mut state = ParserState::new();
 
-    for event in parser {
-        match event {
-            // Start
-            Event::Start(
-                tag @ Tag::Heading {
-                    level: HeadingLevel::H1,
-                    ..
-                },
-            ) => {
-                state.reset();
-                state.current_tag = Some(tag);
-            }
-            Event::Start(tag @ Tag::Heading { level, .. }) => {
-                state.current_tag = Some(tag);
-                state.current_heading_level = level;
-                let level = usize::from(HeadingLevelExt::from(level));
-                state.labels.truncate(level - 2);
-            }
-            Event::Start(tag @ Tag::List(_)) => {
-                state.current_tag = Some(tag);
-                if let Some(parent) = state.maybe_parent {
-                    state.parents.push(parent);
+        for event in parser {
+            match event {
+                // Start
+                Event::Start(
+                    tag @ Tag::Heading {
+                        level: HeadingLevel::H1,
+                        ..
+                    },
+                ) => {
+                    state.reset();
+                    state.current_tag = Some(tag);
                 }
-            }
-            Event::Start(
-                ref tag @ Tag::Link {
-                    link_type: LinkType::Inline,
-                    ref dest_url,
-                    ..
-                },
-            ) => {
-                state.current_tag = Some(tag.to_owned());
-                state.name_parts.clear();
-                state.url = Some(parse_url(dest_url)?);
-            }
-            Event::Start(
-                ref tag @ Tag::Link {
-                    link_type: LinkType::Autolink,
-                    ref dest_url,
-                    ..
-                },
-            ) => {
-                state.current_tag = Some(tag.to_owned());
-                state.name = None;
-                state.name_parts.clear();
-                state.url = Some(parse_url(dest_url)?);
-            }
-            Event::Start(tag) => {
-                state.current_tag = Some(tag);
-            }
-            // Text
-            Event::Text(text) => match (&state.current_tag, state.current_heading_level) {
-                (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
-                    let parsed = parse_date(text.as_ref())?;
-                    state.date = Some(parsed);
+                Event::Start(tag @ Tag::Heading { level, .. }) => {
+                    state.current_tag = Some(tag);
+                    state.current_heading_level = level;
+                    let level = usize::from(HeadingLevelExt::from(level));
+                    state.labels.truncate(level - 2);
                 }
-                (Some(Tag::Heading { .. }), _) => {
-                    let label = Label::new(text.to_string());
-                    state.labels.push(label);
+                Event::Start(tag @ Tag::List(_)) => {
+                    state.current_tag = Some(tag);
+                    if let Some(parent) = state.maybe_parent {
+                        state.parents.push(parent);
+                    }
                 }
-                (
-                    Some(Tag::Link {
+                Event::Start(
+                    ref tag @ Tag::Link {
+                        link_type: LinkType::Inline,
+                        ref dest_url,
+                        ..
+                    },
+                ) => {
+                    state.current_tag = Some(tag.to_owned());
+                    state.name_parts.clear();
+                    state.url = Some(parse_url(dest_url)?);
+                }
+                Event::Start(
+                    ref tag @ Tag::Link {
+                        link_type: LinkType::Autolink,
+                        ref dest_url,
+                        ..
+                    },
+                ) => {
+                    state.current_tag = Some(tag.to_owned());
+                    state.name = None;
+                    state.name_parts.clear();
+                    state.url = Some(parse_url(dest_url)?);
+                }
+                Event::Start(tag) => {
+                    state.current_tag = Some(tag);
+                }
+                // Text
+                Event::Text(text) => match (&state.current_tag, state.current_heading_level) {
+                    (Some(Tag::Heading { .. }), HeadingLevel::H1) => {
+                        let parsed = parse_date(text.as_ref())?;
+                        state.date = Some(parsed);
+                    }
+                    (Some(Tag::Heading { .. }), _) => {
+                        let label = Label::new(text.to_string());
+                        state.labels.push(label);
+                    }
+                    (
+                        Some(Tag::Link {
+                            link_type: LinkType::Inline,
+                            ..
+                        }),
+                        _,
+                    ) => {
+                        state.name_parts.push(text.to_string());
+                    }
+                    _ => {}
+                },
+                // Code (for handling backticks in link text)
+                Event::Code(text) => {
+                    if let Some(Tag::Link {
                         link_type: LinkType::Inline,
                         ..
-                    }),
-                    _,
-                ) => {
-                    state.name_parts.push(text.to_string());
+                    }) = &state.current_tag
+                    {
+                        state.name_parts.push(format!("`{}`", text));
+                    }
+                }
+                // End
+                Event::End(TagEnd::List(_)) => {
+                    let _ = state.parents.pop();
+                    state.maybe_parent = None;
+                }
+                Event::End(TagEnd::Link) => {
+                    state.save_entity(&mut coll)?;
                 }
                 _ => {}
-            },
-            // Code (for handling backticks in link text)
-            Event::Code(text) => {
-                if let Some(Tag::Link {
-                    link_type: LinkType::Inline,
-                    ..
-                }) = &state.current_tag
-                {
-                    state.name_parts.push(format!("`{}`", text));
-                }
             }
-            // End
-            Event::End(TagEnd::List(_)) => {
-                let _ = state.parents.pop();
-                state.maybe_parent = None;
-            }
-            Event::End(TagEnd::Link) => {
-                state.save_entity(&mut coll)?;
-            }
-            _ => {}
         }
-    }
 
-    Ok(coll)
+        Ok(coll)
+    }
 }

@@ -147,14 +147,16 @@ pub enum UnparseError {
     Yaml(#[from] serde_norway::Error),
 }
 
-fn make_collection(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
-    posts.sort_by(|a, b| a.time.cmp(&b.time));
-    let mut coll = Collection::with_capacity(posts.len());
-    for post in posts {
-        let entity = Entity::try_from(post)?;
-        coll.insert(entity);
+impl Collection {
+    fn from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
+        posts.sort_by(|a, b| a.time.cmp(&b.time));
+        let mut coll = Collection::with_capacity(posts.len());
+        for post in posts {
+            let entity = Entity::try_from(post)?;
+            coll.insert(entity);
+        }
+        Ok(coll)
     }
-    Ok(coll)
 }
 
 impl Format<INPUT> {
@@ -172,21 +174,21 @@ impl Format<INPUT> {
         match self.0 {
             FormatKind::Json => {
                 let posts = Post::from_json(reader)?;
-                make_collection(posts).map_err(Into::into)
+                Collection::from_posts(posts).map_err(Into::into)
             }
             FormatKind::Xml => {
                 let posts = Post::from_xml(reader)?;
-                make_collection(posts).map_err(Into::into)
+                Collection::from_posts(posts).map_err(Into::into)
             }
             FormatKind::Markdown => {
                 let mut buf = String::new();
                 reader.read_to_string(&mut buf)?;
-                markdown::parse(&buf).map_err(Into::into)
+                Collection::from_markdown(&buf).map_err(Into::into)
             }
             FormatKind::Html => {
                 let mut buf = String::new();
                 reader.read_to_string(&mut buf)?;
-                html::from_html(&buf).map_err(Into::into)
+                Collection::from_html(&buf).map_err(Into::into)
             }
             FormatKind::Yaml => {
                 panic!(
@@ -202,7 +204,7 @@ impl Format<OUTPUT> {
     pub fn unparse(&self, mut writer: impl Write, coll: &Collection) -> Result<(), UnparseError> {
         match self.0 {
             FormatKind::Yaml => serde_norway::to_writer(&mut writer, coll)?,
-            FormatKind::Html => html::to_html(&mut writer, coll)?,
+            FormatKind::Html => coll.to_html(&mut writer)?,
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
                 panic!(
                     "Invariant violated: Format<OUTPUT> contains input-only format {:?}",

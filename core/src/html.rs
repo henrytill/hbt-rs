@@ -105,81 +105,83 @@ const DT: &str = "dt";
 const DD: &str = "dd";
 const DL: &str = "dl";
 
-pub fn from_html(html: &str) -> Result<Collection, Error> {
-    let document = Html::parse_document(html);
-    let root = document.root_element();
+impl Collection {
+    pub fn from_html(html: &str) -> Result<Collection, Error> {
+        let document = Html::parse_document(html);
+        let root = document.root_element();
 
-    let mut coll = Collection::new();
-    let mut stack: Vec<StackItem> = Vec::new();
-    let mut folders: Vec<String> = Vec::new();
-    let mut pending: Option<(Attrs, Option<String>)> = None;
+        let mut coll = Collection::new();
+        let mut stack: Vec<StackItem> = Vec::new();
+        let mut folders: Vec<String> = Vec::new();
+        let mut pending: Option<(Attrs, Option<String>)> = None;
 
-    let a_selector = Selector::parse(A)?;
-    let h3_selector = Selector::parse(H3)?;
+        let a_selector = Selector::parse(A)?;
+        let h3_selector = Selector::parse(H3)?;
 
-    for child in root.children().rev() {
-        if let Some(child_elt) = ElementRef::wrap(child) {
-            stack.push(StackItem::Element(child_elt));
+        for child in root.children().rev() {
+            if let Some(child_elt) = ElementRef::wrap(child) {
+                stack.push(StackItem::Element(child_elt));
+            }
         }
-    }
 
-    while let Some(item) = stack.pop() {
-        match item {
-            StackItem::Element(elt) => {
-                match elt.value().name() {
-                    DT => {
-                        if let Some((attrs, maybe_desc)) = pending.take() {
-                            add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
-                        }
-
-                        if let Some(h3_elt) = elt.select(&h3_selector).next() {
-                            if let Some(folder) = extract_text(h3_elt) {
-                                folders.push(folder);
+        while let Some(item) = stack.pop() {
+            match item {
+                StackItem::Element(elt) => {
+                    match elt.value().name() {
+                        DT => {
+                            if let Some((attrs, maybe_desc)) = pending.take() {
+                                add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
                             }
-                        } else if let Some(a_elt) = elt.select(&a_selector).next() {
-                            let attrs = extract_attrs(a_elt);
-                            let maybe_desc = extract_text(a_elt);
-                            pending = Some((attrs, maybe_desc));
+
+                            if let Some(h3_elt) = elt.select(&h3_selector).next() {
+                                if let Some(folder) = extract_text(h3_elt) {
+                                    folders.push(folder);
+                                }
+                            } else if let Some(a_elt) = elt.select(&a_selector).next() {
+                                let attrs = extract_attrs(a_elt);
+                                let maybe_desc = extract_text(a_elt);
+                                pending = Some((attrs, maybe_desc));
+                            }
+                        }
+                        DD => {
+                            if let Some((attrs, maybe_desc)) = pending.take() {
+                                let maybe_ext = extract_text(elt);
+                                add(&mut coll, attrs, &folders, maybe_desc, maybe_ext)?;
+                            }
+                        }
+                        DL => {
+                            stack.push(StackItem::PopGroup);
+                        }
+                        _ => {}
+                    }
+                    for child in elt.children().rev() {
+                        if let Some(child_elt) = ElementRef::wrap(child) {
+                            stack.push(StackItem::Element(child_elt));
                         }
                     }
-                    DD => {
-                        if let Some((attrs, maybe_desc)) = pending.take() {
-                            let maybe_ext = extract_text(elt);
-                            add(&mut coll, attrs, &folders, maybe_desc, maybe_ext)?;
-                        }
-                    }
-                    DL => {
-                        stack.push(StackItem::PopGroup);
-                    }
-                    _ => {}
                 }
-                for child in elt.children().rev() {
-                    if let Some(child_elt) = ElementRef::wrap(child) {
-                        stack.push(StackItem::Element(child_elt));
+                StackItem::PopGroup => {
+                    if let Some((attrs, maybe_desc)) = pending.take() {
+                        add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
                     }
+                    folders.pop();
                 }
-            }
-            StackItem::PopGroup => {
-                if let Some((attrs, maybe_desc)) = pending.take() {
-                    add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
-                }
-                folders.pop();
             }
         }
+
+        assert!(pending.is_none());
+
+        Ok(coll)
     }
 
-    assert!(pending.is_none());
-
-    Ok(coll)
-}
-
-pub fn to_html(mut writer: impl Write, coll: &Collection) -> Result<(), Error> {
-    const TEMPLATE: &str = include_str!("html/netscape_bookmarks.jinja");
-    let mut env = Environment::new();
-    env.add_template("netscape", TEMPLATE)?;
-    let entities = coll.entities();
-    let template = env.get_template("netscape")?;
-    template.render_to_write(context! { entities }, &mut writer)?;
-    writer.write_all(b"\n")?;
-    Ok(())
+    pub fn to_html(&self, mut writer: impl Write) -> Result<(), Error> {
+        const TEMPLATE: &str = include_str!("html/netscape_bookmarks.jinja");
+        let mut env = Environment::new();
+        env.add_template("netscape", TEMPLATE)?;
+        let entities = self.entities();
+        let template = env.get_template("netscape")?;
+        template.render_to_write(context! { entities }, &mut writer)?;
+        writer.write_all(b"\n")?;
+        Ok(())
+    }
 }
