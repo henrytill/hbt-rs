@@ -212,6 +212,7 @@ impl Format<OUTPUT> {
                 )
             }
         };
-        writer.flush().map_err(Into::into)
+        writer.flush()?;
+        Ok(())
     }
 }

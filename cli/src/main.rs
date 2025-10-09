@@ -106,7 +106,7 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         writer.write_all(output.as_bytes())?;
     } else if let Some(format) = &args.to {
         if let Some(output_file) = &args.output {
-            let file = std::fs::File::create(output_file)?;
+            let file = File::create(output_file)?;
             let writer = BufWriter::new(file);
             format.unparse(writer, coll)?
         } else {
@@ -129,7 +129,7 @@ fn main() -> Result<ExitCode, Error> {
     if args.schema {
         let schema = schema_for!(CollectionRepr);
         if let Some(output_file) = &args.output {
-            let file = std::fs::File::create(output_file)?;
+            let file = File::create(output_file)?;
             let mut writer = BufWriter::new(file);
             serde_json::to_writer_pretty(&mut writer, &schema)?;
             writer.flush()?;
