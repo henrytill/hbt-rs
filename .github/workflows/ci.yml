@@ -33,4 +33,5 @@ jobs:
           submodules: true
       - uses: DeterminateSystems/nix-installer-action@main
       - uses: DeterminateSystems/magic-nix-cache-action@main
-      - run: nix build -L
+      - run: nix build -L .#hbt -o result-hbt
+      - run: nix build -L .#hbt-static -o result-hbt-static

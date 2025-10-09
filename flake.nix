@@ -13,8 +13,9 @@
       ...
     }:
     let
-      overlay = final: prev: {
-        hbt = final.rustPlatform.buildRustPackage {
+      mkHbt =
+        pkgs:
+        pkgs.rustPlatform.buildRustPackage {
           name = "hbt";
           cargoLock = {
             lockFile = ./Cargo.lock;
@@ -28,6 +29,9 @@
             HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
           };
         };
+      overlay = final: prev: {
+        hbt = mkHbt final;
+        hbt-static = mkHbt final.pkgsStatic;
       };
     in
     flake-utils.lib.eachDefaultSystem (
@@ -39,8 +43,11 @@
         };
       in
       {
-        packages.hbt = pkgs.hbt;
-        packages.default = self.packages.${system}.hbt;
+        packages = {
+          hbt = pkgs.hbt;
+          hbt-static = pkgs.hbt-static;
+          default = self.packages.${system}.hbt;
+        };
       }
     );
 }
