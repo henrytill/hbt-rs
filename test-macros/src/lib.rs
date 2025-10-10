@@ -96,8 +96,9 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
 
         quote! {
             #[test]
-            fn #test_ident() {
-                test_parser(#input_path, #expected_path, #format);
+            fn #test_ident() -> Result<(), Box<dyn std::error::Error>> {
+                test_parser(#input_path, #expected_path, #format)?;
+                Ok(())
             }
         }
     });
@@ -108,28 +109,16 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
         use hbt_core::collection::Collection;
         use hbt_core::format::{Format, INPUT};
 
-        fn test_parser(input_path: &str, expected_path: &str, format_str: &str) {
-            let input_format = match format_str {
-                "html" => Format::<INPUT>::detect(input_path),
-                "json" => Format::<INPUT>::detect(input_path),
-                "xml" => Format::<INPUT>::detect(input_path),
-                "md" => Format::<INPUT>::detect(input_path),
-                _ => panic!("Unknown format: {}", format_str),
-            }
-            .expect("Could not detect format");
+        fn test_parser(input_path: &str, expected_path: &str, format_str: &str) -> Result<(), Box<dyn std::error::Error>> {
+            let input_format = Format::<INPUT>::detect(input_path).ok_or("Could not detect format")?;
 
-            let input_file = File::open(input_path)
-                .expect(&format!("Could not open input file: {}", input_path));
+            let input_file = File::open(input_path)?;
             let mut input_reader = BufReader::new(input_file);
-            let parsed_collection = input_format
-                .parse(&mut input_reader)
-                .expect(&format!("Failed to parse input file: {}", input_path));
+            let parsed_collection = input_format.parse(&mut input_reader)?;
 
-            let expected_file = File::open(expected_path)
-                .expect(&format!("Could not open expected file: {}", expected_path));
+            let expected_file = File::open(expected_path)?;
             let expected_reader = BufReader::new(expected_file);
-            let expected_collection: Collection = serde_norway::from_reader(expected_reader)
-                .expect(&format!("Failed to parse expected YAML: {}", expected_path));
+            let expected_collection: Collection = serde_norway::from_reader(expected_reader)?;
 
             assert_eq!(
                 parsed_collection,
@@ -138,6 +127,8 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
                 input_path,
                 expected_path
             );
+
+            Ok(())
         }
 
         #(#tests)*
@@ -222,8 +213,9 @@ pub fn test_formatters(input: TokenStream) -> TokenStream {
 
         quote! {
             #[test]
-            fn #test_ident() {
-                test_formatter(#input_path, #expected_path, #format);
+            fn #test_ident() -> Result<(), Box<dyn std::error::Error>> {
+                test_formatter(#input_path, #expected_path, #format)?;
+                Ok(())
             }
         }
     });
@@ -234,34 +226,19 @@ pub fn test_formatters(input: TokenStream) -> TokenStream {
         use hbt_core::collection::Collection;
         use hbt_core::format::{Format, INPUT, OUTPUT};
 
-        fn test_formatter(input_path: &str, expected_path: &str, format_str: &str) {
-            let input_format = match format_str {
-                "html" => Format::<INPUT>::detect(input_path),
-                "json" => Format::<INPUT>::detect(input_path),
-                "xml" => Format::<INPUT>::detect(input_path),
-                "md" => Format::<INPUT>::detect(input_path),
-                _ => panic!("Unknown format: {}", format_str),
-            }
-            .expect("Could not detect format");
+        fn test_formatter(input_path: &str, expected_path: &str, format_str: &str) -> Result<(), Box<dyn std::error::Error>> {
+            let input_format = Format::<INPUT>::detect(input_path).ok_or("Could not detect format")?;
 
-            let input_file = File::open(input_path)
-                .expect(&format!("Could not open input file: {}", input_path));
+            let input_file = File::open(input_path)?;
             let mut input_reader = BufReader::new(input_file);
-            let collection = input_format
-                .parse(&mut input_reader)
-                .expect(&format!("Failed to parse input file: {}", input_path));
+            let collection = input_format.parse(&mut input_reader)?;
 
             let mut output = Vec::new();
-            let html_format = Format::<OUTPUT>::detect("output.html")
-                .expect("Could not create HTML format");
-            html_format
-                .unparse(&mut output, &collection)
-                .expect(&format!("Failed to format collection to HTML"));
-            let actual_html = String::from_utf8(output)
-                .expect("HTML output is not valid UTF-8");
+            let html_format = Format::<OUTPUT>::detect("output.html").ok_or("Could not create HTML format")?;
+            html_format.unparse(&mut output, &collection)?;
+            let actual_html = String::from_utf8(output)?;
 
-            let expected_html = read_to_string(expected_path)
-                .expect(&format!("Could not read expected file: {}", expected_path));
+            let expected_html = read_to_string(expected_path)?;
 
             assert_eq!(
                 actual_html.trim(),
@@ -270,6 +247,8 @@ pub fn test_formatters(input: TokenStream) -> TokenStream {
                 input_path,
                 expected_path
             );
+
+            Ok(())
         }
 
         #(#tests)*
