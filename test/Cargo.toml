@@ -1,0 +1,10 @@
+[package]
+name = "hbt-test"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dev-dependencies]
+hbt-core = { path = "../core" }
+hbt-test-macros = { path = "../test-macros" }
+serde_norway.workspace = true

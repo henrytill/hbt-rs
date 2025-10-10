@@ -201,6 +201,14 @@ impl Format<INPUT> {
 }
 
 impl Format<OUTPUT> {
+    pub fn detect(path: impl AsRef<Path>) -> Option<Format<OUTPUT>> {
+        match path.as_ref().extension()?.to_str()? {
+            "html" => Some(Format::<{ INPUT | OUTPUT }>::HTML.as_output()),
+            "yaml" | "yml" => Some(Format::<OUTPUT>::YAML),
+            _ => None,
+        }
+    }
+
     pub fn unparse(&self, mut writer: impl Write, coll: &Collection) -> Result<(), UnparseError> {
         match self.0 {
             FormatKind::Yaml => serde_norway::to_writer(&mut writer, coll)?,
