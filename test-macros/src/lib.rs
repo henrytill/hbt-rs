@@ -38,7 +38,7 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
         .min_depth(1)
         .max_depth(2)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
     {
         let path = entry.path();
 
@@ -62,8 +62,8 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
         if let Some((stem, format_ext)) = stem_and_ext {
             let category = path
                 .parent()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
+                .and_then(Path::file_name)
+                .and_then(OsStr::to_str)
                 .expect("Could not determine test category");
 
             let expected_path = path.with_file_name(format!("{}.expected.yaml", stem));
@@ -167,7 +167,7 @@ pub fn test_formatters(input: TokenStream) -> TokenStream {
         .min_depth(1)
         .max_depth(2)
         .into_iter()
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
     {
         let path = entry.path();
 
@@ -183,8 +183,8 @@ pub fn test_formatters(input: TokenStream) -> TokenStream {
         if let Some(stem) = file_name.strip_suffix(".expected.html") {
             let category = path
                 .parent()
-                .and_then(|p| p.file_name())
-                .and_then(|n| n.to_str())
+                .and_then(Path::file_name)
+                .and_then(OsStr::to_str)
                 .expect("Could not determine test category");
 
             let input_extensions = [".input.html", ".input.json", ".input.xml", ".input.md"];
