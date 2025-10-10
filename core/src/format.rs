@@ -8,8 +8,7 @@ use clap::{ValueEnum, builder::PossibleValue};
 
 use crate::{
     collection::Collection,
-    entity::{self, Entity},
-    html, markdown,
+    entity, html, markdown,
     pinboard::{self, Post},
 };
 
@@ -145,18 +144,6 @@ pub enum UnparseError {
 
     #[error("YAML formatting error: {0}")]
     Yaml(#[from] serde_norway::Error),
-}
-
-impl Collection {
-    fn from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
-        posts.sort_by(|a, b| a.time.cmp(&b.time));
-        let mut coll = Collection::with_capacity(posts.len());
-        for post in posts {
-            let entity = Entity::try_from(post)?;
-            coll.insert(entity);
-        }
-        Ok(coll)
-    }
 }
 
 impl Format<INPUT> {
