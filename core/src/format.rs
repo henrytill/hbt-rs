@@ -118,31 +118,31 @@ impl ValueEnum for Format<OUTPUT> {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
-    #[error("IO error: {0}")]
+    #[error(transparent)]
     Io(#[from] io::Error),
 
-    #[error("Entity creation error: {0}")]
+    #[error(transparent)]
     Entity(#[from] entity::Error),
 
-    #[error("HTML parsing error: {0}")]
+    #[error(transparent)]
     Html(#[from] html::Error),
 
-    #[error("Markdown parsing error: {0}")]
+    #[error(transparent)]
     Markdown(#[from] markdown::Error),
 
-    #[error("Pinboard parsing error: {0}")]
+    #[error(transparent)]
     Pinboard(#[from] pinboard::Error),
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum UnparseError {
-    #[error("IO error: {0}")]
+    #[error(transparent)]
     Io(#[from] io::Error),
 
-    #[error("HTML formatting error: {0}")]
+    #[error(transparent)]
     Html(#[from] html::Error),
 
-    #[error("YAML formatting error: {0}")]
+    #[error(transparent)]
     Yaml(#[from] serde_norway::Error),
 }
 

@@ -1,7 +1,6 @@
 use std::{
     collections::{BTreeSet, HashMap},
     io::{self, Write},
-    num,
 };
 
 use minijinja::{Environment, context};
@@ -15,18 +14,8 @@ use crate::{
 
 #[derive(Debug, Error)]
 pub enum Error {
-    // Entity-related variants
-    #[error("URL parsing error: {0}")]
-    ParseUrl(#[from] url::ParseError),
-
-    #[error("integer parsing error: {0}")]
-    ParseInt(#[from] num::ParseIntError),
-
-    #[error("time parsing error: {0}")]
-    ParseTime(i64),
-
-    #[error("time format parsing error: {0}")]
-    ParseTimeFormat(#[from] chrono::ParseError),
+    #[error(transparent)]
+    Entity(#[from] entity::Error),
 
     // Local variants
     #[error("HTML selector error: {0}")]
@@ -40,17 +29,6 @@ pub enum Error {
 
     #[error("IO error: {0}")]
     Io(#[from] io::Error),
-}
-
-impl From<entity::Error> for Error {
-    fn from(err: entity::Error) -> Self {
-        match err {
-            entity::Error::ParseUrl(e) => Error::ParseUrl(e),
-            entity::Error::ParseInt(e) => Error::ParseInt(e),
-            entity::Error::ParseTime(t) => Error::ParseTime(t),
-            entity::Error::ParseTimeFormat(e) => Error::ParseTimeFormat(e),
-        }
-    }
 }
 
 impl From<scraper::error::SelectorErrorKind<'_>> for Error {
