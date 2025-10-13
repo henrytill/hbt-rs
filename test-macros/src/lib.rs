@@ -1,52 +1,81 @@
 use proc_macro::TokenStream;
 use std::{
-    collections::BTreeSet,
+    collections::BTreeMap,
     ffi::OsStr,
     path::{Path, PathBuf},
 };
 
 use proc_macro2::Span;
 use quote::quote;
-use syn::{self, Error, Ident, LitStr};
+use syn::{
+    self, Error, Ident, LitStr, Token,
+    parse::{Parse, ParseStream},
+};
 use walkdir::WalkDir;
 
-const INPUT_EXTENSIONS: &[&str] = &[".input.html", ".input.json", ".input.xml", ".input.md"];
-const EXPECTED_YAML_EXT: &str = ".expected.yaml";
-const EXPECTED_HTML_EXT: &str = ".expected.html";
+struct Args {
+    path: LitStr,
+    ext: LitStr,
+}
 
-#[derive(PartialEq, Eq, PartialOrd, Ord)]
+impl Parse for Args {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let path: LitStr = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let ext: LitStr = input.parse()?;
+        Ok(Args { path, ext })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct TestCase {
-    category: String,
     stem: String,
     input_path: String,
     expected_path: String,
 }
 
-impl TestCase {
-    fn new(
-        category: String,
-        stem: String,
-        input_path: PathBuf,
-        expected_path: PathBuf,
-    ) -> Option<Self> {
-        if !input_path.exists() || !expected_path.exists() {
-            return None;
-        }
-        Some(Self {
-            category,
+#[derive(Debug)]
+struct TestCaseBuilder {
+    stem: String,
+    input_path: Option<PathBuf>,
+    expected_path: Option<PathBuf>,
+}
+
+impl TestCaseBuilder {
+    fn new(stem: String) -> Self {
+        Self {
             stem,
-            input_path: input_path.to_str()?.to_string(),
-            expected_path: expected_path.to_str()?.to_string(),
+            input_path: None,
+            expected_path: None,
+        }
+    }
+
+    fn set_input(&mut self, path: PathBuf) {
+        self.input_path = Some(path);
+    }
+
+    fn set_expected(&mut self, path: PathBuf) {
+        self.expected_path = Some(path);
+    }
+
+    fn is_complete(&self) -> bool {
+        self.input_path.is_some() && self.expected_path.is_some()
+    }
+
+    fn build(self) -> Option<TestCase> {
+        Some(TestCase {
+            stem: self.stem,
+            input_path: self.input_path?.to_str()?.to_string(),
+            expected_path: self.expected_path?.to_str()?.to_string(),
         })
     }
 }
 
-fn resolve_base_path(rel_path: &str) -> Result<PathBuf, String> {
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
-        .map_err(|_| "CARGO_MANIFEST_DIR environment variable not set".to_string())?;
+fn split_filename(filename: &str) -> Vec<&str> {
+    filename.split('.').collect()
+}
 
-    let base_path = Path::new(&manifest_dir).join(rel_path);
-
+fn discover_parser_tests(base_path: &Path, input_ext: &str) -> Result<Vec<TestCase>, String> {
     if !base_path.exists() {
         return Err(format!(
             "Test data directory does not exist: {}",
@@ -54,72 +83,155 @@ fn resolve_base_path(rel_path: &str) -> Result<PathBuf, String> {
         ));
     }
 
-    Ok(base_path)
-}
+    let mut builders: BTreeMap<String, TestCaseBuilder> = BTreeMap::new();
 
-fn extract_category(path: &Path) -> Option<&str> {
-    path.parent()
-        .and_then(Path::file_name)
-        .and_then(OsStr::to_str)
-}
-
-fn walk(root: &Path) -> impl Iterator<Item = (PathBuf, String)> {
-    WalkDir::new(root)
+    for entry in WalkDir::new(base_path)
         .min_depth(1)
         .max_depth(2)
         .into_iter()
         .filter_map(Result::ok)
-        .map(|entry| entry.path().to_path_buf())
-        .filter(|path| path.is_file())
-        .filter_map(|path| {
-            let file_name = path.file_name()?.to_str()?.to_string();
-            Some((path, file_name))
-        })
+    {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let Some(filename) = path.file_name().and_then(OsStr::to_str) else {
+            continue;
+        };
+
+        let parts = split_filename(filename);
+
+        match parts.as_slice() {
+            [stem, "input", ext] if *ext == input_ext => {
+                let builder = builders
+                    .entry(stem.to_string())
+                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                builder.set_input(path.to_path_buf());
+            }
+            [stem, "expected", "yaml"] => {
+                let builder = builders
+                    .entry(stem.to_string())
+                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                builder.set_expected(path.to_path_buf());
+            }
+            _ => {}
+        }
+    }
+
+    let mut test_cases: Vec<TestCase> = builders
+        .into_values()
+        .filter(TestCaseBuilder::is_complete)
+        .filter_map(TestCaseBuilder::build)
+        .collect();
+
+    test_cases.sort();
+    Ok(test_cases)
+}
+
+fn discover_formatter_tests(base_path: &Path, output_ext: &str) -> Result<Vec<TestCase>, String> {
+    if !base_path.exists() {
+        return Err(format!(
+            "Test data directory does not exist: {}",
+            base_path.display()
+        ));
+    }
+
+    let mut builders: BTreeMap<String, TestCaseBuilder> = BTreeMap::new();
+
+    for entry in WalkDir::new(base_path)
+        .min_depth(1)
+        .max_depth(2)
+        .into_iter()
+        .filter_map(Result::ok)
+    {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+
+        let Some(filename) = path.file_name().and_then(OsStr::to_str) else {
+            continue;
+        };
+
+        let parts = split_filename(filename);
+
+        match parts.as_slice() {
+            [stem, "input", _] => {
+                let builder = builders
+                    .entry(stem.to_string())
+                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                builder.set_input(path.to_path_buf());
+            }
+            [stem, "expected", ext] if *ext == output_ext => {
+                let builder = builders
+                    .entry(stem.to_string())
+                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                builder.set_expected(path.to_path_buf());
+            }
+            _ => {}
+        }
+    }
+
+    let mut test_cases: Vec<TestCase> = builders
+        .into_values()
+        .filter(TestCaseBuilder::is_complete)
+        .filter_map(TestCaseBuilder::build)
+        .collect();
+
+    test_cases.sort();
+    Ok(test_cases)
+}
+
+fn resolve_path(rel_path: &str) -> Result<PathBuf, String> {
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR")
+        .map_err(|_| "CARGO_MANIFEST_DIR environment variable not set".to_string())?;
+
+    let base_path = Path::new(&manifest_dir)
+        .parent()
+        .ok_or_else(|| format!("Could not get parent directory of {}", manifest_dir))?;
+
+    let full_path = base_path.join(rel_path);
+
+    if !full_path.exists() {
+        return Err(format!(
+            "Test data directory does not exist: {}",
+            full_path.display()
+        ));
+    }
+
+    Ok(full_path)
 }
 
 #[proc_macro]
-pub fn test_parsers(input: TokenStream) -> TokenStream {
-    let path_lit = syn::parse_macro_input!(input as LitStr);
-    let base_path = match resolve_base_path(&path_lit.value()) {
+pub fn test_parser(input: TokenStream) -> TokenStream {
+    let args: Args = syn::parse_macro_input!(input);
+
+    let base_path = match resolve_path(&args.path.value()) {
         Ok(path) => path,
         Err(err) => {
-            let error = Error::new(path_lit.span(), err);
+            let error = Error::new(args.path.span(), err);
             return error.to_compile_error().into();
         }
     };
 
-    let mut test_cases = BTreeSet::new();
-
-    for (path, file_name) in walk(&base_path) {
-        if let Some(stem) = INPUT_EXTENSIONS
-            .iter()
-            .find_map(|ext| file_name.strip_suffix(ext))
-        {
-            let Some(category) = extract_category(&path) else {
-                continue;
-            };
-
-            let expected_path = path.with_file_name(format!("{}{}", stem, EXPECTED_YAML_EXT));
-            if let Some(test_case) =
-                TestCase::new(category.to_string(), stem.to_string(), path, expected_path)
-            {
-                test_cases.insert(test_case);
-            }
+    let test_cases = match discover_parser_tests(&base_path, &args.ext.value()) {
+        Ok(cases) => cases,
+        Err(err) => {
+            let error = Error::new(args.path.span(), err);
+            return error.to_compile_error().into();
         }
-    }
+    };
 
     let tests = test_cases.iter().map(|tc| {
-        let test_ident = Ident::new(
-            &format!("parse_{}_{}", tc.category, tc.stem),
-            Span::call_site(),
-        );
+        let test_ident = Ident::new(&format!("test_{}", tc.stem), Span::call_site());
         let input_path = &tc.input_path;
         let expected_path = &tc.expected_path;
 
         quote! {
             #[test]
             fn #test_ident() -> Result<(), Box<dyn std::error::Error>> {
-                test_parser(#input_path, #expected_path)?;
+                test_parser_input(#input_path, #expected_path)?;
                 Ok(())
             }
         }
@@ -131,8 +243,9 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
         use hbt_core::collection::Collection;
         use hbt_core::format::{Format, INPUT};
 
-        fn test_parser(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-            let input_format = Format::<INPUT>::detect(input_path).ok_or("Could not detect format")?;
+        fn test_parser_input(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+            let input_format = Format::<INPUT>::detect(input_path)
+                .ok_or_else(|| format!("Could not detect format for: {}", input_path))?;
 
             let input_file = File::open(input_path)?;
             let mut input_reader = BufReader::new(input_file);
@@ -160,51 +273,34 @@ pub fn test_parsers(input: TokenStream) -> TokenStream {
 }
 
 #[proc_macro]
-pub fn test_formatters(input: TokenStream) -> TokenStream {
-    let path_lit = syn::parse_macro_input!(input as LitStr);
-    let base_path = match resolve_base_path(&path_lit.value()) {
+pub fn test_formatter(input: TokenStream) -> TokenStream {
+    let args: Args = syn::parse_macro_input!(input);
+
+    let base_path = match resolve_path(&args.path.value()) {
         Ok(path) => path,
         Err(err) => {
-            let error = Error::new(path_lit.span(), err);
+            let error = Error::new(args.path.span(), err);
             return error.to_compile_error().into();
         }
     };
 
-    let mut test_cases = BTreeSet::new();
-
-    for (path, file_name) in walk(&base_path) {
-        if let Some(stem) = file_name.strip_suffix(EXPECTED_HTML_EXT) {
-            let Some(category) = extract_category(&path) else {
-                continue;
-            };
-
-            for ext in INPUT_EXTENSIONS {
-                let input_path = path.with_file_name(format!("{}{}", stem, ext));
-                if let Some(test_case) = TestCase::new(
-                    category.to_string(),
-                    stem.to_string(),
-                    input_path,
-                    path.clone(),
-                ) {
-                    test_cases.insert(test_case);
-                    break;
-                }
-            }
+    let test_cases = match discover_formatter_tests(&base_path, &args.ext.value()) {
+        Ok(cases) => cases,
+        Err(err) => {
+            let error = Error::new(args.path.span(), err);
+            return error.to_compile_error().into();
         }
-    }
+    };
 
     let tests = test_cases.iter().map(|tc| {
-        let test_ident = Ident::new(
-            &format!("format_{}_{}", tc.category, tc.stem),
-            Span::call_site(),
-        );
+        let test_ident = Ident::new(&format!("test_{}", tc.stem), Span::call_site());
         let input_path = &tc.input_path;
         let expected_path = &tc.expected_path;
 
         quote! {
             #[test]
             fn #test_ident() -> Result<(), Box<dyn std::error::Error>> {
-                test_formatter(#input_path, #expected_path)?;
+                test_formatter_output(#input_path, #expected_path)?;
                 Ok(())
             }
         }
@@ -216,15 +312,17 @@ pub fn test_formatters(input: TokenStream) -> TokenStream {
         use hbt_core::collection::Collection;
         use hbt_core::format::{Format, INPUT, OUTPUT};
 
-        fn test_formatter(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-            let input_format = Format::<INPUT>::detect(input_path).ok_or("Could not detect format")?;
+        fn test_formatter_output(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
+            let input_format = Format::<INPUT>::detect(input_path)
+                .ok_or_else(|| format!("Could not detect format for: {}", input_path))?;
 
             let input_file = File::open(input_path)?;
             let mut input_reader = BufReader::new(input_file);
             let collection = input_format.parse(&mut input_reader)?;
 
             let mut output = Vec::new();
-            let html_format = Format::<OUTPUT>::detect("output.html").ok_or("Could not create HTML format")?;
+            let html_format = Format::<OUTPUT>::detect("output.html")
+                .ok_or("Could not create HTML format")?;
             html_format.unparse(&mut output, &collection)?;
             let actual_html = String::from_utf8(output)?;
 

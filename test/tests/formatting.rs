@@ -1,3 +1,5 @@
-use hbt_test_macros::test_formatters;
+use hbt_test_macros::test_formatter;
 
-test_formatters!("../test-data");
+mod html {
+    super::test_formatter!("test-data/html", "html");
+}
