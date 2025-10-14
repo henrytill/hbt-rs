@@ -7,7 +7,6 @@ use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use url::Url;
 
 use crate::pinboard::Post;
 
@@ -28,6 +27,24 @@ pub enum Error {
 
     #[error("chrono parsing error: {0}, {1}")]
     Chrono(#[source] chrono::ParseError, String),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[schemars(transparent)]
+pub struct Url(url::Url);
+
+impl Url {
+    pub fn parse(s: &str) -> Result<Self, Error> {
+        url::Url::parse(s)
+            .map(Url)
+            .map_err(|err| Error::ParseUrl(err, s.to_string()))
+    }
+}
+
+impl Hash for Url {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state);
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
@@ -260,7 +277,7 @@ impl TryFrom<Post> for Entity {
     type Error = Error;
 
     fn try_from(post: Post) -> Result<Entity, Self::Error> {
-        let url = Url::parse(&post.href).map_err(|err| Error::ParseUrl(err, post.href.clone()))?;
+        let url = Url::parse(&post.href)?;
         let created_at = Time::parse_flexible(&post.time)?;
 
         Ok(Entity {
@@ -279,9 +296,8 @@ impl TryFrom<Post> for Entity {
 }
 
 pub mod html {
-    use super::{Entity, Error, Extended, Label, Name, Time};
+    use super::{Entity, Error, Extended, Label, Name, Time, Url};
     use std::collections::{BTreeSet, HashMap};
-    use url::Url;
 
     const KEY_HREF: &str = "href";
     const KEY_ADD_DATE: &str = "add_date";
@@ -300,7 +316,7 @@ pub mod html {
             extended: Option<Extended>,
         ) -> Result<Entity, Error> {
             let href = attrs.get(KEY_HREF).ok_or(Error::MissingUrl)?;
-            let url = Url::parse(href).map_err(|err| Error::ParseUrl(err, href.clone()))?;
+            let url = Url::parse(href)?;
 
             let mut entity = Entity {
                 url,

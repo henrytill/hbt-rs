@@ -1,23 +1,22 @@
 use chrono::{DateTime, NaiveDate, TimeZone, Utc};
 use pulldown_cmark::{Event, HeadingLevel, LinkType, Parser, Tag, TagEnd};
 use thiserror::Error;
-use url::Url;
 
 use crate::{
     collection::{Collection, Id},
-    entity::{Entity, Label, Name},
+    entity::{self, Entity, Label, Name, Url},
 };
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error(transparent)]
+    Entity(#[from] entity::Error),
+
     #[error("missing URL")]
     MissingUrl,
 
     #[error("missing date")]
     MissingDate,
-
-    #[error("URL parsing error: {0}, {1}")]
-    ParseUrl(#[source] url::ParseError, String),
 
     #[error("date parsing error: {0}, {1}")]
     ParseDate(#[source] chrono::ParseError, String),
@@ -52,10 +51,6 @@ fn parse_date(s: &str) -> Result<DateTime<Utc>, Error> {
         .map_err(|err| Error::ParseDate(err, s.to_string()))?;
     let datetime = date.and_hms_opt(0, 0, 0).unwrap();
     Ok(Utc.from_utc_datetime(&datetime))
-}
-
-fn parse_url(s: &str) -> Result<Url, Error> {
-    Url::parse(s).map_err(|err| Error::ParseUrl(err, s.to_string()))
 }
 
 struct ParserState<'a> {
@@ -156,7 +151,7 @@ impl Collection {
                 ) => {
                     state.current_tag = Some(tag.to_owned());
                     state.name_parts.clear();
-                    state.url = Some(parse_url(dest_url)?);
+                    state.url = Some(Url::parse(dest_url)?);
                 }
                 Event::Start(
                     ref tag @ Tag::Link {
@@ -168,7 +163,7 @@ impl Collection {
                     state.current_tag = Some(tag.to_owned());
                     state.name = None;
                     state.name_parts.clear();
-                    state.url = Some(parse_url(dest_url)?);
+                    state.url = Some(Url::parse(dest_url)?);
                 }
                 Event::Start(tag) => {
                     state.current_tag = Some(tag);

@@ -7,9 +7,8 @@ use std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use url::Url;
 
-use crate::entity::{Entity, Label};
+use crate::entity::{Entity, Label, Url};
 
 #[derive(Debug, Error)]
 pub enum Error {
