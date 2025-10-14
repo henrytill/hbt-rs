@@ -14,17 +14,20 @@ use crate::pinboard::Post;
 #[allow(clippy::enum_variant_names)]
 #[derive(Debug, Error)]
 pub enum Error {
-    #[error("URL parsing error: {0}")]
-    ParseUrl(#[from] url::ParseError),
+    #[error("missing URL")]
+    MissingUrl,
+
+    #[error("URL parsing error: {0}, {1}")]
+    ParseUrl(#[source] url::ParseError, String),
 
     #[error("integer parsing error: {0}")]
     ParseInt(#[from] std::num::ParseIntError),
 
-    #[error("time parsing error: {0}")]
-    ParseTime(i64),
+    #[error("timestamp parsing error: {1}, {1}")]
+    ParseTimestamp(i64, String),
 
-    #[error("time format parsing error: {0}")]
-    ParseTimeFormat(#[from] chrono::ParseError),
+    #[error("chrono parsing error: {0}, {1}")]
+    Chrono(#[source] chrono::ParseError, String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
@@ -110,23 +113,26 @@ impl Time {
         Time(time)
     }
 
-    pub fn parse(time: &str) -> Result<Time, Error> {
+    pub fn parse_timestamp(time: &str) -> Result<Time, Error> {
         let timestamp: i64 = time.parse()?;
-        let time = DateTime::from_timestamp(timestamp, 0).ok_or(Error::ParseTime(timestamp))?;
+        let time = DateTime::from_timestamp(timestamp, 0)
+            .ok_or_else(|| Error::ParseTimestamp(timestamp, time.to_string()))?;
         Ok(Time(time))
     }
 
     fn parse_iso8601(time: &str) -> Result<Time, Error> {
-        let time = DateTime::parse_from_rfc3339(time)?.with_timezone(&Utc);
+        let time = DateTime::parse_from_rfc3339(time)
+            .map_err(|err| Error::Chrono(err, time.to_string()))?
+            .with_timezone(&Utc);
         Ok(Time(time))
     }
 
     pub fn parse_flexible(time: &str) -> Result<Time, Error> {
-        // Try Unix timestamp first (all digits, possibly with leading/trailing whitespace)
-        if time.trim().chars().all(|c| c.is_ascii_digit()) {
-            return Self::parse(time.trim());
+        match Self::parse_timestamp(time.trim()) {
+            Ok(time) => return Ok(time),
+            Err(Error::ParseInt(_)) => (),
+            err => return err,
         }
-        // Try ISO 8601 format
         Self::parse_iso8601(time.trim())
     }
 }
@@ -254,9 +260,12 @@ impl TryFrom<Post> for Entity {
     type Error = Error;
 
     fn try_from(post: Post) -> Result<Entity, Self::Error> {
+        let url = Url::parse(&post.href).map_err(|err| Error::ParseUrl(err, post.href.clone()))?;
+        let created_at = Time::parse_flexible(&post.time)?;
+
         Ok(Entity {
-            url: Url::parse(&post.href)?,
-            created_at: Time::parse_flexible(&post.time)?,
+            url,
+            created_at,
             updated_at: Vec::new(),
             names: post.description.into_iter().map(Name::new).collect(),
             labels: post.tags.into_iter().map(Label::new).collect(),
@@ -283,19 +292,6 @@ pub mod html {
     const KEY_TOREAD: &str = "toread";
     const KEY_FEED: &str = "feed";
 
-    fn parse_time_opt(value: String) -> Result<Option<Time>, Error> {
-        let trimmed = value.trim();
-        if trimmed.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(Time::parse(trimmed)?))
-        }
-    }
-
-    fn parse_time(value: String) -> Result<Time, Error> {
-        parse_time_opt(value).map(Option::unwrap_or_default)
-    }
-
     impl Entity {
         pub fn from_attrs(
             attrs: HashMap<String, String>,
@@ -303,12 +299,8 @@ pub mod html {
             labels: BTreeSet<Label>,
             extended: Option<Extended>,
         ) -> Result<Entity, Error> {
-            let url = {
-                let href = attrs
-                    .get(KEY_HREF)
-                    .ok_or(Error::ParseUrl(url::ParseError::EmptyHost))?;
-                Url::parse(href)?
-            };
+            let href = attrs.get(KEY_HREF).ok_or(Error::MissingUrl)?;
+            let url = Url::parse(href).map_err(|err| Error::ParseUrl(err, href.clone()))?;
 
             let mut entity = Entity {
                 url,
@@ -316,48 +308,50 @@ pub mod html {
                 updated_at: Vec::new(),
                 names,
                 labels,
-                extended,
                 shared: true,
                 to_read: false,
-                last_visited_at: None,
                 is_feed: false,
+                extended,
+                last_visited_at: None,
             };
 
             let mut tags = String::new();
 
-            for (key, value) in attrs {
+            for (key, value) in attrs.into_iter() {
+                let trimmed = value.trim();
                 match key.to_lowercase().as_str() {
-                    KEY_ADD_DATE if !value.is_empty() => {
-                        entity.created_at = parse_time(value)?;
+                    KEY_ADD_DATE if !trimmed.is_empty() => {
+                        entity.created_at = Time::parse_timestamp(trimmed)?;
                     }
-                    KEY_LAST_MODIFIED if !value.is_empty() => {
-                        entity.updated_at = parse_time_opt(value)?.into_iter().collect();
+                    KEY_LAST_MODIFIED if !trimmed.is_empty() => {
+                        let time = Time::parse_timestamp(trimmed)?;
+                        entity.updated_at.push(time);
                     }
-                    KEY_LAST_VISIT if !value.is_empty() => {
-                        entity.last_visited_at = parse_time_opt(value)?;
+                    KEY_LAST_VISIT if !trimmed.is_empty() => {
+                        let time = Time::parse_timestamp(trimmed)?;
+                        entity.last_visited_at = Some(time);
                     }
-                    KEY_TAGS if !value.is_empty() => {
+                    KEY_TAGS if !trimmed.is_empty() => {
                         tags = value;
                     }
                     KEY_PRIVATE => {
-                        entity.shared = value != "1";
+                        entity.shared = trimmed != "1";
                     }
                     KEY_TOREAD => {
-                        entity.to_read = value == "1";
+                        entity.to_read = trimmed == "1";
                     }
                     KEY_FEED => {
-                        entity.is_feed = value == "true";
+                        entity.is_feed = trimmed == "true";
                     }
                     _ => {}
                 }
             }
 
-            if tags.is_empty() {
-                return Ok(entity);
-            }
-
             for tag in tags.split(',') {
                 let s = tag.trim();
+                if s.is_empty() {
+                    continue;
+                }
                 if s == "toread" {
                     entity.to_read = true;
                     continue;
