@@ -58,10 +58,6 @@ impl TestCaseBuilder {
         self.expected_path = Some(path);
     }
 
-    fn is_complete(&self) -> bool {
-        self.input_path.is_some() && self.expected_path.is_some()
-    }
-
     fn build(self) -> Option<TestCase> {
         Some(TestCase {
             stem: self.stem,
@@ -121,7 +117,6 @@ fn discover_parser_tests(base_path: &Path, input_ext: &str) -> Result<Vec<TestCa
 
     let mut test_cases: Vec<TestCase> = builders
         .into_values()
-        .filter(TestCaseBuilder::is_complete)
         .filter_map(TestCaseBuilder::build)
         .collect();
 
@@ -175,7 +170,6 @@ fn discover_formatter_tests(base_path: &Path, output_ext: &str) -> Result<Vec<Te
 
     let mut test_cases: Vec<TestCase> = builders
         .into_values()
-        .filter(TestCaseBuilder::is_complete)
         .filter_map(TestCaseBuilder::build)
         .collect();
 
