@@ -196,10 +196,10 @@ impl Format<OUTPUT> {
         }
     }
 
-    pub fn unparse(&self, mut writer: impl Write, coll: &Collection) -> Result<(), UnparseError> {
+    pub fn unparse(&self, writer: &mut impl Write, coll: &Collection) -> Result<(), UnparseError> {
         match self.0 {
-            FormatKind::Yaml => serde_norway::to_writer(&mut writer, coll)?,
-            FormatKind::Html => coll.to_html(&mut writer)?,
+            FormatKind::Yaml => serde_norway::to_writer(writer, coll)?,
+            FormatKind::Html => coll.to_html(writer)?,
             FormatKind::Json | FormatKind::Xml | FormatKind::Markdown => {
                 panic!(
                     "Invariant violated: Format<OUTPUT> contains input-only format {:?}",
@@ -207,7 +207,6 @@ impl Format<OUTPUT> {
                 )
             }
         };
-        writer.flush()?;
         Ok(())
     }
 }

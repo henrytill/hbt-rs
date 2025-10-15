@@ -86,7 +86,11 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         let stdout = io::stdout();
         let mut writer = BufWriter::new(stdout);
         writer.write_all(output.as_bytes())?;
-    } else if args.list_tags {
+        writer.flush()?;
+        return Ok(());
+    }
+
+    if args.list_tags {
         let mut all_tags = BTreeSet::new();
         for entity in coll.entities() {
             all_tags.extend(entity.labels())
@@ -104,23 +108,28 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         let stdout = io::stdout();
         let mut writer = BufWriter::new(stdout);
         writer.write_all(output.as_bytes())?;
-    } else if let Some(format) = &args.to {
+        writer.flush()?;
+        return Ok(());
+    }
+
+    if let Some(format) = &args.to {
         if let Some(output_file) = &args.output {
             let file = File::create(output_file)?;
-            let writer = BufWriter::new(file);
-            format.unparse(writer, coll)?
+            let mut writer = BufWriter::new(file);
+            format.unparse(&mut writer, coll)?;
+            writer.flush()?
         } else {
             let stdout = io::stdout();
-            let writer = BufWriter::new(stdout);
-            format.unparse(writer, coll)?
+            let mut writer = BufWriter::new(stdout);
+            format.unparse(&mut writer, coll)?;
+            writer.flush()?
         };
-    } else {
-        return Err(Error::msg(
-            "Must specify an output format (-t) or analysis flag (--info, --list-tags)",
-        ));
-    };
+        return Ok(());
+    }
 
-    Ok(())
+    return Err(Error::msg(
+        "Must specify an output format (-t) or analysis flag (--info, --list-tags)",
+    ));
 }
 
 fn main() -> Result<ExitCode, Error> {
