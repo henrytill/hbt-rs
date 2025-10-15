@@ -34,7 +34,6 @@ struct TestCase {
     expected_path: String,
 }
 
-#[derive(Debug)]
 struct TestCaseBuilder {
     stem: String,
     input_path: Option<PathBuf>,
@@ -234,6 +233,7 @@ pub fn test_parser(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         use std::io::BufReader;
         use std::fs::File;
+
         use hbt_core::collection::Collection;
         use hbt_core::format::{Format, INPUT};
 
@@ -250,8 +250,8 @@ pub fn test_parser(input: TokenStream) -> TokenStream {
             let expected_collection: Collection = serde_norway::from_reader(expected_reader)?;
 
             assert_eq!(
-                parsed_collection,
                 expected_collection,
+                parsed_collection,
                 "Collection mismatch for input: {}\nExpected from: {}",
                 input_path,
                 expected_path
@@ -303,29 +303,30 @@ pub fn test_formatter(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         use std::io::BufReader;
         use std::fs::{File, read_to_string};
+
         use hbt_core::collection::Collection;
         use hbt_core::format::{Format, INPUT, OUTPUT};
 
         fn test_formatter_output(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
             let input_format = Format::<INPUT>::detect(input_path)
                 .ok_or_else(|| format!("Could not detect format for: {}", input_path))?;
+            let output_format = Format::<OUTPUT>::detect(expected_path)
+                .ok_or_else(|| format!("Could not detect format for: {}", expected_path))?;
 
             let input_file = File::open(input_path)?;
             let mut input_reader = BufReader::new(input_file);
             let collection = input_format.parse(&mut input_reader)?;
 
             let mut output = Vec::new();
-            let html_format = Format::<OUTPUT>::detect("output.html")
-                .ok_or("Could not create HTML format")?;
-            html_format.unparse(&mut output, &collection)?;
-            let actual_html = String::from_utf8(output)?;
+            output_format.unparse(&mut output, &collection)?;
+            let actual = String::from_utf8(output)?;
 
-            let expected_html = read_to_string(expected_path)?;
+            let expected = read_to_string(expected_path)?;
 
             assert_eq!(
-                actual_html.trim(),
-                expected_html.trim(),
-                "HTML output mismatch for input: {}\nExpected from: {}",
+                expected.trim(),
+                actual.trim(),
+                "Output mismatch for input: {}\nExpected from: {}",
                 input_path,
                 expected_path
             );
