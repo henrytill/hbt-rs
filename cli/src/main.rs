@@ -127,9 +127,9 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         return Ok(());
     }
 
-    return Err(Error::msg(
+    Err(Error::msg(
         "Must specify an output format (-t) or analysis flag (--info, --list-tags)",
-    ));
+    ))
 }
 
 fn main() -> Result<ExitCode, Error> {
