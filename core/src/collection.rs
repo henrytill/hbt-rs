@@ -37,6 +37,7 @@ impl From<Id> for usize {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[schemars(transparent)]
 struct Version(semver::Version);
 
 impl Version {
