@@ -48,6 +48,13 @@
           hbt-static = pkgs.hbt-static;
           default = self.packages.${system}.hbt;
         };
+        devShells.default = pkgs.mkShell {
+          inputsFrom = [ pkgs.hbt ];
+          packages = with pkgs; [
+            rust-analyzer
+            rustfmt
+          ];
+        };
       }
     );
 }
