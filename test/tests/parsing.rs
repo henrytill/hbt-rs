@@ -1,17 +1,17 @@
-use hbt_test_macros::test_parser;
-
 mod html {
-    super::test_parser!("test-data/html", "html");
+    hbt_test_macros::test_parser!("test-data/html", "html");
 }
 
 mod markdown {
-    super::test_parser!("test-data/markdown", "md");
+    hbt_test_macros::test_parser!("test-data/markdown", "md");
 }
 
-mod pinboard_json {
-    super::test_parser!("test-data/pinboard/json", "json");
-}
+mod pinboard {
+    mod json {
+        hbt_test_macros::test_parser!("test-data/pinboard/json", "json");
+    }
 
-mod pinboard_xml {
-    super::test_parser!("test-data/pinboard/xml", "xml");
+    mod xml {
+        hbt_test_macros::test_parser!("test-data/pinboard/xml", "xml");
+    }
 }
