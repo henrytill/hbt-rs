@@ -53,6 +53,7 @@
           packages = with pkgs; [
             rust-analyzer
             rustfmt
+            cargo-deny
           ];
         };
       }
