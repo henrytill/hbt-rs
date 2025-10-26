@@ -39,6 +39,9 @@ pub struct Post {
     pub tags: Vec<String>,
 
     #[serde(deserialize_with = "json::empty_string")]
+    pub meta: Option<String>,
+
+    #[serde(deserialize_with = "json::empty_string")]
     pub hash: Option<String>,
 
     #[serde(deserialize_with = "json::yes_no")]
@@ -122,6 +125,7 @@ pub mod xml {
     const KEY_DESCRIPTION: &[u8] = b"description";
     const KEY_EXTENDED: &[u8] = b"extended";
     const KEY_TAG: &[u8] = b"tag";
+    const KEY_META: &[u8] = b"meta";
     const KEY_HASH: &[u8] = b"hash";
     const KEY_SHARED: &[u8] = b"shared";
     const KEY_TOREAD: &[u8] = b"toread";
@@ -158,6 +162,9 @@ pub mod xml {
                             .split_whitespace()
                             .map(ToOwned::to_owned)
                             .collect();
+                    }
+                    KEY_META if !value.is_empty() => {
+                        ret.meta = Some(value.into_owned());
                     }
                     KEY_HASH if !value.is_empty() => {
                         ret.hash = Some(value.into_owned());
