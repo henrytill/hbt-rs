@@ -113,7 +113,12 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         return Ok(());
     }
 
-    if let Some(format) = &args.to {
+    let format = match args.to {
+        Some(format) => Some(format),
+        None => args.output.as_ref().and_then(Format::<OUTPUT>::detect),
+    };
+
+    if let Some(format) = format {
         if let Some(output_file) = &args.output {
             let file = File::create(output_file)?;
             let mut writer = BufWriter::new(file);
