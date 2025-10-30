@@ -11,6 +11,7 @@ use clap::Parser;
 use schemars::schema_for;
 
 use hbt_core::collection::{Collection, CollectionRepr};
+use hbt_core::entity::Label;
 use hbt_core::format::{Format, INPUT, OUTPUT};
 
 use hbt::version;
@@ -96,8 +97,8 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
             all_tags.extend(entity.labels())
         }
         let tags_output = all_tags
-            .iter()
-            .map(|tag| tag.as_str())
+            .into_iter()
+            .map(Label::as_str)
             .collect::<Vec<_>>()
             .join("\n");
         let output = if tags_output.is_empty() {
@@ -156,8 +157,8 @@ fn main() -> Result<ExitCode, Error> {
         .as_ref()
         .ok_or_else(|| Error::msg("Input file required"))?;
 
-    let input_format = match &args.from {
-        Some(format) => *format,
+    let input_format = match args.from {
+        Some(format) => format,
         None => {
             let no_parser = || Error::msg(format!("No parser for file: {}", file.display()));
             Format::<INPUT>::detect(file).ok_or_else(no_parser)?

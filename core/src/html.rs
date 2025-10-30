@@ -17,7 +17,6 @@ pub enum Error {
     #[error(transparent)]
     Entity(#[from] entity::Error),
 
-    // Local variants
     #[error("HTML selector error: {0}")]
     HtmlSelector(String),
 
@@ -32,7 +31,7 @@ pub enum Error {
 }
 
 impl From<scraper::error::SelectorErrorKind<'_>> for Error {
-    fn from(value: scraper::error::SelectorErrorKind<'_>) -> Self {
+    fn from(value: scraper::error::SelectorErrorKind<'_>) -> Error {
         Error::HtmlSelector(value.to_string())
     }
 }

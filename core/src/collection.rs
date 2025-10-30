@@ -46,7 +46,7 @@ impl Version {
     }
 
     fn matches_requirement(&self) -> Result<bool, semver::Error> {
-        let req = semver::VersionReq::parse(Self::EXPECTED_REQ)?;
+        let req = semver::VersionReq::parse(Version::EXPECTED_REQ)?;
         Ok(req.matches(&self.0))
     }
 
@@ -244,7 +244,7 @@ impl From<&Collection> for CollectionRepr {
 impl TryFrom<CollectionRepr> for Collection {
     type Error = Error;
 
-    fn try_from(mut repr: CollectionRepr) -> Result<Collection, Self::Error> {
+    fn try_from(mut repr: CollectionRepr) -> Result<Self, Self::Error> {
         if !repr.version.matches_requirement()? {
             return Err(Error::IncompatibleVersion(
                 repr.version.to_string(),

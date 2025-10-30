@@ -66,8 +66,8 @@ struct ParserState<'a> {
 }
 
 impl<'a> ParserState<'a> {
-    fn new() -> Self {
-        Self {
+    fn new() -> ParserState<'a> {
+        ParserState {
             name: None,
             name_parts: Vec::new(),
             date: None,

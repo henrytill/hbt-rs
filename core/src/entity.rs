@@ -34,7 +34,7 @@ pub enum Error {
 pub struct Url(url::Url);
 
 impl Url {
-    pub fn parse(s: &str) -> Result<Self, Error> {
+    pub fn parse(s: &str) -> Result<Url, Error> {
         url::Url::parse(s)
             .map(Url)
             .map_err(|err| Error::ParseUrl(err, s.to_string()))
@@ -145,12 +145,12 @@ impl Time {
     }
 
     pub fn parse_flexible(time: &str) -> Result<Time, Error> {
-        match Self::parse_timestamp(time.trim()) {
+        match Time::parse_timestamp(time.trim()) {
             Ok(time) => return Ok(time),
             Err(Error::ParseInt(_)) => (),
             err => return err,
         }
-        Self::parse_iso8601(time.trim())
+        Time::parse_iso8601(time.trim())
     }
 }
 
@@ -276,7 +276,7 @@ impl Entity {
 impl TryFrom<Post> for Entity {
     type Error = Error;
 
-    fn try_from(post: Post) -> Result<Entity, Self::Error> {
+    fn try_from(post: Post) -> Result<Self, Self::Error> {
         let url = Url::parse(&post.href)?;
         let created_at = Time::parse_flexible(&post.time)?;
 

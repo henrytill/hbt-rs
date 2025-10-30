@@ -19,7 +19,7 @@ struct Args {
 }
 
 impl Parse for Args {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Args> {
         let path: LitStr = input.parse()?;
         input.parse::<Token![,]>()?;
         let ext: LitStr = input.parse()?;
@@ -41,8 +41,8 @@ struct TestCaseBuilder {
 }
 
 impl TestCaseBuilder {
-    fn new(stem: String) -> Self {
-        Self {
+    fn new(stem: String) -> TestCaseBuilder {
+        TestCaseBuilder {
             stem,
             input_path: None,
             expected_path: None,
