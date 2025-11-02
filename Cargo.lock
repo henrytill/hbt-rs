@@ -259,7 +259,7 @@ dependencies = [
  "serde_json",
  "serde_norway",
  "snapbox",
- "snapbox-macros",
+ "snapbox-macros 0.4.0",
 ]
 
 [[package]]
@@ -963,7 +963,7 @@ dependencies = [
  "anstyle",
  "normalize-line-endings",
  "similar",
- "snapbox-macros",
+ "snapbox-macros 0.3.10",
 ]
 
 [[package]]
@@ -971,6 +971,12 @@ name = "snapbox-macros"
 version = "0.3.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "16569f53ca23a41bb6f62e0a5084aa1661f4814a67fa33696a79073e03a664af"
+
+[[package]]
+name = "snapbox-macros"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b750c344002d7cc69afb9da00ebd9b5c0f8ac2eb7d115d9d45d5b5f47718d74"
 
 [[package]]
 name = "stable_deref_trait"
