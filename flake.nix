@@ -55,6 +55,7 @@
             rustfmt
             clippy
             cargo-deny
+            yaml-language-server
           ];
         };
       }
