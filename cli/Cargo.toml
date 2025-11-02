@@ -14,4 +14,3 @@ serde_norway.workspace = true
 
 [dev-dependencies]
 snapbox = { version = "0.6.21", default-features = false, features = ["diff"] }
-snapbox-macros = "0.3.10"

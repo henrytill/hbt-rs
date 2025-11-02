@@ -259,7 +259,6 @@ dependencies = [
  "serde_json",
  "serde_norway",
  "snapbox",
- "snapbox-macros 0.3.10",
 ]
 
 [[package]]
@@ -958,14 +957,8 @@ dependencies = [
  "anstyle",
  "normalize-line-endings",
  "similar",
- "snapbox-macros 0.4.0",
+ "snapbox-macros",
 ]
-
-[[package]]
-name = "snapbox-macros"
-version = "0.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "16569f53ca23a41bb6f62e0a5084aa1661f4814a67fa33696a79073e03a664af"
 
 [[package]]
 name = "snapbox-macros"

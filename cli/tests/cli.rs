@@ -1,8 +1,7 @@
 use std::path::Path;
 
 use snapbox::cmd::Command;
-use snapbox::file;
-use snapbox_macros::cargo_bin;
+use snapbox::{cargo_bin, file};
 
 const TEST_FILE: &str = "test-data/markdown/basic.input.md";
 
