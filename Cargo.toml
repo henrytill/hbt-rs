@@ -8,7 +8,7 @@ edition = "2024"
 license = "ISC"
 
 [workspace.dependencies]
-clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
+clap = { version = "4.5.51", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
 schemars = { version = "1.0.4", features = ["chrono04", "url2", "semver1"] }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = { version = "1.0.128" }
