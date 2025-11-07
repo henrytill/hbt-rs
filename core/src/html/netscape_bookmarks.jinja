@@ -7,7 +7,14 @@
 {%- set title = entity.names | first | default(entity.uri) %}
 {%- set tags_str = entity.labels | join(",") if entity.labels else none %}
 {%- set last_modified = entity.updatedAt | first if entity.updatedAt else none %}
-    <DT><A HREF="{{ entity.uri }}" ADD_DATE="{{ entity.createdAt }}"{% if last_modified %} LAST_MODIFIED="{{ last_modified }}"{% endif %}{% if tags_str %} TAGS="{{ tags_str }}"{% endif %}{% if not entity.shared %} PRIVATE="1"{% endif %}{% if entity.toRead %} TOREAD="1"{% endif %}{% if entity.isFeed %} FEED="true"{% endif %}{% if entity.lastVisitedAt %} LAST_VISIT="{{ entity.lastVisitedAt }}"{% endif %}>{{ title }}</A>
+    <DT><A HREF="{{ entity.uri }}" ADD_DATE="{{ entity.createdAt }}"
+        {%- if last_modified %} LAST_MODIFIED="{{ last_modified }}"{% endif -%}
+        {%- if tags_str %} TAGS="{{ tags_str }}"{% endif -%}
+        {%- if not entity.shared %} PRIVATE="1"{% endif -%}
+        {%- if entity.toRead %} TOREAD="1"{% endif -%}
+        {%- if entity.isFeed %} FEED="true"{% endif -%}
+        {%- if entity.lastVisitedAt %} LAST_VISIT="{{ entity.lastVisitedAt }}"{% endif -%}
+    >{{ title }}</A>
 {%- if entity.extended %}
     <DD>{{ entity.extended }}
 {%- endif %}
