@@ -12,7 +12,7 @@ use schemars::schema_for;
 
 use hbt_core::collection::{Collection, CollectionRepr};
 use hbt_core::entity::Label;
-use hbt_core::format::{Format, INPUT, OUTPUT};
+use hbt_core::format::{InputFormat, OutputFormat};
 
 use hbt::version;
 
@@ -21,11 +21,11 @@ use hbt::version;
 struct Args {
     /// Input format
     #[arg(short = 'f', long = "from", value_enum)]
-    from: Option<Format<INPUT>>,
+    from: Option<InputFormat>,
 
     /// Output format
     #[arg(short = 't', long = "to", value_enum)]
-    to: Option<Format<OUTPUT>>,
+    to: Option<OutputFormat>,
 
     /// Output file (defaults to stdout)
     #[arg(short = 'o', long = "output")]
@@ -115,7 +115,7 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
 
     let format = match args.to {
         Some(format) => Some(format),
-        None => args.output.as_ref().and_then(Format::<OUTPUT>::detect),
+        None => args.output.as_ref().and_then(OutputFormat::detect),
     };
 
     if let Some(format) = format {
@@ -166,7 +166,7 @@ fn main() -> Result<ExitCode, Error> {
         Some(format) => format,
         None => {
             let no_parser = || Error::msg(format!("No parser for file: {}", file.display()));
-            Format::<INPUT>::detect(file).ok_or_else(no_parser)?
+            InputFormat::detect(file).ok_or_else(no_parser)?
         }
     };
 

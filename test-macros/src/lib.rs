@@ -235,10 +235,10 @@ pub fn test_parser(input: TokenStream) -> TokenStream {
         use std::fs::File;
 
         use hbt_core::collection::Collection;
-        use hbt_core::format::{Format, INPUT};
+        use hbt_core::format::InputFormat;
 
         fn test_parser_input(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-            let input_format = Format::<INPUT>::detect(input_path)
+            let input_format = InputFormat::detect(input_path)
                 .ok_or_else(|| format!("Could not detect format for: {}", input_path))?;
 
             let input_file = File::open(input_path)?;
@@ -305,12 +305,12 @@ pub fn test_formatter(input: TokenStream) -> TokenStream {
         use std::fs::{File, read_to_string};
 
         use hbt_core::collection::Collection;
-        use hbt_core::format::{Format, INPUT, OUTPUT};
+        use hbt_core::format::{InputFormat, OutputFormat};
 
         fn test_formatter_output(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
-            let input_format = Format::<INPUT>::detect(input_path)
+            let input_format = InputFormat::detect(input_path)
                 .ok_or_else(|| format!("Could not detect format for: {}", input_path))?;
-            let output_format = Format::<OUTPUT>::detect(expected_path)
+            let output_format = OutputFormat::detect(expected_path)
                 .ok_or_else(|| format!("Could not detect format for: {}", expected_path))?;
 
             let input_file = File::open(input_path)?;
