@@ -84,7 +84,7 @@ impl ValueEnum for InputFormat {
     }
 
     fn to_possible_value(&self) -> Option<PossibleValue> {
-        let s: &'static str = (*self).into();
+        let s: &'static str = self.into();
         Some(PossibleValue::new(s))
     }
 }
@@ -133,7 +133,7 @@ impl ValueEnum for OutputFormat {
     }
 
     fn to_possible_value(&self) -> Option<PossibleValue> {
-        let s: &'static str = (*self).into();
+        let s: &'static str = self.into();
         Some(PossibleValue::new(s))
     }
 }
