@@ -3,11 +3,6 @@ use std::io::BufRead;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-    collection::Collection,
-    entity::{self, Entity},
-};
-
 #[derive(Debug, Error)]
 pub enum Error {
     #[error("XML attribute error: {0}")]
@@ -54,18 +49,6 @@ pub struct Post {
 impl Post {
     pub fn from_json(input: &mut impl BufRead) -> Result<Vec<Post>, Error> {
         serde_json::from_reader(input).map_err(Into::into)
-    }
-}
-
-impl Collection {
-    pub fn from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
-        posts.sort_by(|a, b| a.time.cmp(&b.time));
-        let mut coll = Collection::with_capacity(posts.len());
-        for post in posts {
-            let entity = Entity::try_from(post)?;
-            coll.insert(entity);
-        }
-        Ok(coll)
     }
 }
 

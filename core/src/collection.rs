@@ -8,7 +8,10 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::entity::{Entity, Label, Url};
+use crate::{
+    entity::{self, Entity, Label, Url},
+    pinboard::Post,
+};
 
 #[derive(Debug, Error)]
 pub enum Error {
@@ -199,6 +202,16 @@ impl Collection {
         }
 
         Ok(())
+    }
+
+    pub fn from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
+        posts.sort_by(|a, b| a.time.cmp(&b.time));
+        let mut coll = Collection::with_capacity(posts.len());
+        for post in posts {
+            let entity = Entity::try_from(post)?;
+            coll.insert(entity);
+        }
+        Ok(coll)
     }
 }
 
