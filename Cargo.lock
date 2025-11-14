@@ -267,9 +267,9 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "clap",
+ "hbt-pinboard",
  "minijinja",
  "pulldown-cmark",
- "quick-xml",
  "schemars",
  "scraper",
  "semver",
@@ -279,6 +279,16 @@ dependencies = [
  "strum",
  "thiserror",
  "url",
+]
+
+[[package]]
+name = "hbt-pinboard"
+version = "0.1.0"
+dependencies = [
+ "quick-xml",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

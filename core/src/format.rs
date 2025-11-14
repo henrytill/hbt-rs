@@ -8,11 +8,9 @@ use clap::{ValueEnum, builder::PossibleValue};
 
 use strum::{IntoStaticStr, VariantArray};
 
-use crate::{
-    collection::Collection,
-    entity, html, markdown,
-    pinboard::{self, Post},
-};
+use hbt_pinboard::{self, Post};
+
+use crate::{collection::Collection, entity, html, markdown};
 
 #[derive(Debug, thiserror::Error)]
 pub enum ParseError {
@@ -29,7 +27,7 @@ pub enum ParseError {
     Markdown(#[from] markdown::Error),
 
     #[error(transparent)]
-    Pinboard(#[from] pinboard::Error),
+    Pinboard(#[from] hbt_pinboard::Error),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr, VariantArray)]

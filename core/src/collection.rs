@@ -8,10 +8,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{
-    entity::{self, Entity, Label, Url},
-    pinboard::Post,
-};
+use hbt_pinboard::Post;
+
+use crate::entity::{self, Entity, Label, Url};
 
 #[derive(Debug, Error)]
 pub enum Error {

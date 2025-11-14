@@ -8,7 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::pinboard::Post;
+use hbt_pinboard::Post;
 
 #[derive(Debug, Error)]
 pub enum Error {
