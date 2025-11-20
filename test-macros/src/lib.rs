@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_in_result)]
+
 use proc_macro::TokenStream;
 use std::{
     collections::BTreeMap,

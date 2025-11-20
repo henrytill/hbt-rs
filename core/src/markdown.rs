@@ -20,6 +20,9 @@ pub enum Error {
 
     #[error("date parsing error: {0}, {1}")]
     ParseDate(#[source] chrono::ParseError, String),
+
+    #[error("invalid time construction for date: {0}")]
+    InvalidTime(String),
 }
 
 #[derive(Copy, Clone)]
@@ -49,7 +52,9 @@ const DATE_FORMAT: &str = "%B %-d, %Y";
 fn parse_date(s: &str) -> Result<DateTime<Utc>, Error> {
     let date = NaiveDate::parse_from_str(s, DATE_FORMAT)
         .map_err(|err| Error::ParseDate(err, s.to_string()))?;
-    let datetime = date.and_hms_opt(0, 0, 0).unwrap();
+    let datetime = date
+        .and_hms_opt(0, 0, 0)
+        .ok_or_else(|| Error::InvalidTime(s.to_string()))?;
     Ok(Utc.from_utc_datetime(&datetime))
 }
 

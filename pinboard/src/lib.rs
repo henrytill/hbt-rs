@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_in_result)]
+
 use std::io::BufRead;
 
 use serde::{Deserialize, Serialize};

@@ -1,3 +1,5 @@
+#![deny(clippy::unwrap_in_result)]
+
 use std::{
     collections::BTreeSet,
     fs::{self, File},
