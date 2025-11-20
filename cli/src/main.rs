@@ -15,7 +15,7 @@ use schemars::schema_for;
 
 use hbt_core::collection::{Collection, CollectionRepr};
 use hbt_core::entity::Label;
-use hbt_core::format::{InputFormat, OutputFormat};
+use hbt_core::{InputFormat, OutputFormat};
 
 use hbt::version;
 

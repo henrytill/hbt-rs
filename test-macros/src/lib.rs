@@ -237,8 +237,8 @@ pub fn test_parser(input: TokenStream) -> TokenStream {
         use std::io::BufReader;
         use std::fs::File;
 
+        use hbt_core::InputFormat;
         use hbt_core::collection::Collection;
-        use hbt_core::format::InputFormat;
 
         fn test_parser_input(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
             let input_format = InputFormat::detect(input_path)
@@ -307,8 +307,8 @@ pub fn test_formatter(input: TokenStream) -> TokenStream {
         use std::io::BufReader;
         use std::fs::{File, read_to_string};
 
+        use hbt_core::{InputFormat, OutputFormat};
         use hbt_core::collection::Collection;
-        use hbt_core::format::{InputFormat, OutputFormat};
 
         fn test_formatter_output(input_path: &str, expected_path: &str) -> Result<(), Box<dyn std::error::Error>> {
             let input_format = InputFormat::detect(input_path)
