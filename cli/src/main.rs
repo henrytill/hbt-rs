@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 #![deny(clippy::unwrap_in_result)]
 
 use std::{
@@ -83,9 +84,8 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         let file_name = args
             .file
             .as_ref()
-            .map(|f| f.to_string_lossy())
-            .unwrap_or("input".into());
-        let output = format!("{}: {} entities\n", file_name, length);
+            .map_or("input".into(), |f| f.to_string_lossy());
+        let output = format!("{file_name}: {length} entities\n");
         let stdout = io::stdout();
         let mut writer = BufWriter::new(stdout);
         writer.write_all(output.as_bytes())?;
@@ -96,7 +96,7 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
     if args.list_tags {
         let mut all_tags = BTreeSet::new();
         for entity in coll.entities() {
-            all_tags.extend(entity.labels())
+            all_tags.extend(entity.labels());
         }
         let tags_output = all_tags
             .into_iter()
@@ -106,7 +106,7 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         let output = if tags_output.is_empty() {
             String::new()
         } else {
-            format!("{}\n", tags_output)
+            format!("{tags_output}\n")
         };
         let stdout = io::stdout();
         let mut writer = BufWriter::new(stdout);
@@ -125,13 +125,13 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
             let file = File::create(output_file)?;
             let mut writer = BufWriter::new(file);
             format.unparse(&mut writer, coll)?;
-            writer.flush()?
+            writer.flush()?;
         } else {
             let stdout = io::stdout();
             let mut writer = BufWriter::new(stdout);
             format.unparse(&mut writer, coll)?;
-            writer.flush()?
-        };
+            writer.flush()?;
+        }
         return Ok(());
     }
 
@@ -164,12 +164,11 @@ fn main() -> Result<ExitCode, Error> {
         .as_ref()
         .ok_or_else(|| Error::msg("Input file required"))?;
 
-    let input_format = match args.from {
-        Some(format) => format,
-        None => {
-            let no_parser = || Error::msg(format!("No parser for file: {}", file.display()));
-            InputFormat::detect(file).ok_or_else(no_parser)?
-        }
+    let input_format = if let Some(format) = args.from {
+        format
+    } else {
+        let no_parser = || Error::msg(format!("No parser for file: {}", file.display()));
+        InputFormat::detect(file).ok_or_else(no_parser)?
     };
 
     let f = File::open(file)?;

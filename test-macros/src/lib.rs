@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 #![deny(clippy::unwrap_in_result)]
 
 use proc_macro::TokenStream;
@@ -102,14 +103,14 @@ fn discover_parser_tests(base_path: &Path, input_ext: &str) -> Result<Vec<TestCa
         match parts.as_slice() {
             [stem, "input", ext] if *ext == input_ext => {
                 let builder = builders
-                    .entry(stem.to_string())
-                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                    .entry((*stem).to_string())
+                    .or_insert_with(|| TestCaseBuilder::new((*stem).to_string()));
                 builder.set_input(path.to_path_buf());
             }
             [stem, "expected", "yaml"] => {
                 let builder = builders
-                    .entry(stem.to_string())
-                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                    .entry((*stem).to_string())
+                    .or_insert_with(|| TestCaseBuilder::new((*stem).to_string()));
                 builder.set_expected(path.to_path_buf());
             }
             _ => {}
@@ -155,14 +156,14 @@ fn discover_formatter_tests(base_path: &Path, output_ext: &str) -> Result<Vec<Te
         match parts.as_slice() {
             [stem, "input", _] => {
                 let builder = builders
-                    .entry(stem.to_string())
-                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                    .entry((*stem).to_string())
+                    .or_insert_with(|| TestCaseBuilder::new((*stem).to_string()));
                 builder.set_input(path.to_path_buf());
             }
             [stem, "expected", ext] if *ext == output_ext => {
                 let builder = builders
-                    .entry(stem.to_string())
-                    .or_insert_with(|| TestCaseBuilder::new(stem.to_string()));
+                    .entry((*stem).to_string())
+                    .or_insert_with(|| TestCaseBuilder::new((*stem).to_string()));
                 builder.set_expected(path.to_path_buf());
             }
             _ => {}
@@ -184,7 +185,7 @@ fn resolve_path(rel_path: &str) -> Result<PathBuf, String> {
 
     let base_path = Path::new(&manifest_dir)
         .parent()
-        .ok_or_else(|| format!("Could not get parent directory of {}", manifest_dir))?;
+        .ok_or_else(|| format!("Could not get parent directory of {manifest_dir}"))?;
 
     let full_path = base_path.join(rel_path);
 

@@ -100,6 +100,7 @@ impl IndexMut<Id> for Vec<Edges> {
 }
 
 impl Collection {
+    #[must_use]
     pub fn new() -> Collection {
         let nodes = Vec::new();
         let edges = Vec::new();
@@ -107,6 +108,7 @@ impl Collection {
         Collection { nodes, edges, urls }
     }
 
+    #[must_use]
     pub fn with_capacity(capacity: usize) -> Collection {
         let nodes = Vec::with_capacity(capacity);
         let edges = Vec::with_capacity(capacity);
@@ -114,22 +116,36 @@ impl Collection {
         Collection { nodes, edges, urls }
     }
 
+    /// Returns the number of entities in the collection.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal invariant is violated (nodes and edges length mismatch).
+    #[must_use]
     pub fn len(&self) -> usize {
         let len = self.nodes.len();
         assert_eq!(len, self.edges.len());
         len
     }
 
+    /// Returns `true` if the collection contains no entities.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal invariant is violated (nodes and edges emptiness mismatch).
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         let is_empty = self.nodes.is_empty();
         assert_eq!(is_empty, self.edges.is_empty());
         is_empty
     }
 
+    #[must_use]
     pub fn contains(&self, url: &Url) -> bool {
         self.urls.contains_key(url)
     }
 
+    #[must_use]
     pub fn id(&self, url: &Url) -> Option<Id> {
         self.urls.get(url).copied()
     }
@@ -162,9 +178,10 @@ impl Collection {
 
     pub fn add_edges(&mut self, from: Id, to: Id) {
         self.add_edge(from, to);
-        self.add_edge(to, from)
+        self.add_edge(to, from);
     }
 
+    #[must_use]
     pub fn entity(&self, id: Id) -> &Entity {
         &self.nodes[id]
     }
@@ -173,14 +190,23 @@ impl Collection {
         &mut self.nodes[id]
     }
 
+    #[must_use]
     pub fn edges(&self, id: Id) -> &[Id] {
         &self.edges[id]
     }
 
+    #[must_use]
     pub fn entities(&self) -> &[Entity] {
         &self.nodes
     }
 
+    /// Updates entity labels according to the provided mappings.
+    ///
+    /// Replaces labels matching the mapping keys with their corresponding values.
+    ///
+    /// # Errors
+    ///
+    /// Currently returns `Ok(())` in all cases. The `Result` type is used for future extensibility.
     pub fn update_labels(
         &mut self,
         mappings: impl IntoIterator<Item = (String, String)>,
@@ -190,7 +216,7 @@ impl Collection {
             .map(|(k, v)| (Label::from(k), Label::from(v)))
             .collect();
 
-        for node in self.nodes.iter_mut() {
+        for node in &mut self.nodes {
             let labels = node.labels_mut();
             let to_add: BTreeSet<Label> = labels
                 .iter()
@@ -203,6 +229,13 @@ impl Collection {
         Ok(())
     }
 
+    /// Creates a collection from a vector of Pinboard posts.
+    ///
+    /// Posts are sorted by time before being converted to entities.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if any post cannot be converted to a valid `Entity` (e.g., invalid URL or timestamp).
     pub fn from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
         posts.sort_by(|a, b| a.time.cmp(&b.time));
         let mut coll = Collection::with_capacity(posts.len());

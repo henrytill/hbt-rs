@@ -33,6 +33,11 @@ pub enum Error {
 pub struct Url(url::Url);
 
 impl Url {
+    /// Parses a string into a URL.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the string is not a valid URL according to the URL specification.
     pub fn parse(s: &str) -> Result<Url, Error> {
         url::Url::parse(s)
             .map(Url)
@@ -50,10 +55,12 @@ impl Hash for Url {
 pub struct Name(String);
 
 impl Name {
+    #[must_use]
     pub const fn new(name: String) -> Name {
         Name(name)
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -82,10 +89,12 @@ impl From<&str> for Name {
 pub struct Label(String);
 
 impl Label {
+    #[must_use]
     pub const fn new(label: String) -> Label {
         Label(label)
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -125,10 +134,16 @@ pub struct Time(
 );
 
 impl Time {
+    #[must_use]
     pub const fn new(time: DateTime<Utc>) -> Time {
         Time(time)
     }
 
+    /// Parses a Unix timestamp string into a `Time`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the string is not a valid integer or the timestamp is out of range.
     pub fn parse_timestamp(time: &str) -> Result<Time, Error> {
         let timestamp: i64 = time.parse()?;
         let time = DateTime::from_timestamp(timestamp, 0)
@@ -143,6 +158,13 @@ impl Time {
         Ok(Time(time))
     }
 
+    /// Parses a time string that could be either a Unix timestamp or ISO 8601 format.
+    ///
+    /// Tries Unix timestamp first, falls back to ISO 8601 if that fails.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the string cannot be parsed as either a Unix timestamp or ISO 8601 date.
     pub fn parse_flexible(time: &str) -> Result<Time, Error> {
         match Time::parse_timestamp(time.trim()) {
             Ok(time) => return Ok(time),
@@ -169,10 +191,12 @@ impl Default for Time {
 pub struct Extended(String);
 
 impl Extended {
+    #[must_use]
     pub const fn new(extended: String) -> Extended {
         Extended(extended)
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
@@ -216,6 +240,7 @@ pub struct Entity {
 }
 
 impl Entity {
+    #[must_use]
     pub fn new(
         url: Url,
         created_at: Time,
@@ -259,10 +284,12 @@ impl Entity {
         self.update(other.created_at, other.names, other.labels)
     }
 
+    #[must_use]
     pub fn url(&self) -> &Url {
         &self.url
     }
 
+    #[must_use]
     pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
     }
@@ -308,6 +335,12 @@ pub mod html {
     const KEY_FEED: &str = "feed";
 
     impl Entity {
+        /// Creates an entity from HTML bookmark attributes.
+        ///
+        /// # Errors
+        ///
+        /// Returns an error if required attributes are missing (e.g., `href`) or if values cannot be parsed
+        /// (e.g., invalid URL, invalid timestamp).
         pub fn from_attrs(
             attrs: HashMap<String, String>,
             names: BTreeSet<Name>,
@@ -332,7 +365,7 @@ pub mod html {
 
             let mut tags = String::new();
 
-            for (key, value) in attrs.into_iter() {
+            for (key, value) in attrs {
                 let trimmed = value.trim();
                 match key.to_lowercase().as_str() {
                     KEY_ADD_DATE if !trimmed.is_empty() => {

@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 #![deny(clippy::unwrap_in_result)]
 
 use std::io::BufRead;
@@ -49,6 +50,11 @@ pub struct Post {
 }
 
 impl Post {
+    /// Parse Pinboard posts from JSON format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the JSON is malformed or cannot be deserialized into `Post` structures.
     pub fn from_json(input: &mut impl BufRead) -> Result<Vec<Post>, Error> {
         serde_json::from_reader(input).map_err(Into::into)
     }
@@ -167,6 +173,11 @@ pub mod xml {
             Ok(ret)
         }
 
+        /// Parse Pinboard posts from XML format.
+        ///
+        /// # Errors
+        ///
+        /// Returns an error if the XML is malformed, contains invalid UTF-8, or has missing required attributes.
         pub fn from_xml(reader: &mut impl BufRead) -> Result<Vec<Post>, Error> {
             let mut ret = Vec::new();
             let mut reader = Reader::from_reader(reader);

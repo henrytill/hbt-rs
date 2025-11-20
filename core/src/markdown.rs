@@ -117,6 +117,14 @@ impl<'a> ParserState<'a> {
 }
 
 impl Collection {
+    /// Parses a markdown document into a collection of entities.
+    ///
+    /// The markdown format expects H1 headings with dates, links with optional labels from H2+ headings,
+    /// and supports nested list structures for parent-child relationships.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the markdown contains invalid dates, malformed URLs, or missing required information.
     pub fn from_markdown(input: &str) -> Result<Collection, Error> {
         let parser = Parser::new(input);
 
@@ -201,7 +209,7 @@ impl Collection {
                         ..
                     }) = &state.current_tag
                     {
-                        state.name_parts.push(format!("`{}`", text));
+                        state.name_parts.push(format!("`{text}`"));
                     }
                 }
                 // End

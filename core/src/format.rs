@@ -51,6 +51,11 @@ impl InputFormat {
         }
     }
 
+    /// Parses input in the specified format into a collection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the input is malformed or cannot be parsed according to the format specification.
     pub fn parse(&self, reader: &mut impl BufRead) -> Result<Collection, ParseError> {
         match self {
             InputFormat::Json => {
@@ -115,6 +120,11 @@ impl OutputFormat {
         }
     }
 
+    /// Writes a collection in the specified output format.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if writing to the output fails or if serialization encounters an issue.
     pub fn unparse(&self, writer: &mut impl Write, coll: &Collection) -> Result<(), UnparseError> {
         match self {
             OutputFormat::Html => coll.to_html(writer)?,

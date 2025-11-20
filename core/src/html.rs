@@ -83,6 +83,16 @@ const DD: &str = "dd";
 const DL: &str = "dl";
 
 impl Collection {
+    /// Parses a Netscape bookmark HTML file into a collection.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the HTML is malformed or contains invalid bookmark data (e.g., missing URLs,
+    /// invalid timestamps).
+    ///
+    /// # Panics
+    ///
+    /// Panics if there are pending bookmarks that were not properly closed at the end of parsing.
     pub fn from_html(html: &str) -> Result<Collection, Error> {
         let document = Html::parse_document(html);
         let root = document.root_element();
@@ -151,6 +161,11 @@ impl Collection {
         Ok(coll)
     }
 
+    /// Writes the collection as a Netscape bookmark HTML file.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if template rendering fails or writing to the output fails.
     pub fn to_html(&self, mut writer: impl Write) -> Result<(), Error> {
         const TEMPLATE: &str = include_str!("html/netscape_bookmarks.jinja");
         let mut env = Environment::new();
