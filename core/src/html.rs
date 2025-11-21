@@ -76,11 +76,11 @@ fn extract_attrs(elt: ElementRef) -> Attrs {
     attrs
 }
 
-const A: &str = "a";
-const H3: &str = "h3";
-const DT: &str = "dt";
-const DD: &str = "dd";
-const DL: &str = "dl";
+const TAG_A: &str = "a";
+const TAG_H3: &str = "h3";
+const TAG_DT: &str = "dt";
+const TAG_DD: &str = "dd";
+const TAG_DL: &str = "dl";
 
 impl Collection {
     /// Parses a Netscape bookmark HTML file into a collection.
@@ -102,8 +102,8 @@ impl Collection {
         let mut folders: Vec<String> = Vec::new();
         let mut pending: Option<(Attrs, Option<String>)> = None;
 
-        let a_selector = Selector::parse(A)?;
-        let h3_selector = Selector::parse(H3)?;
+        let a_selector = Selector::parse(TAG_A)?;
+        let h3_selector = Selector::parse(TAG_H3)?;
 
         for child in root.children().rev() {
             if let Some(child_elt) = ElementRef::wrap(child) {
@@ -115,7 +115,7 @@ impl Collection {
             match item {
                 StackItem::Element(elt) => {
                     match elt.value().name() {
-                        DT => {
+                        TAG_DT => {
                             if let Some((attrs, maybe_desc)) = pending.take() {
                                 add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
                             }
@@ -130,13 +130,13 @@ impl Collection {
                                 pending = Some((attrs, maybe_desc));
                             }
                         }
-                        DD => {
+                        TAG_DD => {
                             if let Some((attrs, maybe_desc)) = pending.take() {
                                 let maybe_ext = extract_text(elt);
                                 add(&mut coll, attrs, &folders, maybe_desc, maybe_ext)?;
                             }
                         }
-                        DL => {
+                        TAG_DL => {
                             stack.push(StackItem::PopGroup);
                         }
                         _ => {}
