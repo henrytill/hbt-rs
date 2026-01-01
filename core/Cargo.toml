@@ -15,7 +15,7 @@ hbt-pinboard = { path = "../pinboard" }
 minijinja = "2.11.0"
 pulldown-cmark = { version = "0.13.0", default-features = false, features = ["simd"] }
 schemars.workspace = true
-scraper = { version = "0.24.0", default-features = false }
+scraper = { version = "0.25.0", default-features = false }
 semver = { version = "1.0.25", features = ["serde"] }
 serde.workspace = true
 serde_json.workspace = true
