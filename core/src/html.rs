@@ -49,12 +49,12 @@ fn add(
     attrs: Attrs,
     folders: impl IntoIterator<Item = impl Into<Label>>,
     maybe_name: Option<impl Into<Name>>,
-    maybe_ext: Option<impl Into<Extended>>,
+    ext: Vec<impl Into<Extended>>,
 ) -> Result<(), Error> {
     let names = maybe_name.into_iter().map(Into::into).collect();
     let labels: BTreeSet<Label> = folders.into_iter().map(Into::into).collect();
-    let maybe_ext = maybe_ext.map(Into::into);
-    let entity = Entity::from_attrs(attrs, names, labels, maybe_ext)?;
+    let ext = ext.into_iter().map(Into::into).collect();
+    let entity = Entity::from_attrs(attrs, names, labels, ext)?;
     coll.upsert(entity);
     Ok(())
 }
@@ -117,7 +117,13 @@ impl Collection {
                     match elt.value().name() {
                         TAG_DT => {
                             if let Some((attrs, maybe_desc)) = pending.take() {
-                                add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
+                                add(
+                                    &mut coll,
+                                    attrs,
+                                    &folders,
+                                    maybe_desc,
+                                    Vec::<Extended>::new(),
+                                )?;
                             }
 
                             if let Some(h3_elt) = elt.select(&h3_selector).next() {
@@ -132,7 +138,7 @@ impl Collection {
                         }
                         TAG_DD => {
                             if let Some((attrs, maybe_desc)) = pending.take() {
-                                let maybe_ext = extract_text(elt);
+                                let maybe_ext = extract_text(elt).into_iter().collect();
                                 add(&mut coll, attrs, &folders, maybe_desc, maybe_ext)?;
                             }
                         }
@@ -149,7 +155,13 @@ impl Collection {
                 }
                 StackItem::PopGroup => {
                     if let Some((attrs, maybe_desc)) = pending.take() {
-                        add(&mut coll, attrs, &folders, maybe_desc, None::<String>)?;
+                        add(
+                            &mut coll,
+                            attrs,
+                            &folders,
+                            maybe_desc,
+                            Vec::<Extended>::new(),
+                        )?;
                     }
                     folders.pop();
                 }

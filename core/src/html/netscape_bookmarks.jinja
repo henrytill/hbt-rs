@@ -16,7 +16,7 @@
         {%- if entity.lastVisitedAt %} LAST_VISIT="{{ entity.lastVisitedAt }}"{% endif -%}
     >{{ title }}</A>
 {%- if entity.extended %}
-    <DD>{{ entity.extended }}
+    <DD>{{ entity.extended | first }}
 {%- endif %}
 {%- endfor %}
 </DL><p>

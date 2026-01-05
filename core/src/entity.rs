@@ -233,8 +233,8 @@ pub struct Entity {
     shared: bool,
     to_read: bool,
     is_feed: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    extended: Option<Extended>,
+    #[serde(default)]
+    extended: Vec<Extended>,
     #[serde(skip_serializing_if = "Option::is_none")]
     last_visited_at: Option<Time>,
 }
@@ -253,9 +253,9 @@ impl Entity {
             updated_at: Vec::new(),
             names: maybe_name.into_iter().collect(),
             labels,
-            extended: None,
             shared: false,
             to_read: false,
+            extended: Vec::new(),
             last_visited_at: None,
             is_feed: false,
         }
@@ -305,6 +305,7 @@ impl TryFrom<Post> for Entity {
     fn try_from(post: Post) -> Result<Self, Self::Error> {
         let url = Url::parse(&post.href)?;
         let created_at = Time::parse_flexible(&post.time)?;
+        let extended: Vec<Extended> = post.extended.map(Extended::new).into_iter().collect();
 
         Ok(Entity {
             url,
@@ -312,9 +313,9 @@ impl TryFrom<Post> for Entity {
             updated_at: Vec::new(),
             names: post.description.into_iter().map(Name::new).collect(),
             labels: post.tags.into_iter().map(Label::new).collect(),
-            extended: post.extended.map(Extended::new),
             shared: post.shared,
             to_read: post.toread,
+            extended,
             last_visited_at: None,
             is_feed: false,
         })
@@ -345,7 +346,7 @@ pub mod html {
             attrs: HashMap<String, String>,
             names: BTreeSet<Name>,
             labels: BTreeSet<Label>,
-            extended: Option<Extended>,
+            extended: Vec<Extended>,
         ) -> Result<Entity, Error> {
             let href = attrs.get(KEY_HREF).ok_or(Error::MissingUrl)?;
             let url = Url::parse(href)?;
