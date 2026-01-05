@@ -230,9 +230,9 @@ pub struct Entity {
     updated_at: Vec<Time>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
-    shared: bool,
-    to_read: bool,
-    is_feed: bool,
+    shared: Option<bool>,
+    to_read: Option<bool>,
+    is_feed: Option<bool>,
     #[serde(default)]
     extended: Vec<Extended>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -253,11 +253,11 @@ impl Entity {
             updated_at: Vec::new(),
             names: maybe_name.into_iter().collect(),
             labels,
-            shared: false,
-            to_read: false,
+            shared: None,
+            to_read: None,
             extended: Vec::new(),
             last_visited_at: None,
-            is_feed: false,
+            is_feed: None,
         }
     }
 
@@ -313,11 +313,11 @@ impl TryFrom<Post> for Entity {
             updated_at: Vec::new(),
             names: post.description.into_iter().map(Name::new).collect(),
             labels: post.tags.into_iter().map(Label::new).collect(),
-            shared: post.shared,
-            to_read: post.toread,
+            shared: Some(post.shared),
+            to_read: Some(post.toread),
             extended,
             last_visited_at: None,
-            is_feed: false,
+            is_feed: Some(false),
         })
     }
 }
@@ -357,9 +357,9 @@ pub mod html {
                 updated_at: Vec::new(),
                 names,
                 labels,
-                shared: true,
-                to_read: false,
-                is_feed: false,
+                shared: None,
+                to_read: None,
+                is_feed: None,
                 extended,
                 last_visited_at: None,
             };
@@ -384,13 +384,13 @@ pub mod html {
                         tags = value;
                     }
                     KEY_PRIVATE => {
-                        entity.shared = trimmed != "1";
+                        entity.shared = Some(trimmed != "1");
                     }
                     KEY_TOREAD => {
-                        entity.to_read = trimmed == "1";
+                        entity.to_read = Some(trimmed == "1");
                     }
                     KEY_FEED => {
-                        entity.is_feed = trimmed == "true";
+                        entity.is_feed = Some(trimmed == "true");
                     }
                     _ => {}
                 }
@@ -402,7 +402,7 @@ pub mod html {
                     continue;
                 }
                 if s == "toread" {
-                    entity.to_read = true;
+                    entity.to_read = Some(true);
                     continue;
                 }
                 entity.labels.insert(Label::from(s));
