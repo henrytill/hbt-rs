@@ -10,9 +10,9 @@
     <DT><A HREF="{{ entity.uri }}" ADD_DATE="{{ entity.createdAt }}"
         {%- if last_modified %} LAST_MODIFIED="{{ last_modified }}"{% endif -%}
         {%- if tags_str %} TAGS="{{ tags_str }}"{% endif -%}
-        {%- if entity.shared is not none %}{% if entity.shared %} PRIVATE="0"{% else %} PRIVATE="1"{% endif %}{% endif -%}
-        {%- if entity.toRead is not none %}{% if entity.toRead %} TOREAD="1"{% else %} TOREAD="0"{% endif %}{% endif -%}
-        {%- if entity.isFeed %} FEED="true"{% endif -%}
+        {%- if entity.shared is not none %} PRIVATE="{{ "0" if entity.shared else "1" }}"{% endif -%}
+        {%- if entity.toRead is not none %} TOREAD="{{ "1" if entity.toRead else "0" }}"{% endif -%}
+        {%- if entity.isFeed is not none %} FEED="{{ "true" if entity.isFeed else "false" }}"{% endif -%}
         {%- if entity.lastVisitedAt %} LAST_VISIT="{{ entity.lastVisitedAt }}"{% endif -%}
     >{{ title }}</A>
 {%- if entity.extended %}
