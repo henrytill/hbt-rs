@@ -1,3 +1,5 @@
 #![forbid(unsafe_code)]
+#![warn(clippy::pedantic)]
+#![deny(clippy::unwrap_in_result)]
 
 pub mod version;
