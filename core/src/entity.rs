@@ -187,6 +187,56 @@ impl Default for Time {
     }
 }
 
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct CreatedAt(Time);
+
+impl CreatedAt {
+    #[must_use]
+    pub fn new(time: Time) -> CreatedAt {
+        CreatedAt(time)
+    }
+
+    #[must_use]
+    pub fn get(self) -> Time {
+        self.0
+    }
+}
+
+impl From<Time> for CreatedAt {
+    fn from(time: Time) -> CreatedAt {
+        CreatedAt::new(time)
+    }
+}
+
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct UpdatedAt(Time);
+
+impl UpdatedAt {
+    #[must_use]
+    pub fn new(time: Time) -> UpdatedAt {
+        UpdatedAt(time)
+    }
+
+    #[must_use]
+    pub fn get(self) -> Time {
+        self.0
+    }
+}
+
+impl From<Time> for UpdatedAt {
+    fn from(time: Time) -> UpdatedAt {
+        UpdatedAt::new(time)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct Extended(String);
 
@@ -391,8 +441,8 @@ impl From<Time> for LastVisitedAt {
 pub struct Entity {
     #[serde(rename = "uri")]
     url: Url,
-    created_at: Time,
-    updated_at: Vec<Time>,
+    created_at: CreatedAt,
+    updated_at: Vec<UpdatedAt>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
     shared: Shared,
@@ -414,7 +464,7 @@ impl Entity {
     ) -> Entity {
         Entity {
             url,
-            created_at,
+            created_at: CreatedAt::new(created_at),
             updated_at: Vec::new(),
             names: maybe_name.into_iter().collect(),
             labels,
@@ -428,15 +478,15 @@ impl Entity {
 
     fn update(
         &mut self,
-        updated_at: Time,
+        updated_at: CreatedAt,
         names: BTreeSet<Name>,
         labels: BTreeSet<Label>,
     ) -> &mut Entity {
         if updated_at < self.created_at {
-            self.updated_at.push(self.created_at);
+            self.updated_at.push(UpdatedAt::new(self.created_at.get()));
             self.created_at = updated_at;
         } else {
-            self.updated_at.push(updated_at);
+            self.updated_at.push(UpdatedAt::new(updated_at.get()));
         }
         // Sort updated_at to maintain chronological order
         self.updated_at.sort();
@@ -474,7 +524,7 @@ impl TryFrom<Post> for Entity {
 
     fn try_from(post: Post) -> Result<Self, Self::Error> {
         let url = Url::parse(&post.href)?;
-        let created_at = Time::parse_flexible(&post.time)?;
+        let created_at = CreatedAt::new(Time::parse_flexible(&post.time)?);
         let extended: Vec<Extended> = post.extended.map(Extended::new).into_iter().collect();
 
         Ok(Entity {
@@ -494,7 +544,8 @@ impl TryFrom<Post> for Entity {
 
 pub mod html {
     use super::{
-        Entity, Error, Extended, IsFeed, Label, LastVisitedAt, Name, Shared, Time, ToRead, Url,
+        CreatedAt, Entity, Error, Extended, IsFeed, Label, LastVisitedAt, Name, Shared, Time,
+        ToRead, UpdatedAt, Url,
     };
     use std::collections::{BTreeSet, HashMap};
 
@@ -525,7 +576,7 @@ pub mod html {
 
             let mut entity = Entity {
                 url,
-                created_at: Time::default(),
+                created_at: CreatedAt::default(),
                 updated_at: Vec::new(),
                 names,
                 labels,
@@ -542,11 +593,11 @@ pub mod html {
                 let trimmed = value.trim();
                 match key.to_lowercase().as_str() {
                     KEY_ADD_DATE if !trimmed.is_empty() => {
-                        entity.created_at = Time::parse_timestamp(trimmed)?;
+                        entity.created_at = CreatedAt::new(Time::parse_timestamp(trimmed)?);
                     }
                     KEY_LAST_MODIFIED if !trimmed.is_empty() => {
                         let time = Time::parse_timestamp(trimmed)?;
-                        entity.updated_at.push(time);
+                        entity.updated_at.push(UpdatedAt::new(time));
                     }
                     KEY_LAST_VISIT if !trimmed.is_empty() => {
                         let time = Time::parse_timestamp(trimmed)?;
