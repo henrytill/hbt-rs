@@ -221,6 +221,171 @@ impl From<&str> for Extended {
     }
 }
 
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct Flag(Option<bool>);
+
+impl Flag {
+    #[must_use]
+    pub fn new(value: bool) -> Flag {
+        Flag(Some(value))
+    }
+
+    #[must_use]
+    pub fn get(self) -> Option<bool> {
+        self.0
+    }
+
+    /// Concat: None+None=None, Some(x)+None=Some(x), Some(x)+Some(y)=Some(x||y)
+    #[must_use]
+    pub fn concat(self, other: Flag) -> Flag {
+        match (self.0, other.0) {
+            (None, None) => Flag(None),
+            (Some(x), None) | (None, Some(x)) => Flag(Some(x)),
+            (Some(x), Some(y)) => Flag(Some(x || y)),
+        }
+    }
+}
+
+impl From<bool> for Flag {
+    fn from(value: bool) -> Flag {
+        Flag::new(value)
+    }
+}
+
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct Shared(Flag);
+
+impl Shared {
+    #[must_use]
+    pub fn new(value: bool) -> Shared {
+        Shared(Flag::new(value))
+    }
+
+    #[must_use]
+    pub fn get(self) -> Option<bool> {
+        self.0.get()
+    }
+
+    #[must_use]
+    pub fn concat(self, other: Shared) -> Shared {
+        Shared(self.0.concat(other.0))
+    }
+}
+
+impl From<bool> for Shared {
+    fn from(value: bool) -> Shared {
+        Shared::new(value)
+    }
+}
+
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct ToRead(Flag);
+
+impl ToRead {
+    #[must_use]
+    pub fn new(value: bool) -> ToRead {
+        ToRead(Flag::new(value))
+    }
+
+    #[must_use]
+    pub fn get(self) -> Option<bool> {
+        self.0.get()
+    }
+
+    #[must_use]
+    pub fn concat(self, other: ToRead) -> ToRead {
+        ToRead(self.0.concat(other.0))
+    }
+}
+
+impl From<bool> for ToRead {
+    fn from(value: bool) -> ToRead {
+        ToRead::new(value)
+    }
+}
+
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct IsFeed(Flag);
+
+impl IsFeed {
+    #[must_use]
+    pub fn new(value: bool) -> IsFeed {
+        IsFeed(Flag::new(value))
+    }
+
+    #[must_use]
+    pub fn get(self) -> Option<bool> {
+        self.0.get()
+    }
+
+    #[must_use]
+    pub fn concat(self, other: IsFeed) -> IsFeed {
+        IsFeed(self.0.concat(other.0))
+    }
+}
+
+impl From<bool> for IsFeed {
+    fn from(value: bool) -> IsFeed {
+        IsFeed::new(value)
+    }
+}
+
+#[derive(
+    Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
+#[serde(transparent)]
+#[schemars(transparent)]
+pub struct LastVisitedAt(Option<Time>);
+
+impl LastVisitedAt {
+    #[must_use]
+    pub fn new(time: Time) -> LastVisitedAt {
+        LastVisitedAt(Some(time))
+    }
+
+    #[must_use]
+    pub fn get(self) -> Option<Time> {
+        self.0
+    }
+
+    #[must_use]
+    pub fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// Concat: keeps the most recent (max) time
+    #[must_use]
+    pub fn concat(self, other: LastVisitedAt) -> LastVisitedAt {
+        match (self.0, other.0) {
+            (None, None) => LastVisitedAt(None),
+            (Some(t), None) | (None, Some(t)) => LastVisitedAt(Some(t)),
+            (Some(t1), Some(t2)) => LastVisitedAt(Some(std::cmp::max(t1, t2))),
+        }
+    }
+}
+
+impl From<Time> for LastVisitedAt {
+    fn from(time: Time) -> LastVisitedAt {
+        LastVisitedAt::new(time)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Entity {
@@ -230,13 +395,13 @@ pub struct Entity {
     updated_at: Vec<Time>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
-    shared: Option<bool>,
-    to_read: Option<bool>,
-    is_feed: Option<bool>,
+    shared: Shared,
+    to_read: ToRead,
+    is_feed: IsFeed,
     #[serde(default)]
     extended: Vec<Extended>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    last_visited_at: Option<Time>,
+    #[serde(skip_serializing_if = "LastVisitedAt::is_none")]
+    last_visited_at: LastVisitedAt,
 }
 
 impl Entity {
@@ -253,15 +418,15 @@ impl Entity {
             updated_at: Vec::new(),
             names: maybe_name.into_iter().collect(),
             labels,
-            shared: None,
-            to_read: None,
+            shared: Shared::default(),
+            to_read: ToRead::default(),
+            is_feed: IsFeed::default(),
             extended: Vec::new(),
-            last_visited_at: None,
-            is_feed: None,
+            last_visited_at: LastVisitedAt::default(),
         }
     }
 
-    pub fn update(
+    fn update(
         &mut self,
         updated_at: Time,
         names: BTreeSet<Name>,
@@ -281,7 +446,12 @@ impl Entity {
     }
 
     pub fn merge(&mut self, other: Entity) -> &mut Entity {
-        self.update(other.created_at, other.names, other.labels)
+        self.update(other.created_at, other.names, other.labels);
+        self.shared = self.shared.concat(other.shared);
+        self.to_read = self.to_read.concat(other.to_read);
+        self.is_feed = self.is_feed.concat(other.is_feed);
+        self.last_visited_at = self.last_visited_at.concat(other.last_visited_at);
+        self
     }
 
     #[must_use]
@@ -313,17 +483,19 @@ impl TryFrom<Post> for Entity {
             updated_at: Vec::new(),
             names: post.description.into_iter().map(Name::new).collect(),
             labels: post.tags.into_iter().map(Label::new).collect(),
-            shared: Some(post.shared),
-            to_read: Some(post.toread),
+            shared: Shared::new(post.shared),
+            to_read: ToRead::new(post.toread),
+            is_feed: IsFeed::new(false),
             extended,
-            last_visited_at: None,
-            is_feed: Some(false),
+            last_visited_at: LastVisitedAt::default(),
         })
     }
 }
 
 pub mod html {
-    use super::{Entity, Error, Extended, Label, Name, Time, Url};
+    use super::{
+        Entity, Error, Extended, IsFeed, Label, LastVisitedAt, Name, Shared, Time, ToRead, Url,
+    };
     use std::collections::{BTreeSet, HashMap};
 
     const KEY_HREF: &str = "href";
@@ -357,11 +529,11 @@ pub mod html {
                 updated_at: Vec::new(),
                 names,
                 labels,
-                shared: None,
-                to_read: None,
-                is_feed: None,
+                shared: Shared::default(),
+                to_read: ToRead::default(),
+                is_feed: IsFeed::default(),
                 extended,
-                last_visited_at: None,
+                last_visited_at: LastVisitedAt::default(),
             };
 
             let mut tags = String::new();
@@ -378,19 +550,19 @@ pub mod html {
                     }
                     KEY_LAST_VISIT if !trimmed.is_empty() => {
                         let time = Time::parse_timestamp(trimmed)?;
-                        entity.last_visited_at = Some(time);
+                        entity.last_visited_at = LastVisitedAt::new(time);
                     }
                     KEY_TAGS if !trimmed.is_empty() => {
                         tags = value;
                     }
                     KEY_PRIVATE => {
-                        entity.shared = Some(trimmed != "1");
+                        entity.shared = Shared::new(trimmed != "1");
                     }
                     KEY_TOREAD => {
-                        entity.to_read = Some(trimmed == "1");
+                        entity.to_read = ToRead::new(trimmed == "1");
                     }
                     KEY_FEED => {
-                        entity.is_feed = Some(trimmed == "true");
+                        entity.is_feed = IsFeed::new(trimmed == "true");
                     }
                     _ => {}
                 }
@@ -402,7 +574,7 @@ pub mod html {
                     continue;
                 }
                 if s == "toread" {
-                    entity.to_read = Some(true);
+                    entity.to_read = ToRead::new(true);
                     continue;
                 }
                 entity.labels.insert(Label::from(s));
