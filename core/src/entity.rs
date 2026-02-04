@@ -280,18 +280,18 @@ pub struct Flag(Option<bool>);
 
 impl Flag {
     #[must_use]
-    pub fn new(value: bool) -> Flag {
+    pub const fn new(value: bool) -> Flag {
         Flag(Some(value))
     }
 
     #[must_use]
-    pub fn get(self) -> Option<bool> {
+    pub const fn get(self) -> Option<bool> {
         self.0
     }
 
     /// Concat: None+None=None, Some(x)+None=Some(x), Some(x)+Some(y)=Some(x||y)
     #[must_use]
-    pub fn concat(self, other: Flag) -> Flag {
+    pub const fn concat(self, other: Flag) -> Flag {
         match (self.0, other.0) {
             (None, None) => Flag(None),
             (Some(x), None) | (None, Some(x)) => Flag(Some(x)),
@@ -315,17 +315,17 @@ pub struct Shared(Flag);
 
 impl Shared {
     #[must_use]
-    pub fn new(value: bool) -> Shared {
+    pub const fn new(value: bool) -> Shared {
         Shared(Flag::new(value))
     }
 
     #[must_use]
-    pub fn get(self) -> Option<bool> {
+    pub const fn get(self) -> Option<bool> {
         self.0.get()
     }
 
     #[must_use]
-    pub fn concat(self, other: Shared) -> Shared {
+    pub const fn concat(self, other: Shared) -> Shared {
         Shared(self.0.concat(other.0))
     }
 }
@@ -345,17 +345,17 @@ pub struct ToRead(Flag);
 
 impl ToRead {
     #[must_use]
-    pub fn new(value: bool) -> ToRead {
+    pub const fn new(value: bool) -> ToRead {
         ToRead(Flag::new(value))
     }
 
     #[must_use]
-    pub fn get(self) -> Option<bool> {
+    pub const fn get(self) -> Option<bool> {
         self.0.get()
     }
 
     #[must_use]
-    pub fn concat(self, other: ToRead) -> ToRead {
+    pub const fn concat(self, other: ToRead) -> ToRead {
         ToRead(self.0.concat(other.0))
     }
 }
@@ -375,17 +375,17 @@ pub struct IsFeed(Flag);
 
 impl IsFeed {
     #[must_use]
-    pub fn new(value: bool) -> IsFeed {
+    pub const fn new(value: bool) -> IsFeed {
         IsFeed(Flag::new(value))
     }
 
     #[must_use]
-    pub fn get(self) -> Option<bool> {
+    pub const fn get(self) -> Option<bool> {
         self.0.get()
     }
 
     #[must_use]
-    pub fn concat(self, other: IsFeed) -> IsFeed {
+    pub const fn concat(self, other: IsFeed) -> IsFeed {
         IsFeed(self.0.concat(other.0))
     }
 }
@@ -405,17 +405,17 @@ pub struct LastVisitedAt(Option<Time>);
 
 impl LastVisitedAt {
     #[must_use]
-    pub fn new(time: Time) -> LastVisitedAt {
+    pub const fn new(time: Time) -> LastVisitedAt {
         LastVisitedAt(Some(time))
     }
 
     #[must_use]
-    pub fn get(self) -> Option<Time> {
+    pub const fn get(self) -> Option<Time> {
         self.0
     }
 
     #[must_use]
-    pub fn is_none(&self) -> bool {
+    pub const fn is_none(&self) -> bool {
         self.0.is_none()
     }
 
