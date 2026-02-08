@@ -203,14 +203,7 @@ impl Collection {
     /// Updates entity labels according to the provided mappings.
     ///
     /// Replaces labels matching the mapping keys with their corresponding values.
-    ///
-    /// # Errors
-    ///
-    /// Currently returns `Ok(())` in all cases. The `Result` type is used for future extensibility.
-    pub fn update_labels(
-        &mut self,
-        mappings: impl IntoIterator<Item = (String, String)>,
-    ) -> Result<(), Error> {
+    pub fn update_labels(&mut self, mappings: impl IntoIterator<Item = (String, String)>) {
         let mapping: BTreeMap<Label, Label> = mappings
             .into_iter()
             .map(|(k, v)| (Label::from(k), Label::from(v)))
@@ -225,8 +218,6 @@ impl Collection {
             labels.retain(|label| !mapping.contains_key(label));
             labels.extend(to_add);
         }
-
-        Ok(())
     }
 
     /// Creates a collection from a vector of Pinboard posts.

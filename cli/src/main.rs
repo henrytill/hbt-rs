@@ -74,7 +74,7 @@ fn update(args: &Args, coll: &mut Collection) -> Result<(), Error> {
         })
         .collect::<Vec<_>>();
 
-    coll.update_labels(mappings)?;
+    coll.update_labels(mappings);
 
     Ok(())
 }
