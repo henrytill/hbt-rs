@@ -254,6 +254,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "hbt-attic"
+version = "0.1.0"
+
+[[package]]
 name = "hbt-core"
 version = "0.1.0"
 dependencies = [
