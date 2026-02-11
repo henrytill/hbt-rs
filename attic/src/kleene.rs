@@ -1,5 +1,8 @@
 //! Kleene's three-valued logic: scalar type and packed bitvector.
 
+// We use unchecked casts to convert u64 (and u32) to usize.
+const _: () = assert!(std::mem::size_of::<usize>() >= std::mem::size_of::<u64>());
+
 /// A single Kleene truth value.
 ///
 /// Uses `#[repr(u8)]` with discriminants encoding `(known_bit << 1) | value_bit`:
@@ -25,24 +28,25 @@ const FROM_BITS: [Kleene; 4] = [
 ];
 
 impl Kleene {
+    #[inline]
     #[must_use]
-    pub fn is_known(self) -> bool {
+    pub const fn is_known(self) -> bool {
         self as u8 & 0b10 != 0
     }
 
+    #[inline]
     #[must_use]
-    pub fn to_bool(self) -> Option<bool> {
+    pub const fn to_bool_unchecked(self) -> bool {
+        self as u8 & 1 != 0
+    }
+
+    #[must_use]
+    pub const fn to_bool(self) -> Option<bool> {
         if self.is_known() {
             Some(self.to_bool_unchecked())
         } else {
             None
         }
-    }
-
-    #[must_use]
-    #[inline]
-    pub fn to_bool_unchecked(self) -> bool {
-        self as u8 & 1 != 0
     }
 }
 
@@ -120,12 +124,12 @@ const BITS_LOG2: u32 = 6;
 const BITS_MASK: usize = 2_usize.pow(BITS_LOG2) - 1;
 
 #[inline]
-fn words_needed(n: usize) -> usize {
+const fn words_needed(n: usize) -> usize {
     (n + BITS_MASK) >> BITS_LOG2
 }
 
 #[inline]
-fn tail_mask(n: usize) -> u64 {
+const fn tail_mask(n: usize) -> u64 {
     let r = n & BITS_MASK;
     if r == 0 { u64::MAX } else { (1u64 << r) - 1 }
 }
@@ -184,6 +188,16 @@ impl KleeneVec {
 
     // Scalar access
 
+    #[must_use]
+    fn get_unchecked(&self, i: usize) -> Kleene {
+        debug_assert!(i < self.width);
+        let w = i >> BITS_LOG2;
+        let b = i & BITS_MASK;
+        let known_bit = ((self.known[w] >> b) & 1) as usize;
+        let value_bit = ((self.value[w] >> b) & 1) as usize;
+        FROM_BITS[known_bit << 1 | value_bit]
+    }
+
     /// # Errors
     ///
     /// Returns `OutOfBounds` if `i >= self.width()`.
@@ -194,28 +208,7 @@ impl KleeneVec {
         Ok(self.get_unchecked(i))
     }
 
-    /// # Errors
-    ///
-    /// Returns `OutOfBounds` if `i >= self.width()`.
-    pub fn set(&mut self, i: usize, v: Kleene) -> Result<(), OutOfBounds> {
-        if i >= self.width {
-            return Err(OutOfBounds);
-        }
-        self.set_unchecked(i, v);
-        Ok(())
-    }
-
-    #[must_use]
-    pub fn get_unchecked(&self, i: usize) -> Kleene {
-        debug_assert!(i < self.width);
-        let w = i >> BITS_LOG2;
-        let b = i & BITS_MASK;
-        let known_bit = ((self.known[w] >> b) & 1) as usize;
-        let value_bit = ((self.value[w] >> b) & 1) as usize;
-        FROM_BITS[known_bit << 1 | value_bit]
-    }
-
-    pub fn set_unchecked(&mut self, i: usize, v: Kleene) {
+    fn set_unchecked(&mut self, i: usize, v: Kleene) {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
@@ -233,6 +226,17 @@ impl KleeneVec {
                 self.value[w] &= !(1u64 << b);
             }
         }
+    }
+
+    /// # Errors
+    ///
+    /// Returns `OutOfBounds` if `i >= self.width()`.
+    pub fn set(&mut self, i: usize, v: Kleene) -> Result<(), OutOfBounds> {
+        if i >= self.width {
+            return Err(OutOfBounds);
+        }
+        self.set_unchecked(i, v);
+        Ok(())
     }
 
     // Bulk operations
