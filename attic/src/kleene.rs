@@ -111,13 +111,13 @@ impl std::error::Error for OutOfBounds {}
 /// - known=1, value=0 → False
 /// - known=1, value=1 → True
 ///
-/// Invariant: `value[i] & !known[i] == 0` for all `i`.
-/// Unused high bits in the last word are always zero.
+/// Uses an interleaved layout: `[known_0, value_0, known_1, value_1, ...]`.
+/// Invariant: `words[value_idx(i)] & !words[known_idx(i)] == 0` for all `i`.
+/// Unused high bits in the last word pair are always zero.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KleeneVec {
     width: usize,
-    known: Vec<u64>,
-    value: Vec<u64>,
+    words: Vec<u64>,
 }
 
 const BITS_LOG2: u32 = 6;
@@ -134,6 +134,16 @@ const fn tail_mask(n: usize) -> u64 {
     if r == 0 { u64::MAX } else { (1u64 << r) - 1 }
 }
 
+#[inline]
+const fn known_idx(w: usize) -> usize {
+    2 * w
+}
+
+#[inline]
+const fn value_idx(w: usize) -> usize {
+    2 * w + 1
+}
+
 impl KleeneVec {
     /// Create a vector of `width` elements, all Unknown.
     #[must_use]
@@ -141,8 +151,7 @@ impl KleeneVec {
         let nw = words_needed(width);
         Self {
             width,
-            known: vec![0; nw],
-            value: vec![0; nw],
+            words: vec![0; 2 * nw],
         }
     }
 
@@ -151,8 +160,7 @@ impl KleeneVec {
         let nw = words_needed(width);
         let mut v = Self {
             width,
-            known: vec![u64::MAX; nw],
-            value: vec![u64::MAX; nw],
+            words: vec![u64::MAX; 2 * nw],
         };
         v.mask_tail();
         v
@@ -161,11 +169,12 @@ impl KleeneVec {
     #[must_use]
     pub fn all_false(width: usize) -> Self {
         let nw = words_needed(width);
-        let mut v = Self {
-            width,
-            known: vec![u64::MAX; nw],
-            value: vec![0; nw],
-        };
+        let mut words = Vec::with_capacity(2 * nw);
+        for _ in 0..nw {
+            words.push(u64::MAX); // known
+            words.push(0); // value
+        }
+        let mut v = Self { width, words };
         v.mask_tail();
         v
     }
@@ -176,13 +185,11 @@ impl KleeneVec {
     }
 
     fn mask_tail(&mut self) {
-        if let Some(last_k) = self.known.last_mut() {
+        let nw = words_needed(self.width);
+        if nw > 0 {
             let m = tail_mask(self.width);
-            *last_k &= m;
-        }
-        if let Some(last_v) = self.value.last_mut() {
-            let m = tail_mask(self.width);
-            *last_v &= m;
+            self.words[known_idx(nw - 1)] &= m;
+            self.words[value_idx(nw - 1)] &= m;
         }
     }
 
@@ -194,8 +201,7 @@ impl KleeneVec {
         }
         self.width = new_width;
         let nw = words_needed(new_width);
-        self.known.truncate(nw);
-        self.value.truncate(nw);
+        self.words.truncate(2 * nw);
         self.mask_tail();
     }
 
@@ -212,14 +218,18 @@ impl KleeneVec {
             Kleene::False => (u64::MAX, 0),
             Kleene::True => (u64::MAX, u64::MAX),
         };
-        // Fill remaining bits in the current last word
+        // Fill remaining bits in the current last word pair
         if old_nw > 0 && old_width & BITS_MASK != 0 {
             let high_mask = !tail_mask(old_width);
-            self.known[old_nw - 1] |= fill_known & high_mask;
-            self.value[old_nw - 1] |= fill_value & high_mask;
+            self.words[known_idx(old_nw - 1)] |= fill_known & high_mask;
+            self.words[value_idx(old_nw - 1)] |= fill_value & high_mask;
         }
-        self.known.resize(new_nw, fill_known);
-        self.value.resize(new_nw, fill_value);
+        // Grow by pushing interleaved pairs
+        self.words.reserve(2 * (new_nw - old_nw));
+        for _ in old_nw..new_nw {
+            self.words.push(fill_known);
+            self.words.push(fill_value);
+        }
         self.width = new_width;
         if fill.is_known() {
             self.mask_tail();
@@ -233,8 +243,8 @@ impl KleeneVec {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
-        let known_bit = ((self.known[w] >> b) & 1) as usize;
-        let value_bit = ((self.value[w] >> b) & 1) as usize;
+        let known_bit = ((self.words[known_idx(w)] >> b) & 1) as usize;
+        let value_bit = ((self.words[value_idx(w)] >> b) & 1) as usize;
         FROM_BITS[known_bit << 1 | value_bit]
     }
 
@@ -254,16 +264,16 @@ impl KleeneVec {
         let b = i & BITS_MASK;
         match v {
             Kleene::True => {
-                self.known[w] |= 1u64 << b;
-                self.value[w] |= 1u64 << b;
+                self.words[known_idx(w)] |= 1u64 << b;
+                self.words[value_idx(w)] |= 1u64 << b;
             }
             Kleene::False => {
-                self.known[w] |= 1u64 << b;
-                self.value[w] &= !(1u64 << b);
+                self.words[known_idx(w)] |= 1u64 << b;
+                self.words[value_idx(w)] &= !(1u64 << b);
             }
             Kleene::Unknown => {
-                self.known[w] &= !(1u64 << b);
-                self.value[w] &= !(1u64 << b);
+                self.words[known_idx(w)] &= !(1u64 << b);
+                self.words[value_idx(w)] &= !(1u64 << b);
             }
         }
     }
@@ -271,8 +281,13 @@ impl KleeneVec {
     pub fn set(&mut self, i: usize, v: Kleene) {
         if i >= self.width {
             let new_width = i + 1;
-            self.known.resize(words_needed(new_width), 0u64);
-            self.value.resize(words_needed(new_width), 0u64);
+            let new_nw = words_needed(new_width);
+            let old_nw = words_needed(self.width);
+            self.words.reserve(2 * (new_nw - old_nw));
+            for _ in old_nw..new_nw {
+                self.words.push(0);
+                self.words.push(0);
+            }
             self.width = new_width;
         }
         self.set_unchecked(i, v);
@@ -286,65 +301,63 @@ impl KleeneVec {
 
     #[must_use]
     pub fn not(&self) -> Self {
-        let known = self.known.clone();
-        let value = self
-            .known
-            .iter()
-            .zip(&self.value)
-            .map(|(&k, &v)| k & !v)
-            .collect();
+        let nw = words_needed(self.width);
+        let mut words = Vec::with_capacity(2 * nw);
+        for w in 0..nw {
+            let k = self.words[known_idx(w)];
+            let v = self.words[value_idx(w)];
+            words.push(k);
+            words.push(k & !v);
+        }
         Self {
             width: self.width,
-            known,
-            value,
+            words,
         }
     }
 
     #[must_use]
     pub fn and(&self, other: &Self) -> Self {
         self.check_width(other);
-        let mut known = Vec::with_capacity(self.known.len());
-        let mut value = Vec::with_capacity(self.known.len());
-        for i in 0..self.known.len() {
-            let (ak, av) = (self.known[i], self.value[i]);
-            let (bk, bv) = (other.known[i], other.value[i]);
+        let nw = words_needed(self.width);
+        let mut words = Vec::with_capacity(2 * nw);
+        for i in 0..nw {
+            let (ak, av) = (self.words[known_idx(i)], self.words[value_idx(i)]);
+            let (bk, bv) = (other.words[known_idx(i)], other.words[value_idx(i)]);
             let false_a = ak & !av;
             let false_b = bk & !bv;
             let true_a = ak & av;
             let true_b = bk & bv;
             let result_true = true_a & true_b;
             let result_false = false_a | false_b;
-            known.push(result_true | result_false);
-            value.push(result_true);
+            words.push(result_true | result_false);
+            words.push(result_true);
         }
         Self {
             width: self.width,
-            known,
-            value,
+            words,
         }
     }
 
     #[must_use]
     pub fn or(&self, other: &Self) -> Self {
         self.check_width(other);
-        let mut known = Vec::with_capacity(self.known.len());
-        let mut value = Vec::with_capacity(self.known.len());
-        for i in 0..self.known.len() {
-            let (ak, av) = (self.known[i], self.value[i]);
-            let (bk, bv) = (other.known[i], other.value[i]);
+        let nw = words_needed(self.width);
+        let mut words = Vec::with_capacity(2 * nw);
+        for i in 0..nw {
+            let (ak, av) = (self.words[known_idx(i)], self.words[value_idx(i)]);
+            let (bk, bv) = (other.words[known_idx(i)], other.words[value_idx(i)]);
             let true_a = ak & av;
             let true_b = bk & bv;
             let false_a = ak & !av;
             let false_b = bk & !bv;
             let result_true = true_a | true_b;
             let result_false = false_a & false_b;
-            known.push(result_true | result_false);
-            value.push(result_true);
+            words.push(result_true | result_false);
+            words.push(result_true);
         }
         Self {
             width: self.width,
-            known,
-            value,
+            words,
         }
     }
 
@@ -357,43 +370,51 @@ impl KleeneVec {
 
     #[must_use]
     pub fn is_all_known(&self) -> bool {
-        let nw = self.known.len();
+        let nw = words_needed(self.width);
         if nw == 0 {
             return true;
         }
         let m = tail_mask(self.width);
-        self.known[..nw - 1].iter().all(|&w| w == u64::MAX) && self.known[nw - 1] == m
+        (0..nw - 1).all(|w| self.words[known_idx(w)] == u64::MAX)
+            && self.words[known_idx(nw - 1)] == m
     }
 
     #[must_use]
     pub fn is_all_true(&self) -> bool {
-        let nw = self.known.len();
+        let nw = words_needed(self.width);
         if nw == 0 {
             return true;
         }
         let m = tail_mask(self.width);
-        self.known[..nw - 1].iter().all(|&w| w == u64::MAX)
-            && self.known[nw - 1] == m
-            && self.value[..nw - 1].iter().all(|&w| w == u64::MAX)
-            && self.value[nw - 1] == m
+        (0..nw - 1).all(|w| self.words[known_idx(w)] == u64::MAX)
+            && self.words[known_idx(nw - 1)] == m
+            && (0..nw - 1).all(|w| self.words[value_idx(w)] == u64::MAX)
+            && self.words[value_idx(nw - 1)] == m
     }
 
     #[must_use]
     pub fn is_all_false(&self) -> bool {
-        self.is_all_known() && self.value.iter().all(|&w| w == 0)
+        let nw = words_needed(self.width);
+        self.is_all_known() && (0..nw).all(|w| self.words[value_idx(w)] == 0)
     }
 
     #[must_use]
     pub fn count_true(&self) -> usize {
-        self.value.iter().map(|w| w.count_ones() as usize).sum()
+        let nw = words_needed(self.width);
+        (0..nw)
+            .map(|w| self.words[value_idx(w)].count_ones() as usize)
+            .sum()
     }
 
     #[must_use]
     pub fn count_false(&self) -> usize {
-        self.known
-            .iter()
-            .zip(&self.value)
-            .map(|(&k, &v)| (k & !v).count_ones() as usize)
+        let nw = words_needed(self.width);
+        (0..nw)
+            .map(|w| {
+                let k = self.words[known_idx(w)];
+                let v = self.words[value_idx(w)];
+                (k & !v).count_ones() as usize
+            })
             .sum()
     }
 
