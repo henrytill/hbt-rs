@@ -186,6 +186,46 @@ impl KleeneVec {
         }
     }
 
+    // Bulk resize
+
+    pub fn truncate(&mut self, new_width: usize) {
+        if new_width >= self.width {
+            return;
+        }
+        self.width = new_width;
+        let nw = words_needed(new_width);
+        self.known.truncate(nw);
+        self.value.truncate(nw);
+        self.mask_tail();
+    }
+
+    pub fn resize(&mut self, new_width: usize, fill: Kleene) {
+        if new_width <= self.width {
+            self.truncate(new_width);
+            return;
+        }
+        let old_width = self.width;
+        let old_nw = words_needed(old_width);
+        let new_nw = words_needed(new_width);
+        let (fill_known, fill_value): (u64, u64) = match fill {
+            Kleene::Unknown => (0, 0),
+            Kleene::False => (u64::MAX, 0),
+            Kleene::True => (u64::MAX, u64::MAX),
+        };
+        // Fill remaining bits in the current last word
+        if old_nw > 0 && old_width & BITS_MASK != 0 {
+            let high_mask = !tail_mask(old_width);
+            self.known[old_nw - 1] |= fill_known & high_mask;
+            self.value[old_nw - 1] |= fill_value & high_mask;
+        }
+        self.known.resize(new_nw, fill_known);
+        self.value.resize(new_nw, fill_value);
+        self.width = new_width;
+        if fill.is_known() {
+            self.mask_tail();
+        }
+    }
+
     // Scalar access
 
     #[must_use]
@@ -228,15 +268,14 @@ impl KleeneVec {
         }
     }
 
-    /// # Errors
-    ///
-    /// Returns `OutOfBounds` if `i >= self.width()`.
-    pub fn set(&mut self, i: usize, v: Kleene) -> Result<(), OutOfBounds> {
+    pub fn set(&mut self, i: usize, v: Kleene) {
         if i >= self.width {
-            return Err(OutOfBounds);
+            let new_width = i + 1;
+            self.known.resize(words_needed(new_width), 0u64);
+            self.value.resize(words_needed(new_width), 0u64);
+            self.width = new_width;
         }
         self.set_unchecked(i, v);
-        Ok(())
     }
 
     // Bulk operations
@@ -447,9 +486,9 @@ mod tests {
     fn vec_get_set() {
         let mut v = KleeneVec::new(100);
         assert_eq!(v.get(0).unwrap(), Kleene::Unknown);
-        v.set(0, Kleene::True).unwrap();
-        v.set(1, Kleene::False).unwrap();
-        v.set(99, Kleene::True).unwrap();
+        v.set(0, Kleene::True);
+        v.set(1, Kleene::False);
+        v.set(99, Kleene::True);
         assert_eq!(v.get(0).unwrap(), Kleene::True);
         assert_eq!(v.get(1).unwrap(), Kleene::False);
         assert_eq!(v.get(2).unwrap(), Kleene::Unknown);
@@ -496,9 +535,9 @@ mod tests {
     #[test]
     fn counts() {
         let mut v = KleeneVec::new(10);
-        v.set(0, Kleene::True).unwrap();
-        v.set(1, Kleene::True).unwrap();
-        v.set(2, Kleene::False).unwrap();
+        v.set(0, Kleene::True);
+        v.set(1, Kleene::True);
+        v.set(2, Kleene::False);
         assert_eq!(v.count_true(), 2);
         assert_eq!(v.count_false(), 1);
         assert_eq!(v.count_unknown(), 7);
@@ -512,9 +551,93 @@ mod tests {
     }
 
     #[test]
-    fn set_out_of_bounds() {
+    fn set_auto_grows() {
         let mut v = KleeneVec::new(10);
-        assert_eq!(v.set(10, Kleene::True), Err(OutOfBounds));
-        assert_eq!(v.set(100, Kleene::True), Err(OutOfBounds));
+        v.set(100, Kleene::True);
+        assert_eq!(v.width(), 101);
+        assert_eq!(v.get(100), Ok(Kleene::True));
+        assert_eq!(v.get(50), Ok(Kleene::Unknown));
+        assert_eq!(v.get(200), Err(OutOfBounds));
+    }
+
+    #[test]
+    fn truncate() {
+        // no-op when new_width >= width
+        let mut v = KleeneVec::all_true(100);
+        v.truncate(100);
+        assert_eq!(v.width(), 100);
+        assert!(v.is_all_true());
+        v.truncate(200);
+        assert_eq!(v.width(), 100);
+        assert!(v.is_all_true());
+
+        // truncate to zero
+        let mut v = KleeneVec::all_true(100);
+        v.truncate(0);
+        assert_eq!(v.width(), 0);
+        assert_eq!(v.count_true(), 0);
+
+        // partial word (within a single word)
+        let mut v = KleeneVec::all_true(64);
+        v.truncate(30);
+        assert_eq!(v.width(), 30);
+        assert!(v.is_all_true());
+        assert_eq!(v.count_true(), 30);
+
+        // across word boundary
+        let mut v = KleeneVec::all_true(200);
+        v.truncate(65);
+        assert_eq!(v.width(), 65);
+        assert!(v.is_all_true());
+        assert_eq!(v.count_true(), 65);
+    }
+
+    #[test]
+    fn resize() {
+        // grow with Unknown fill
+        let mut v = KleeneVec::all_true(10);
+        v.resize(100, Kleene::Unknown);
+        assert_eq!(v.width(), 100);
+        assert_eq!(v.count_true(), 10);
+        assert_eq!(v.count_unknown(), 90);
+
+        // grow with False fill
+        let mut v = KleeneVec::all_true(10);
+        v.resize(100, Kleene::False);
+        assert_eq!(v.width(), 100);
+        assert_eq!(v.count_true(), 10);
+        assert_eq!(v.count_false(), 90);
+        assert_eq!(v.count_unknown(), 0);
+
+        // grow with True fill
+        let mut v = KleeneVec::new(10);
+        v.resize(100, Kleene::True);
+        assert_eq!(v.width(), 100);
+        assert_eq!(v.count_unknown(), 10);
+        assert_eq!(v.count_true(), 90);
+
+        // grow across word boundary
+        let mut v = KleeneVec::all_false(60);
+        v.resize(200, Kleene::True);
+        assert_eq!(v.width(), 200);
+        assert_eq!(v.count_false(), 60);
+        assert_eq!(v.count_true(), 140);
+
+        // shrink
+        let mut v = KleeneVec::all_true(100);
+        v.resize(10, Kleene::False);
+        assert_eq!(v.width(), 10);
+        assert!(v.is_all_true());
+
+        // grow from empty
+        let mut v = KleeneVec::new(0);
+        v.resize(64, Kleene::True);
+        assert_eq!(v.width(), 64);
+        assert!(v.is_all_true());
+
+        let mut v = KleeneVec::new(0);
+        v.resize(100, Kleene::False);
+        assert_eq!(v.width(), 100);
+        assert!(v.is_all_false());
     }
 }
