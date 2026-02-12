@@ -112,7 +112,7 @@ impl std::error::Error for OutOfBounds {}
 /// - known=1, value=1 → True
 ///
 /// Uses an interleaved layout: `[known_0, value_0, known_1, value_1, ...]`.
-/// Invariant: `words[value_idx(i)] & !words[known_idx(i)] == 0` for all `i`.
+/// Invariant: within every pair, value bits are a subset of known bits.
 /// Unused high bits in the last word pair are always zero.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KleeneVec {
@@ -135,13 +135,8 @@ const fn tail_mask(n: usize) -> u64 {
 }
 
 #[inline]
-const fn known_idx(w: usize) -> usize {
-    2 * w
-}
-
-#[inline]
-const fn value_idx(w: usize) -> usize {
-    2 * w + 1
+const fn pair(w: usize) -> std::ops::Range<usize> {
+    2 * w..2 * w + 2
 }
 
 impl KleeneVec {
@@ -188,8 +183,9 @@ impl KleeneVec {
         let nw = words_needed(self.width);
         if nw > 0 {
             let m = tail_mask(self.width);
-            self.words[known_idx(nw - 1)] &= m;
-            self.words[value_idx(nw - 1)] &= m;
+            let kv = &mut self.words[pair(nw - 1)];
+            kv[0] &= m;
+            kv[1] &= m;
         }
     }
 
@@ -221,8 +217,9 @@ impl KleeneVec {
         // Fill remaining bits in the current last word pair
         if old_nw > 0 && old_width & BITS_MASK != 0 {
             let high_mask = !tail_mask(old_width);
-            self.words[known_idx(old_nw - 1)] |= fill_known & high_mask;
-            self.words[value_idx(old_nw - 1)] |= fill_value & high_mask;
+            let kv = &mut self.words[pair(old_nw - 1)];
+            kv[0] |= fill_known & high_mask;
+            kv[1] |= fill_value & high_mask;
         }
         // Grow by pushing interleaved pairs
         self.words.reserve(2 * (new_nw - old_nw));
@@ -243,8 +240,9 @@ impl KleeneVec {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
-        let known_bit = ((self.words[known_idx(w)] >> b) & 1) as usize;
-        let value_bit = ((self.words[value_idx(w)] >> b) & 1) as usize;
+        let kv = &self.words[pair(w)];
+        let known_bit = ((kv[0] >> b) & 1) as usize;
+        let value_bit = ((kv[1] >> b) & 1) as usize;
         FROM_BITS[known_bit << 1 | value_bit]
     }
 
@@ -262,20 +260,22 @@ impl KleeneVec {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
+        let kv = &mut self.words[pair(w)];
         match v {
             Kleene::True => {
-                self.words[known_idx(w)] |= 1u64 << b;
-                self.words[value_idx(w)] |= 1u64 << b;
+                kv[0] |= 1u64 << b;
+                kv[1] |= 1u64 << b;
             }
             Kleene::False => {
-                self.words[known_idx(w)] |= 1u64 << b;
-                self.words[value_idx(w)] &= !(1u64 << b);
+                kv[0] |= 1u64 << b;
+                kv[1] &= !(1u64 << b);
             }
             Kleene::Unknown => {
-                self.words[known_idx(w)] &= !(1u64 << b);
-                self.words[value_idx(w)] &= !(1u64 << b);
+                kv[0] &= !(1u64 << b);
+                kv[1] &= !(1u64 << b);
             }
         }
+        debug_assert!(kv[1] & !kv[0] == 0);
     }
 
     pub fn set(&mut self, i: usize, v: Kleene) {
@@ -301,14 +301,11 @@ impl KleeneVec {
 
     #[must_use]
     pub fn not(&self) -> Self {
-        let nw = words_needed(self.width);
-        let mut words = Vec::with_capacity(2 * nw);
-        for w in 0..nw {
-            let k = self.words[known_idx(w)];
-            let v = self.words[value_idx(w)];
-            words.push(k);
-            words.push(k & !v);
-        }
+        let words = self
+            .words
+            .chunks_exact(2)
+            .flat_map(|kv| [kv[0], kv[0] & !kv[1]])
+            .collect();
         Self {
             width: self.width,
             words,
@@ -318,20 +315,17 @@ impl KleeneVec {
     #[must_use]
     pub fn and(&self, other: &Self) -> Self {
         self.check_width(other);
-        let nw = words_needed(self.width);
-        let mut words = Vec::with_capacity(2 * nw);
-        for i in 0..nw {
-            let (ak, av) = (self.words[known_idx(i)], self.words[value_idx(i)]);
-            let (bk, bv) = (other.words[known_idx(i)], other.words[value_idx(i)]);
-            let false_a = ak & !av;
-            let false_b = bk & !bv;
-            let true_a = ak & av;
-            let true_b = bk & bv;
-            let result_true = true_a & true_b;
-            let result_false = false_a | false_b;
-            words.push(result_true | result_false);
-            words.push(result_true);
-        }
+        let words = self
+            .words
+            .chunks_exact(2)
+            .zip(other.words.chunks_exact(2))
+            .flat_map(|(a, b)| {
+                let (ak, av, bk, bv) = (a[0], a[1], b[0], b[1]);
+                let result_true = (ak & av) & (bk & bv);
+                let result_false = (ak & !av) | (bk & !bv);
+                [result_true | result_false, result_true]
+            })
+            .collect();
         Self {
             width: self.width,
             words,
@@ -341,20 +335,17 @@ impl KleeneVec {
     #[must_use]
     pub fn or(&self, other: &Self) -> Self {
         self.check_width(other);
-        let nw = words_needed(self.width);
-        let mut words = Vec::with_capacity(2 * nw);
-        for i in 0..nw {
-            let (ak, av) = (self.words[known_idx(i)], self.words[value_idx(i)]);
-            let (bk, bv) = (other.words[known_idx(i)], other.words[value_idx(i)]);
-            let true_a = ak & av;
-            let true_b = bk & bv;
-            let false_a = ak & !av;
-            let false_b = bk & !bv;
-            let result_true = true_a | true_b;
-            let result_false = false_a & false_b;
-            words.push(result_true | result_false);
-            words.push(result_true);
-        }
+        let words = self
+            .words
+            .chunks_exact(2)
+            .zip(other.words.chunks_exact(2))
+            .flat_map(|(a, b)| {
+                let (ak, av, bk, bv) = (a[0], a[1], b[0], b[1]);
+                let result_true = (ak & av) | (bk & bv);
+                let result_false = (ak & !av) & (bk & !bv);
+                [result_true | result_false, result_true]
+            })
+            .collect();
         Self {
             width: self.width,
             words,
@@ -375,8 +366,11 @@ impl KleeneVec {
             return true;
         }
         let m = tail_mask(self.width);
-        (0..nw - 1).all(|w| self.words[known_idx(w)] == u64::MAX)
-            && self.words[known_idx(nw - 1)] == m
+        self.words
+            .chunks_exact(2)
+            .take(nw - 1)
+            .all(|kv| kv[0] == u64::MAX)
+            && self.words[pair(nw - 1)][0] == m
     }
 
     #[must_use]
@@ -386,35 +380,34 @@ impl KleeneVec {
             return true;
         }
         let m = tail_mask(self.width);
-        (0..nw - 1).all(|w| self.words[known_idx(w)] == u64::MAX)
-            && self.words[known_idx(nw - 1)] == m
-            && (0..nw - 1).all(|w| self.words[value_idx(w)] == u64::MAX)
-            && self.words[value_idx(nw - 1)] == m
+        self.words
+            .chunks_exact(2)
+            .take(nw - 1)
+            .all(|kv| kv[0] == u64::MAX && kv[1] == u64::MAX)
+            && {
+                let kv = &self.words[pair(nw - 1)];
+                kv[0] == m && kv[1] == m
+            }
     }
 
     #[must_use]
     pub fn is_all_false(&self) -> bool {
-        let nw = words_needed(self.width);
-        self.is_all_known() && (0..nw).all(|w| self.words[value_idx(w)] == 0)
+        self.is_all_known() && self.words.chunks_exact(2).all(|kv| kv[1] == 0)
     }
 
     #[must_use]
     pub fn count_true(&self) -> usize {
-        let nw = words_needed(self.width);
-        (0..nw)
-            .map(|w| self.words[value_idx(w)].count_ones() as usize)
+        self.words
+            .chunks_exact(2)
+            .map(|kv| kv[1].count_ones() as usize)
             .sum()
     }
 
     #[must_use]
     pub fn count_false(&self) -> usize {
-        let nw = words_needed(self.width);
-        (0..nw)
-            .map(|w| {
-                let k = self.words[known_idx(w)];
-                let v = self.words[value_idx(w)];
-                (k & !v).count_ones() as usize
-            })
+        self.words
+            .chunks_exact(2)
+            .map(|kv| (kv[0] & !kv[1]).count_ones() as usize)
             .sum()
     }
 
