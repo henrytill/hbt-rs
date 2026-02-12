@@ -1,37 +1,39 @@
 //! Kleene's three-valued logic: scalar type and packed bitvector.
 
+use crate::bitplane::{self, BITS_LOG2, BITS_MASK, pair, tail_mask, words_needed};
+
 // We use unchecked casts to convert u64 (and u32) to usize.
 const _: () = assert!(std::mem::size_of::<usize>() >= std::mem::size_of::<u64>());
 
 /// A single Kleene truth value.
 ///
-/// Uses `#[repr(u8)]` with discriminants encoding `(known_bit << 1) | value_bit`:
+/// Uses `#[repr(u8)]` with discriminants encoding `(neg_bit << 1) | pos_bit`:
 ///
-/// | known | value | bits   | variant   |
-/// |-------|-------|--------|-----------|
-/// | 0     | 0     | `0b00` | `Unknown` |
-/// | 1     | 0     | `0b10` | `False`   |
-/// | 1     | 1     | `0b11` | `True`    |
+/// | pos | neg | bits   | variant   |
+/// |-----|-----|--------|-----------|
+/// | 0   | 0   | `0b00` | `Unknown` |
+/// | 1   | 0   | `0b01` | `True`    |
+/// | 0   | 1   | `0b10` | `False`   |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum Kleene {
-    Unknown = 0b00, // known=0, value=0
-    False = 0b10,   // known=1, value=0
-    True = 0b11,    // known=1, value=1
+    Unknown = 0b00, // pos=0, neg=0
+    True = 0b01,    // pos=1, neg=0
+    False = 0b10,   // pos=0, neg=1
 }
 
 const FROM_BITS: [Kleene; 4] = [
-    Kleene::Unknown, // 0b00: known=0, value=0
-    Kleene::Unknown, // 0b01: impossible by invariant (value=1, known=0)
-    Kleene::False,   // 0b10: known=1, value=0
-    Kleene::True,    // 0b11: known=1, value=1
+    Kleene::Unknown, // 0b00: pos=0, neg=0
+    Kleene::True,    // 0b01: pos=1, neg=0
+    Kleene::False,   // 0b10: pos=0, neg=1
+    Kleene::Unknown, // 0b11: impossible by invariant (pos=1, neg=1)
 ];
 
 impl Kleene {
     #[inline]
     #[must_use]
     pub const fn is_known(self) -> bool {
-        self as u8 & 0b10 != 0
+        self as u8 != 0
     }
 
     #[inline]
@@ -107,36 +109,17 @@ impl std::error::Error for OutOfBounds {}
 /// Packed Kleene bitvector: two-bitplane representation.
 ///
 /// Encoding per bit position:
-/// - known=0, value=0 → Unknown
-/// - known=1, value=0 → False
-/// - known=1, value=1 → True
+/// - pos=0, neg=0 → Unknown
+/// - pos=1, neg=0 → True
+/// - pos=0, neg=1 → False
 ///
-/// Uses an interleaved layout: `[known_0, value_0, known_1, value_1, ...]`.
-/// Invariant: within every pair, value bits are a subset of known bits.
+/// Uses an interleaved layout: `[pos_0, neg_0, pos_1, neg_1, ...]`.
+/// Invariant: within every pair, `pos & neg == 0` (no position tells both).
 /// Unused high bits in the last word pair are always zero.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct KleeneVec {
     width: usize,
     words: Vec<u64>,
-}
-
-const BITS_LOG2: u32 = 6;
-const BITS_MASK: usize = 2_usize.pow(BITS_LOG2) - 1;
-
-#[inline]
-const fn words_needed(n: usize) -> usize {
-    (n + BITS_MASK) >> BITS_LOG2
-}
-
-#[inline]
-const fn tail_mask(n: usize) -> u64 {
-    let r = n & BITS_MASK;
-    if r == 0 { u64::MAX } else { (1u64 << r) - 1 }
-}
-
-#[inline]
-const fn pair(w: usize) -> std::ops::Range<usize> {
-    2 * w..2 * w + 2
 }
 
 impl KleeneVec {
@@ -153,10 +136,12 @@ impl KleeneVec {
     #[must_use]
     pub fn all_true(width: usize) -> Self {
         let nw = words_needed(width);
-        let mut v = Self {
-            width,
-            words: vec![u64::MAX; 2 * nw],
-        };
+        let mut words = Vec::with_capacity(2 * nw);
+        for _ in 0..nw {
+            words.push(u64::MAX); // pos
+            words.push(0); // neg
+        }
+        let mut v = Self { width, words };
         v.mask_tail();
         v
     }
@@ -166,8 +151,8 @@ impl KleeneVec {
         let nw = words_needed(width);
         let mut words = Vec::with_capacity(2 * nw);
         for _ in 0..nw {
-            words.push(u64::MAX); // known
-            words.push(0); // value
+            words.push(0); // pos
+            words.push(u64::MAX); // neg
         }
         let mut v = Self { width, words };
         v.mask_tail();
@@ -179,13 +164,25 @@ impl KleeneVec {
         self.width
     }
 
+    pub(crate) fn words_raw(&self) -> &[u64] {
+        &self.words
+    }
+
+    pub(crate) fn from_raw_parts(width: usize, words: Vec<u64>) -> Self {
+        let nw = words_needed(width);
+        assert_eq!(words.len(), 2 * nw);
+        // Verify Kleene invariant: pos & neg == 0 in every pair
+        debug_assert!(words.chunks_exact(2).all(|pn| pn[0] & pn[1] == 0));
+        Self { width, words }
+    }
+
     fn mask_tail(&mut self) {
         let nw = words_needed(self.width);
         if nw > 0 {
             let m = tail_mask(self.width);
-            let kv = &mut self.words[pair(nw - 1)];
-            kv[0] &= m;
-            kv[1] &= m;
+            let pn = &mut self.words[pair(nw - 1)];
+            pn[0] &= m;
+            pn[1] &= m;
         }
     }
 
@@ -209,23 +206,23 @@ impl KleeneVec {
         let old_width = self.width;
         let old_nw = words_needed(old_width);
         let new_nw = words_needed(new_width);
-        let (fill_known, fill_value): (u64, u64) = match fill {
+        let (fill_pos, fill_neg): (u64, u64) = match fill {
             Kleene::Unknown => (0, 0),
-            Kleene::False => (u64::MAX, 0),
-            Kleene::True => (u64::MAX, u64::MAX),
+            Kleene::True => (u64::MAX, 0),
+            Kleene::False => (0, u64::MAX),
         };
         // Fill remaining bits in the current last word pair
         if old_nw > 0 && old_width & BITS_MASK != 0 {
             let high_mask = !tail_mask(old_width);
-            let kv = &mut self.words[pair(old_nw - 1)];
-            kv[0] |= fill_known & high_mask;
-            kv[1] |= fill_value & high_mask;
+            let pn = &mut self.words[pair(old_nw - 1)];
+            pn[0] |= fill_pos & high_mask;
+            pn[1] |= fill_neg & high_mask;
         }
         // Grow by pushing interleaved pairs
         self.words.reserve(2 * (new_nw - old_nw));
         for _ in old_nw..new_nw {
-            self.words.push(fill_known);
-            self.words.push(fill_value);
+            self.words.push(fill_pos);
+            self.words.push(fill_neg);
         }
         self.width = new_width;
         if fill.is_known() {
@@ -240,10 +237,10 @@ impl KleeneVec {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
-        let kv = &self.words[pair(w)];
-        let known_bit = ((kv[0] >> b) & 1) as usize;
-        let value_bit = ((kv[1] >> b) & 1) as usize;
-        FROM_BITS[known_bit << 1 | value_bit]
+        let pn = &self.words[pair(w)];
+        let pos_bit = ((pn[0] >> b) & 1) as usize;
+        let neg_bit = ((pn[1] >> b) & 1) as usize;
+        FROM_BITS[neg_bit << 1 | pos_bit]
     }
 
     /// # Errors
@@ -260,22 +257,22 @@ impl KleeneVec {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
-        let kv = &mut self.words[pair(w)];
+        let pn = &mut self.words[pair(w)];
         match v {
             Kleene::True => {
-                kv[0] |= 1u64 << b;
-                kv[1] |= 1u64 << b;
+                pn[0] |= 1u64 << b; // set pos
+                pn[1] &= !(1u64 << b); // clear neg
             }
             Kleene::False => {
-                kv[0] |= 1u64 << b;
-                kv[1] &= !(1u64 << b);
+                pn[0] &= !(1u64 << b); // clear pos
+                pn[1] |= 1u64 << b; // set neg
             }
             Kleene::Unknown => {
-                kv[0] &= !(1u64 << b);
-                kv[1] &= !(1u64 << b);
+                pn[0] &= !(1u64 << b); // clear pos
+                pn[1] &= !(1u64 << b); // clear neg
             }
         }
-        debug_assert!(kv[1] & !kv[0] == 0);
+        debug_assert!(pn[0] & pn[1] == 0);
     }
 
     pub fn set(&mut self, i: usize, v: Kleene) {
@@ -304,7 +301,10 @@ impl KleeneVec {
         let words = self
             .words
             .chunks_exact(2)
-            .flat_map(|kv| [kv[0], kv[0] & !kv[1]])
+            .flat_map(|pn| {
+                let (p, n) = bitplane::not_word(pn[0], pn[1]);
+                [p, n]
+            })
             .collect();
         Self {
             width: self.width,
@@ -320,10 +320,8 @@ impl KleeneVec {
             .chunks_exact(2)
             .zip(other.words.chunks_exact(2))
             .flat_map(|(a, b)| {
-                let (ak, av, bk, bv) = (a[0], a[1], b[0], b[1]);
-                let result_true = (ak & av) & (bk & bv);
-                let result_false = (ak & !av) | (bk & !bv);
-                [result_true | result_false, result_true]
+                let (p, n) = bitplane::and_word(a[0], a[1], b[0], b[1]);
+                [p, n]
             })
             .collect();
         Self {
@@ -340,10 +338,8 @@ impl KleeneVec {
             .chunks_exact(2)
             .zip(other.words.chunks_exact(2))
             .flat_map(|(a, b)| {
-                let (ak, av, bk, bv) = (a[0], a[1], b[0], b[1]);
-                let result_true = (ak & av) | (bk & bv);
-                let result_false = (ak & !av) & (bk & !bv);
-                [result_true | result_false, result_true]
+                let (p, n) = bitplane::or_word(a[0], a[1], b[0], b[1]);
+                [p, n]
             })
             .collect();
         Self {
@@ -369,8 +365,11 @@ impl KleeneVec {
         self.words
             .chunks_exact(2)
             .take(nw - 1)
-            .all(|kv| kv[0] == u64::MAX)
-            && self.words[pair(nw - 1)][0] == m
+            .all(|pn| pn[0] | pn[1] == u64::MAX)
+            && {
+                let pn = &self.words[pair(nw - 1)];
+                pn[0] | pn[1] == m
+            }
     }
 
     #[must_use]
@@ -383,23 +382,35 @@ impl KleeneVec {
         self.words
             .chunks_exact(2)
             .take(nw - 1)
-            .all(|kv| kv[0] == u64::MAX && kv[1] == u64::MAX)
+            .all(|pn| pn[0] == u64::MAX && pn[1] == 0)
             && {
-                let kv = &self.words[pair(nw - 1)];
-                kv[0] == m && kv[1] == m
+                let pn = &self.words[pair(nw - 1)];
+                pn[0] == m && pn[1] == 0
             }
     }
 
     #[must_use]
     pub fn is_all_false(&self) -> bool {
-        self.is_all_known() && self.words.chunks_exact(2).all(|kv| kv[1] == 0)
+        let nw = words_needed(self.width);
+        if nw == 0 {
+            return true;
+        }
+        let m = tail_mask(self.width);
+        self.words
+            .chunks_exact(2)
+            .take(nw - 1)
+            .all(|pn| pn[0] == 0 && pn[1] == u64::MAX)
+            && {
+                let pn = &self.words[pair(nw - 1)];
+                pn[0] == 0 && pn[1] == m
+            }
     }
 
     #[must_use]
     pub fn count_true(&self) -> usize {
         self.words
             .chunks_exact(2)
-            .map(|kv| kv[1].count_ones() as usize)
+            .map(|pn| pn[0].count_ones() as usize)
             .sum()
     }
 
@@ -407,7 +418,7 @@ impl KleeneVec {
     pub fn count_false(&self) -> usize {
         self.words
             .chunks_exact(2)
-            .map(|kv| (kv[0] & !kv[1]).count_ones() as usize)
+            .map(|pn| pn[1].count_ones() as usize)
             .sum()
     }
 
