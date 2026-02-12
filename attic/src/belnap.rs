@@ -306,10 +306,6 @@ impl BelnapVec {
 
     // Bulk operations
 
-    fn check_width(&self, other: &Self) {
-        assert_eq!(self.width, other.width, "BelnapVec: width mismatch");
-    }
-
     #[must_use]
     pub fn not(&self) -> Self {
         let words = self
@@ -328,38 +324,48 @@ impl BelnapVec {
 
     #[must_use]
     pub fn and(&self, other: &Self) -> Self {
-        self.check_width(other);
+        let width = self.width.max(other.width);
+        let zero = [0u64; 2];
         let words = self
             .words
             .chunks_exact(2)
-            .zip(other.words.chunks_exact(2))
+            .chain(std::iter::repeat(&zero[..]))
+            .zip(
+                other
+                    .words
+                    .chunks_exact(2)
+                    .chain(std::iter::repeat(&zero[..])),
+            )
+            .take(words_needed(width))
             .flat_map(|(a, b)| {
                 let (p, n) = bitplane::and_word(a[0], a[1], b[0], b[1]);
                 [p, n]
             })
             .collect();
-        Self {
-            width: self.width,
-            words,
-        }
+        Self { width, words }
     }
 
     #[must_use]
     pub fn or(&self, other: &Self) -> Self {
-        self.check_width(other);
+        let width = self.width.max(other.width);
+        let zero = [0u64; 2];
         let words = self
             .words
             .chunks_exact(2)
-            .zip(other.words.chunks_exact(2))
+            .chain(std::iter::repeat(&zero[..]))
+            .zip(
+                other
+                    .words
+                    .chunks_exact(2)
+                    .chain(std::iter::repeat(&zero[..])),
+            )
+            .take(words_needed(width))
             .flat_map(|(a, b)| {
                 let (p, n) = bitplane::or_word(a[0], a[1], b[0], b[1]);
                 [p, n]
             })
             .collect();
-        Self {
-            width: self.width,
-            words,
-        }
+        Self { width, words }
     }
 
     #[must_use]
@@ -370,20 +376,25 @@ impl BelnapVec {
     /// Knowledge-ordering join: combine observations from independent sources.
     #[must_use]
     pub fn merge(&self, other: &Self) -> Self {
-        self.check_width(other);
+        let width = self.width.max(other.width);
+        let zero = [0u64; 2];
         let words = self
             .words
             .chunks_exact(2)
-            .zip(other.words.chunks_exact(2))
+            .chain(std::iter::repeat(&zero[..]))
+            .zip(
+                other
+                    .words
+                    .chunks_exact(2)
+                    .chain(std::iter::repeat(&zero[..])),
+            )
+            .take(words_needed(width))
             .flat_map(|(a, b)| {
                 let (p, n) = bitplane::merge_word(a[0], a[1], b[0], b[1]);
                 [p, n]
             })
             .collect();
-        Self {
-            width: self.width,
-            words,
-        }
+        Self { width, words }
     }
 
     // Queries
@@ -855,5 +866,106 @@ mod tests {
         assert_eq!(v.width(), 65);
         assert!(v.is_all_true());
         assert_eq!(v.count_true(), 65);
+    }
+
+    #[test]
+    fn vec_and_different_widths() {
+        let mut short = BelnapVec::new(10);
+        short.set(0, Belnap::True);
+        short.set(1, Belnap::False);
+        short.set(2, Belnap::Both);
+
+        let mut long = BelnapVec::new(100);
+        long.set(0, Belnap::True);
+        long.set(1, Belnap::True);
+        long.set(2, Belnap::True);
+        long.set(99, Belnap::True);
+
+        let ab = short.and(&long);
+        let ba = long.and(&short);
+        assert_eq!(ab.width(), 100);
+        assert_eq!(ba.width(), 100);
+        assert_eq!(ab, ba);
+
+        // True & True = True
+        assert_eq!(ab.get(0).unwrap(), Belnap::True);
+        // False & True = False
+        assert_eq!(ab.get(1).unwrap(), Belnap::False);
+        // Both & True = Both
+        assert_eq!(ab.get(2).unwrap(), Belnap::Both);
+        // Unknown (short) & True (long) = Unknown
+        assert_eq!(ab.get(99).unwrap(), Belnap::Unknown);
+        // Beyond short: Unknown & Unknown = Unknown
+        assert_eq!(ab.get(50).unwrap(), Belnap::Unknown);
+    }
+
+    #[test]
+    fn vec_or_different_widths() {
+        let mut short = BelnapVec::new(10);
+        short.set(0, Belnap::True);
+        short.set(1, Belnap::False);
+        short.set(2, Belnap::Both);
+
+        let mut long = BelnapVec::new(100);
+        long.set(0, Belnap::False);
+        long.set(1, Belnap::True);
+        long.set(2, Belnap::False);
+        long.set(99, Belnap::False);
+
+        let ab = short.or(&long);
+        let ba = long.or(&short);
+        assert_eq!(ab.width(), 100);
+        assert_eq!(ba.width(), 100);
+        assert_eq!(ab, ba);
+
+        // True | False = True
+        assert_eq!(ab.get(0).unwrap(), Belnap::True);
+        // False | True = True
+        assert_eq!(ab.get(1).unwrap(), Belnap::True);
+        // Both | False = Both
+        assert_eq!(ab.get(2).unwrap(), Belnap::Both);
+        // Unknown (short) | False (long) = Unknown
+        assert_eq!(ab.get(99).unwrap(), Belnap::Unknown);
+        // Beyond short: Unknown | Unknown = Unknown
+        assert_eq!(ab.get(50).unwrap(), Belnap::Unknown);
+    }
+
+    #[test]
+    fn vec_merge_different_widths() {
+        let mut short = BelnapVec::new(10);
+        short.set(0, Belnap::True);
+        short.set(1, Belnap::False);
+
+        let mut long = BelnapVec::new(100);
+        long.set(0, Belnap::False);
+        long.set(1, Belnap::True);
+        long.set(99, Belnap::True);
+
+        let ab = short.merge(&long);
+        let ba = long.merge(&short);
+        assert_eq!(ab.width(), 100);
+        assert_eq!(ba.width(), 100);
+        assert_eq!(ab, ba);
+
+        // True merge False = Both
+        assert_eq!(ab.get(0).unwrap(), Belnap::Both);
+        // False merge True = Both
+        assert_eq!(ab.get(1).unwrap(), Belnap::Both);
+        // Unknown (short) merge True (long) = True
+        assert_eq!(ab.get(99).unwrap(), Belnap::True);
+        // Beyond short: Unknown merge Unknown = Unknown
+        assert_eq!(ab.get(50).unwrap(), Belnap::Unknown);
+    }
+
+    #[test]
+    fn vec_implies_different_widths() {
+        let short = BelnapVec::all_true(10);
+        let long = BelnapVec::all_true(100);
+        let result = short.implies(&long);
+        assert_eq!(result.width(), 100);
+        // True -> True = True for first 10
+        assert_eq!(result.get(0).unwrap(), Belnap::True);
+        // Unknown -> True = True for positions beyond short
+        assert_eq!(result.get(50).unwrap(), Belnap::True);
     }
 }
