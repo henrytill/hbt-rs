@@ -155,13 +155,15 @@ impl BelnapVec {
         }
     }
 
-    #[must_use]
-    pub fn all_true(width: usize) -> Self {
+    fn filled(width: usize, fill: Belnap) -> Self {
         let nw = words_needed(width);
-        let mut words = Vec::with_capacity(2 * nw);
-        for _ in 0..nw {
-            words.push(u64::MAX); // pos
-            words.push(0); // neg
+        let fill_pos = u64::MAX * (fill as u64 & 1);
+        let fill_neg = u64::MAX * (fill as u64 >> 1);
+        let mut words = vec![0u64; 2 * nw];
+        for i in 0..nw {
+            let base = 2 * i;
+            words[base] = fill_pos;
+            words[base + 1] = fill_neg;
         }
         let mut v = Self { width, words };
         v.mask_tail();
@@ -169,16 +171,13 @@ impl BelnapVec {
     }
 
     #[must_use]
+    pub fn all_true(width: usize) -> Self {
+        Self::filled(width, Belnap::True)
+    }
+
+    #[must_use]
     pub fn all_false(width: usize) -> Self {
-        let nw = words_needed(width);
-        let mut words = Vec::with_capacity(2 * nw);
-        for _ in 0..nw {
-            words.push(0); // pos
-            words.push(u64::MAX); // neg
-        }
-        let mut v = Self { width, words };
-        v.mask_tail();
-        v
+        Self::filled(width, Belnap::False)
     }
 
     #[must_use]
@@ -216,12 +215,8 @@ impl BelnapVec {
         let old_width = self.width;
         let old_nw = words_needed(old_width);
         let new_nw = words_needed(new_width);
-        let (fill_pos, fill_neg): (u64, u64) = match fill {
-            Belnap::Unknown => (0, 0),
-            Belnap::True => (u64::MAX, 0),
-            Belnap::False => (0, u64::MAX),
-            Belnap::Both => (u64::MAX, u64::MAX),
-        };
+        let fill_pos = u64::MAX * (fill as u64 & 1);
+        let fill_neg = u64::MAX * (fill as u64 >> 1);
         // Fill remaining bits in the current last word pair
         if old_nw > 0 && old_width & BITS_MASK != 0 {
             let high_mask = !tail_mask(old_width);
@@ -269,24 +264,11 @@ impl BelnapVec {
         let w = i >> BITS_LOG2;
         let b = i & BITS_MASK;
         let pn = &mut self.words[pair(w)];
-        match v {
-            Belnap::True => {
-                pn[0] |= 1u64 << b; // set pos
-                pn[1] &= !(1u64 << b); // clear neg
-            }
-            Belnap::False => {
-                pn[0] &= !(1u64 << b); // clear pos
-                pn[1] |= 1u64 << b; // set neg
-            }
-            Belnap::Unknown => {
-                pn[0] &= !(1u64 << b); // clear pos
-                pn[1] &= !(1u64 << b); // clear neg
-            }
-            Belnap::Both => {
-                pn[0] |= 1u64 << b; // set pos
-                pn[1] |= 1u64 << b; // set neg
-            }
-        }
+        let mask = 1u64 << b;
+        let pos = (v as u64 & 1) << b;
+        let neg = (v as u64 >> 1) << b;
+        pn[0] = (pn[0] & !mask) | pos;
+        pn[1] = (pn[1] & !mask) | neg;
     }
 
     pub fn set(&mut self, i: usize, v: Belnap) {
@@ -308,14 +290,14 @@ impl BelnapVec {
 
     #[must_use]
     pub fn not(&self) -> Self {
-        let words = self
-            .words
-            .chunks_exact(2)
-            .flat_map(|pn| {
-                let (p, n) = bitplane::not_word(pn[0], pn[1]);
-                [p, n]
-            })
-            .collect();
+        let nw = words_needed(self.width);
+        let mut words = vec![0u64; 2 * nw];
+        for i in 0..nw {
+            let base = 2 * i;
+            let (p, n) = bitplane::not_word(self.words[base], self.words[base + 1]);
+            words[base] = p;
+            words[base + 1] = n;
+        }
         Self {
             width: self.width,
             words,
@@ -325,46 +307,48 @@ impl BelnapVec {
     #[must_use]
     pub fn and(&self, other: &Self) -> Self {
         let width = self.width.max(other.width);
-        let zero = [0u64; 2];
-        let words = self
-            .words
-            .chunks_exact(2)
-            .chain(std::iter::repeat(&zero[..]))
-            .zip(
-                other
-                    .words
-                    .chunks_exact(2)
-                    .chain(std::iter::repeat(&zero[..])),
-            )
-            .take(words_needed(width))
-            .flat_map(|(a, b)| {
-                let (p, n) = bitplane::and_word(a[0], a[1], b[0], b[1]);
-                [p, n]
-            })
-            .collect();
+        let nw = words_needed(width);
+        let mut words = vec![0u64; 2 * nw];
+        for i in 0..nw {
+            let base = 2 * i;
+            let (a_pos, a_neg) = if base + 1 < self.words.len() {
+                (self.words[base], self.words[base + 1])
+            } else {
+                (0, 0)
+            };
+            let (b_pos, b_neg) = if base + 1 < other.words.len() {
+                (other.words[base], other.words[base + 1])
+            } else {
+                (0, 0)
+            };
+            let (p, n) = bitplane::and_word(a_pos, a_neg, b_pos, b_neg);
+            words[base] = p;
+            words[base + 1] = n;
+        }
         Self { width, words }
     }
 
     #[must_use]
     pub fn or(&self, other: &Self) -> Self {
         let width = self.width.max(other.width);
-        let zero = [0u64; 2];
-        let words = self
-            .words
-            .chunks_exact(2)
-            .chain(std::iter::repeat(&zero[..]))
-            .zip(
-                other
-                    .words
-                    .chunks_exact(2)
-                    .chain(std::iter::repeat(&zero[..])),
-            )
-            .take(words_needed(width))
-            .flat_map(|(a, b)| {
-                let (p, n) = bitplane::or_word(a[0], a[1], b[0], b[1]);
-                [p, n]
-            })
-            .collect();
+        let nw = words_needed(width);
+        let mut words = vec![0u64; 2 * nw];
+        for i in 0..nw {
+            let base = 2 * i;
+            let (a_pos, a_neg) = if base + 1 < self.words.len() {
+                (self.words[base], self.words[base + 1])
+            } else {
+                (0, 0)
+            };
+            let (b_pos, b_neg) = if base + 1 < other.words.len() {
+                (other.words[base], other.words[base + 1])
+            } else {
+                (0, 0)
+            };
+            let (p, n) = bitplane::or_word(a_pos, a_neg, b_pos, b_neg);
+            words[base] = p;
+            words[base + 1] = n;
+        }
         Self { width, words }
     }
 
@@ -377,23 +361,24 @@ impl BelnapVec {
     #[must_use]
     pub fn merge(&self, other: &Self) -> Self {
         let width = self.width.max(other.width);
-        let zero = [0u64; 2];
-        let words = self
-            .words
-            .chunks_exact(2)
-            .chain(std::iter::repeat(&zero[..]))
-            .zip(
-                other
-                    .words
-                    .chunks_exact(2)
-                    .chain(std::iter::repeat(&zero[..])),
-            )
-            .take(words_needed(width))
-            .flat_map(|(a, b)| {
-                let (p, n) = bitplane::merge_word(a[0], a[1], b[0], b[1]);
-                [p, n]
-            })
-            .collect();
+        let nw = words_needed(width);
+        let mut words = vec![0u64; 2 * nw];
+        for i in 0..nw {
+            let base = 2 * i;
+            let (a_pos, a_neg) = if base + 1 < self.words.len() {
+                (self.words[base], self.words[base + 1])
+            } else {
+                (0, 0)
+            };
+            let (b_pos, b_neg) = if base + 1 < other.words.len() {
+                (other.words[base], other.words[base + 1])
+            } else {
+                (0, 0)
+            };
+            let (p, n) = bitplane::merge_word(a_pos, a_neg, b_pos, b_neg);
+            words[base] = p;
+            words[base + 1] = n;
+        }
         Self { width, words }
     }
 
