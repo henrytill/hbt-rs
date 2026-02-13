@@ -1,8 +1,5 @@
 //! Belnap's four-valued logic: scalar type and packed bitvector.
 
-use crate::bitplane::{self, BITS_LOG2, BITS_MASK, pair, tail_mask, words_needed};
-use crate::kleene::{Kleene, KleeneVec, OutOfBounds};
-
 /// A single Belnap truth value.
 ///
 /// Uses `#[repr(u8)]` with discriminants encoding `(neg_bit << 1) | pos_bit`:
@@ -108,24 +105,57 @@ impl std::ops::BitOr for Belnap {
     }
 }
 
-impl From<Kleene> for Belnap {
-    fn from(k: Kleene) -> Self {
-        FROM_BITS[k as u8 as usize]
+// -- Bitplane helpers (used by BelnapVec) --
+
+const BITS_LOG2: u32 = 6;
+const BITS_MASK: usize = 2_usize.pow(BITS_LOG2) - 1;
+
+#[inline]
+const fn words_needed(n: usize) -> usize {
+    (n + BITS_MASK) >> BITS_LOG2
+}
+
+#[inline]
+const fn tail_mask(n: usize) -> u64 {
+    let r = n & BITS_MASK;
+    if r == 0 { u64::MAX } else { (1u64 << r) - 1 }
+}
+
+#[inline]
+const fn pair(w: usize) -> std::ops::Range<usize> {
+    2 * w..2 * w + 2
+}
+
+#[inline]
+const fn not_word(pos: u64, neg: u64) -> (u64, u64) {
+    (neg, pos)
+}
+
+#[inline]
+const fn and_word(a_pos: u64, a_neg: u64, b_pos: u64, b_neg: u64) -> (u64, u64) {
+    (a_pos & b_pos, a_neg | b_neg)
+}
+
+#[inline]
+const fn or_word(a_pos: u64, a_neg: u64, b_pos: u64, b_neg: u64) -> (u64, u64) {
+    (a_pos | b_pos, a_neg & b_neg)
+}
+
+#[inline]
+const fn merge_word(a_pos: u64, a_neg: u64, b_pos: u64, b_neg: u64) -> (u64, u64) {
+    (a_pos | b_pos, a_neg | b_neg)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OutOfBounds;
+
+impl std::fmt::Display for OutOfBounds {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("index out of bounds")
     }
 }
 
-impl TryFrom<Belnap> for Kleene {
-    type Error = ();
-
-    fn try_from(b: Belnap) -> Result<Self, ()> {
-        match b {
-            Belnap::Unknown => Ok(Kleene::Unknown),
-            Belnap::True => Ok(Kleene::True),
-            Belnap::False => Ok(Kleene::False),
-            Belnap::Both => Err(()),
-        }
-    }
-}
+impl std::error::Error for OutOfBounds {}
 
 /// Packed Belnap bitvector: two-bitplane representation.
 ///
@@ -294,7 +324,7 @@ impl BelnapVec {
         let mut words = vec![0u64; 2 * nw];
         for i in 0..nw {
             let base = 2 * i;
-            let (p, n) = bitplane::not_word(self.words[base], self.words[base + 1]);
+            let (p, n) = not_word(self.words[base], self.words[base + 1]);
             words[base] = p;
             words[base + 1] = n;
         }
@@ -321,7 +351,7 @@ impl BelnapVec {
             } else {
                 (0, 0)
             };
-            let (p, n) = bitplane::and_word(a_pos, a_neg, b_pos, b_neg);
+            let (p, n) = and_word(a_pos, a_neg, b_pos, b_neg);
             words[base] = p;
             words[base + 1] = n;
         }
@@ -345,7 +375,7 @@ impl BelnapVec {
             } else {
                 (0, 0)
             };
-            let (p, n) = bitplane::or_word(a_pos, a_neg, b_pos, b_neg);
+            let (p, n) = or_word(a_pos, a_neg, b_pos, b_neg);
             words[base] = p;
             words[base + 1] = n;
         }
@@ -375,7 +405,7 @@ impl BelnapVec {
             } else {
                 (0, 0)
             };
-            let (p, n) = bitplane::merge_word(a_pos, a_neg, b_pos, b_neg);
+            let (p, n) = merge_word(a_pos, a_neg, b_pos, b_neg);
             words[base] = p;
             words[base + 1] = n;
         }
@@ -384,7 +414,7 @@ impl BelnapVec {
 
     // Queries
 
-    /// Returns `true` if no position is `Both` (valid as Kleene).
+    /// Returns `true` if no position is `Both`.
     #[must_use]
     pub fn is_consistent(&self) -> bool {
         self.words.chunks_exact(2).all(|pn| pn[0] & pn[1] == 0)
@@ -469,25 +499,6 @@ impl BelnapVec {
     #[must_use]
     pub fn count_unknown(&self) -> usize {
         self.width - self.count_true() - self.count_false() - self.count_both()
-    }
-
-    /// Convert to `KleeneVec` if no position is `Both`.
-    #[must_use]
-    pub fn to_kleene(&self) -> Option<KleeneVec> {
-        if self.is_consistent() {
-            Some(KleeneVec::from_raw_parts(self.width, self.words.clone()))
-        } else {
-            None
-        }
-    }
-}
-
-impl From<&KleeneVec> for BelnapVec {
-    fn from(kv: &KleeneVec) -> Self {
-        Self {
-            width: kv.width(),
-            words: kv.words_raw().to_vec(),
-        }
     }
 }
 
@@ -639,20 +650,6 @@ mod tests {
     }
 
     #[test]
-    fn scalar_conversions() {
-        // Kleene -> Belnap (infallible)
-        assert_eq!(Belnap::from(Kleene::Unknown), Belnap::Unknown);
-        assert_eq!(Belnap::from(Kleene::True), Belnap::True);
-        assert_eq!(Belnap::from(Kleene::False), Belnap::False);
-
-        // Belnap -> Kleene (fallible)
-        assert_eq!(Kleene::try_from(Belnap::Unknown), Ok(Kleene::Unknown));
-        assert_eq!(Kleene::try_from(Belnap::True), Ok(Kleene::True));
-        assert_eq!(Kleene::try_from(Belnap::False), Ok(Kleene::False));
-        assert_eq!(Kleene::try_from(Belnap::Both), Err(()));
-    }
-
-    #[test]
     fn vec_get_set_all_four() {
         let mut v = BelnapVec::new(4);
         v.set(0, Belnap::Unknown);
@@ -743,35 +740,6 @@ mod tests {
         assert_eq!(v.count_false(), 1);
         assert_eq!(v.count_both(), 1);
         assert_eq!(v.count_unknown(), 6);
-    }
-
-    #[test]
-    fn vec_to_kleene() {
-        let mut v = BelnapVec::new(10);
-        v.set(0, Belnap::True);
-        v.set(1, Belnap::False);
-        let k = v.to_kleene();
-        assert!(k.is_some());
-        let k = k.unwrap();
-        assert_eq!(k.get(0), Ok(Kleene::True));
-        assert_eq!(k.get(1), Ok(Kleene::False));
-        assert_eq!(k.get(2), Ok(Kleene::Unknown));
-
-        // With Both, conversion should fail
-        v.set(2, Belnap::Both);
-        assert!(v.to_kleene().is_none());
-    }
-
-    #[test]
-    fn vec_from_kleene() {
-        let mut k = KleeneVec::new(10);
-        k.set(0, Kleene::True);
-        k.set(1, Kleene::False);
-        let b = BelnapVec::from(&k);
-        assert_eq!(b.get(0).unwrap(), Belnap::True);
-        assert_eq!(b.get(1).unwrap(), Belnap::False);
-        assert_eq!(b.get(2).unwrap(), Belnap::Unknown);
-        assert!(b.is_consistent());
     }
 
     #[test]
