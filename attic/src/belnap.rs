@@ -26,6 +26,12 @@ const FROM_BITS: [Belnap; 4] = [
     Belnap::Both,    // 0b11
 ];
 
+impl From<Belnap> for u8 {
+    fn from(v: Belnap) -> u8 {
+        v as u8
+    }
+}
+
 impl Belnap {
     /// Returns `true` if this value carries any information (not `Unknown`).
     #[inline]
@@ -63,7 +69,7 @@ impl Belnap {
     #[inline]
     #[must_use]
     pub fn merge(self, other: Self) -> Self {
-        FROM_BITS[(self as u8 | other as u8) as usize]
+        FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
     #[must_use]
@@ -89,9 +95,10 @@ impl std::ops::BitAnd for Belnap {
     type Output = Self;
 
     fn bitand(self, rhs: Self) -> Self {
-        let r_pos = (self as u8 & 1) & (rhs as u8 & 1);
-        let r_neg = (self as u8 >> 1) | (rhs as u8 >> 1);
-        FROM_BITS[(r_neg << 1 | r_pos) as usize]
+        let (a, b) = (u8::from(self), u8::from(rhs));
+        let r_pos = (a & 1) & (b & 1);
+        let r_neg = (a >> 1) | (b >> 1);
+        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
     }
 }
 
@@ -99,9 +106,10 @@ impl std::ops::BitOr for Belnap {
     type Output = Self;
 
     fn bitor(self, rhs: Self) -> Self {
-        let r_pos = (self as u8 & 1) | (rhs as u8 & 1);
-        let r_neg = (self as u8 >> 1) & (rhs as u8 >> 1);
-        FROM_BITS[(r_neg << 1 | r_pos) as usize]
+        let (a, b) = (u8::from(self), u8::from(rhs));
+        let r_pos = (a & 1) | (b & 1);
+        let r_neg = (a >> 1) & (b >> 1);
+        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
     }
 }
 
@@ -130,6 +138,11 @@ const fn pair(w: usize) -> std::ops::Range<usize> {
 struct Word([u64; 2]);
 
 impl Word {
+    fn splat(v: Belnap) -> Self {
+        let bits = u64::from(u8::from(v));
+        Self([u64::MAX * (bits & 1), u64::MAX * (bits >> 1)])
+    }
+
     fn from_slice(pn: &[u64]) -> Self {
         debug_assert!(pn.len() >= 2);
         Self([pn[0], pn[1]])
@@ -222,13 +235,12 @@ impl BelnapVec {
 
     fn filled(width: usize, fill: Belnap) -> Self {
         let nw = words_needed(width);
-        let fill_pos = u64::MAX * (fill as u64 & 1);
-        let fill_neg = u64::MAX * (fill as u64 >> 1);
+        let fill = Word::splat(fill);
         let mut words = vec![0u64; 2 * nw];
         for i in 0..nw {
             let base = 2 * i;
-            words[base] = fill_pos;
-            words[base + 1] = fill_neg;
+            words[base] = fill.pos();
+            words[base + 1] = fill.neg();
         }
         let mut v = Self { width, words };
         v.mask_tail();
@@ -280,20 +292,19 @@ impl BelnapVec {
         let old_width = self.width;
         let old_nw = words_needed(old_width);
         let new_nw = words_needed(new_width);
-        let fill_pos = u64::MAX * (fill as u64 & 1);
-        let fill_neg = u64::MAX * (fill as u64 >> 1);
+        let fill_word = Word::splat(fill);
         // Fill remaining bits in the current last word pair
         if old_nw > 0 && old_width & BITS_MASK != 0 {
             let high_mask = !tail_mask(old_width);
             let pn = &mut self.words[pair(old_nw - 1)];
-            pn[0] |= fill_pos & high_mask;
-            pn[1] |= fill_neg & high_mask;
+            pn[0] |= fill_word.pos() & high_mask;
+            pn[1] |= fill_word.neg() & high_mask;
         }
         // Grow by pushing interleaved pairs
         self.words.reserve(2 * (new_nw - old_nw));
         for _ in old_nw..new_nw {
-            self.words.push(fill_pos);
-            self.words.push(fill_neg);
+            self.words.push(fill_word.pos());
+            self.words.push(fill_word.neg());
         }
         self.width = new_width;
         if fill.has_info() {
@@ -338,8 +349,9 @@ impl BelnapVec {
         let b = i & BITS_MASK;
         let pn = &mut self.words[pair(w)];
         let mask = 1u64 << b;
-        let pos = (v as u64 & 1) << b;
-        let neg = (v as u64 >> 1) << b;
+        let v = u64::from(u8::from(v));
+        let pos = (v & 1) << b;
+        let neg = (v >> 1) << b;
         pn[0] = (pn[0] & !mask) | pos;
         pn[1] = (pn[1] & !mask) | neg;
     }
