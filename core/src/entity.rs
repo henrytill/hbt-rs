@@ -543,11 +543,12 @@ impl TryFrom<Post> for Entity {
 }
 
 pub mod html {
+    use std::collections::{BTreeSet, HashMap};
+
     use super::{
         CreatedAt, Entity, Error, Extended, IsFeed, Label, LastVisitedAt, Name, Shared, Time,
         ToRead, UpdatedAt, Url,
     };
-    use std::collections::{BTreeSet, HashMap};
 
     const KEY_HREF: &str = "href";
     const KEY_ADD_DATE: &str = "add_date";

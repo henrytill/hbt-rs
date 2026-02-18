@@ -11,6 +11,7 @@
 /// | 0   | 1   | `0b10` | `False`   |
 /// | 1   | 1   | `0b11` | `Both`    |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(test, derive(strum::EnumIter))]
 #[repr(u8)]
 pub enum Belnap {
     Unknown = 0b00, // pos=0, neg=0
@@ -68,8 +69,8 @@ impl Belnap {
     /// Knowledge-ordering join: combine observations from independent sources.
     #[inline]
     #[must_use]
-    pub fn merge(self, other: Self) -> Self {
-        FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
+    pub const fn merge(self, other: Self) -> Self {
+        FROM_BITS[(self as u8 | other as u8) as usize]
     }
 
     #[must_use]
@@ -116,7 +117,7 @@ impl std::ops::BitOr for Belnap {
 // -- Bitplane helpers (used by BelnapVec) --
 
 const BITS_LOG2: u32 = 6;
-const BITS_MASK: usize = 2_usize.pow(BITS_LOG2) - 1;
+const BITS_MASK: usize = (1 << BITS_LOG2) - 1;
 
 #[inline]
 const fn words_needed(n: usize) -> usize {
@@ -134,35 +135,37 @@ const fn pair(w: usize) -> std::ops::Range<usize> {
     2 * w..2 * w + 2
 }
 
+/// A `[pos, neg]` bitplane pair encoding 64 Belnap values.
 #[derive(Clone, Copy, Default)]
 struct Word([u64; 2]);
 
 impl Word {
-    fn splat(v: Belnap) -> Self {
-        let bits = u64::from(u8::from(v));
+    const fn splat(v: Belnap) -> Self {
+        let bits = v as u64;
         Self([u64::MAX * (bits & 1), u64::MAX * (bits >> 1)])
     }
 
-    fn from_slice(pn: &[u64]) -> Self {
+    const fn from_slice(pn: &[u64]) -> Self {
         debug_assert!(pn.len() >= 2);
         Self([pn[0], pn[1]])
     }
 
-    fn pos(self) -> u64 {
+    const fn pos(self) -> u64 {
         self.0[0]
     }
 
-    fn neg(self) -> u64 {
+    const fn neg(self) -> u64 {
         self.0[1]
     }
 
-    fn merge(self, other: Self) -> Self {
+    const fn merge(self, other: Self) -> Self {
         Self([self.pos() | other.pos(), self.neg() | other.neg()])
     }
 }
 
 impl IntoIterator for Word {
     type Item = u64;
+
     type IntoIter = std::array::IntoIter<u64, 2>;
 
     fn into_iter(self) -> Self::IntoIter {
@@ -235,13 +238,8 @@ impl BelnapVec {
 
     fn filled(width: usize, fill: Belnap) -> Self {
         let nw = words_needed(width);
-        let fill = Word::splat(fill);
-        let mut words = vec![0u64; 2 * nw];
-        for i in 0..nw {
-            let base = 2 * i;
-            words[base] = fill.pos();
-            words[base + 1] = fill.neg();
-        }
+        let fill_word = Word::splat(fill);
+        let words = std::iter::repeat_n(fill_word, nw).flatten().collect();
         let mut v = Self { width, words };
         v.mask_tail();
         v
@@ -549,6 +547,8 @@ impl_binop!(BitOr, bitor, or);
 
 #[cfg(test)]
 mod tests {
+    use strum::IntoEnumIterator;
+
     use super::*;
 
     #[test]
@@ -564,17 +564,16 @@ mod tests {
         use Belnap::*;
         // Full 4x4 truth table per Wikipedia B4
         // Rows/columns follow `variants` order: N, T, F, B
+        #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
-            //         N       T       F      B
-            /* N */
-            [Unknown, Unknown, False, False],
-            /* T */ [Unknown, True, False, Both],
-            /* F */ [False, False, False, False],
-            /* B */ [False, Both, False, Both],
+            //      U         T        F      B
+            /* U */ [Unknown, Unknown, False, False],
+            /* T */ [Unknown, True,    False, Both ],
+            /* F */ [False,   False,   False, False],
+            /* B */ [False,   Both,    False, Both ],
         ];
-        let variants = [Unknown, True, False, Both];
-        for (i, &a) in variants.iter().enumerate() {
-            for (j, &b) in variants.iter().enumerate() {
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
                 assert_eq!(a & b, expected[i][j], "{a:?} & {b:?}");
             }
         }
@@ -585,34 +584,39 @@ mod tests {
         use Belnap::*;
         // Full 4x4 truth table per Wikipedia B4
         // Rows/columns follow `variants` order: N, T, F, B
+        #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
-            //         N       T     F       B
-            /* N */
-            [Unknown, True, Unknown, True],
-            /* T */ [True, True, True, True],
-            /* F */ [Unknown, True, False, Both],
-            /* B */ [True, True, Both, Both],
+            //      U         T     F        B
+            /* U */ [Unknown, True, Unknown, True],
+            /* T */ [True,    True, True,    True],
+            /* F */ [Unknown, True, False,   Both],
+            /* B */ [True,    True, Both,    Both],
         ];
-        let variants = [Unknown, True, False, Both];
-        for (i, &a) in variants.iter().enumerate() {
-            for (j, &b) in variants.iter().enumerate() {
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
                 assert_eq!(a | b, expected[i][j], "{a:?} | {b:?}");
             }
         }
     }
 
     #[test]
-    fn scalar_merge() {
+    fn scalar_merge_truth_table() {
         use Belnap::*;
-        assert_eq!(Unknown.merge(Unknown), Unknown);
-        assert_eq!(Unknown.merge(True), True);
-        assert_eq!(Unknown.merge(False), False);
-        assert_eq!(True.merge(False), Both);
-        assert_eq!(Both.merge(True), Both);
-        assert_eq!(Both.merge(False), Both);
-        assert_eq!(Both.merge(Unknown), Both);
-        assert_eq!(True.merge(True), True);
-        assert_eq!(False.merge(False), False);
+        // Full 4x4 truth table (knowledge-ordering join)
+        // Rows/columns follow `variants` order: U, T, F, B
+        #[rustfmt::skip]
+        let expected: [[Belnap; 4]; 4] = [
+            //      U         T      F      B
+            /* U */ [Unknown, True,  False, Both],
+            /* T */ [True,    True,  Both,  Both],
+            /* F */ [False,   Both,  False, Both],
+            /* B */ [Both,    Both,  Both,  Both],
+        ];
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
+                assert_eq!(a.merge(b), expected[i][j], "{a:?}.merge({b:?})");
+            }
+        }
     }
 
     #[test]

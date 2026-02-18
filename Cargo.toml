@@ -13,4 +13,5 @@ schemars = { version = "1.0.4", features = ["chrono04", "url2", "semver1"] }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = { version = "1.0.128" }
 serde_norway = { version = "0.9.42" }
+strum = { version = "0.27.2", features = ["derive"] }
 thiserror = "2.0.11"
