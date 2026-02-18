@@ -314,14 +314,6 @@ impl BelnapVec {
 
     // Scalar access
 
-    fn words(&self, nw: usize) -> impl Iterator<Item = Word> + '_ {
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
-            .chain(std::iter::repeat(Word::default()))
-            .take(nw)
-    }
-
     #[must_use]
     fn get_unchecked(&self, i: usize) -> Belnap {
         debug_assert!(i < self.width);
@@ -373,10 +365,19 @@ impl BelnapVec {
 
     // Bulk operations
 
+    fn word_iter(&self) -> impl Iterator<Item = Word> + '_ {
+        self.words.chunks_exact(2).map(Word::from_slice)
+    }
+
+    fn word_iter_padded(&self, nw: usize) -> impl Iterator<Item = Word> + '_ {
+        self.word_iter()
+            .chain(std::iter::repeat(Word::default()))
+            .take(nw)
+    }
+
     #[must_use]
     pub fn not(&self) -> Self {
-        let nw = words_needed(self.width);
-        let words = self.words(nw).flat_map(std::ops::Not::not).collect();
+        let words = self.word_iter().flat_map(std::ops::Not::not).collect();
         Self {
             width: self.width,
             words,
@@ -388,8 +389,8 @@ impl BelnapVec {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let words = self
-            .words(nw)
-            .zip(other.words(nw))
+            .word_iter_padded(nw)
+            .zip(other.word_iter_padded(nw))
             .flat_map(|(a, b)| a & b)
             .collect();
         Self { width, words }
@@ -400,8 +401,8 @@ impl BelnapVec {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let words = self
-            .words(nw)
-            .zip(other.words(nw))
+            .word_iter_padded(nw)
+            .zip(other.word_iter_padded(nw))
             .flat_map(|(a, b)| a | b)
             .collect();
         Self { width, words }
@@ -418,8 +419,8 @@ impl BelnapVec {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let words = self
-            .words(nw)
-            .zip(other.words(nw))
+            .word_iter_padded(nw)
+            .zip(other.word_iter_padded(nw))
             .flat_map(|(a, b)| a.merge(b))
             .collect();
         Self { width, words }
@@ -430,90 +431,57 @@ impl BelnapVec {
     /// Returns `true` if no position is `Both`.
     #[must_use]
     pub fn is_consistent(&self) -> bool {
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
-            .all(|w| w.pos() & w.neg() == 0)
+        self.word_iter().all(|w| w.pos() & w.neg() == 0)
     }
 
     /// Returns `true` if every position is `True` or `False`.
     #[must_use]
     pub fn is_all_determined(&self) -> bool {
         let nw = words_needed(self.width);
-        if nw == 0 {
-            return true;
-        }
-        let m = tail_mask(self.width);
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
-            .take(nw - 1)
-            .all(|w| w.pos() ^ w.neg() == u64::MAX)
-            && {
-                let w = Word::from_slice(&self.words[pair(nw - 1)]);
-                w.pos() ^ w.neg() == m
-            }
+        let tm = tail_mask(self.width);
+        self.word_iter().enumerate().all(|(i, w)| {
+            let mask = if i + 1 == nw { tm } else { u64::MAX };
+            w.pos() ^ w.neg() == mask
+        })
     }
 
     #[must_use]
     pub fn is_all_true(&self) -> bool {
         let nw = words_needed(self.width);
-        if nw == 0 {
-            return true;
-        }
-        let m = tail_mask(self.width);
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
-            .take(nw - 1)
-            .all(|w| w.pos() == u64::MAX && w.neg() == 0)
-            && {
-                let w = Word::from_slice(&self.words[pair(nw - 1)]);
-                w.pos() == m && w.neg() == 0
-            }
+        let tm = tail_mask(self.width);
+        self.word_iter().enumerate().all(|(i, w)| {
+            let mask = if i + 1 == nw { tm } else { u64::MAX };
+            w.pos() == mask && w.neg() == 0
+        })
     }
 
     #[must_use]
     pub fn is_all_false(&self) -> bool {
         let nw = words_needed(self.width);
-        if nw == 0 {
-            return true;
-        }
-        let m = tail_mask(self.width);
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
-            .take(nw - 1)
-            .all(|w| w.pos() == 0 && w.neg() == u64::MAX)
-            && {
-                let w = Word::from_slice(&self.words[pair(nw - 1)]);
-                w.pos() == 0 && w.neg() == m
-            }
+        let tm = tail_mask(self.width);
+        self.word_iter().enumerate().all(|(i, w)| {
+            let mask = if i + 1 == nw { tm } else { u64::MAX };
+            w.pos() == 0 && w.neg() == mask
+        })
     }
 
     #[must_use]
     pub fn count_true(&self) -> usize {
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
+        self.word_iter()
             .map(|w| (w.pos() & !w.neg()).count_ones() as usize)
             .sum()
     }
 
     #[must_use]
     pub fn count_false(&self) -> usize {
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
+        self.word_iter()
             .map(|w| (!w.pos() & w.neg()).count_ones() as usize)
             .sum()
     }
 
     #[must_use]
     pub fn count_both(&self) -> usize {
-        self.words
-            .chunks_exact(2)
-            .map(Word::from_slice)
+        self.word_iter()
             .map(|w| (w.pos() & w.neg()).count_ones() as usize)
             .sum()
     }
