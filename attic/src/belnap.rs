@@ -36,7 +36,7 @@ impl Belnap {
     /// Returns `true` if this value carries any information (not `Unknown`).
     #[inline]
     #[must_use]
-    pub const fn has_info(self) -> bool {
+    pub const fn is_known(self) -> bool {
         self as u8 != 0
     }
 
@@ -307,7 +307,7 @@ impl BelnapVec {
             self.words.push(fill_word.neg());
         }
         self.width = new_width;
-        if fill.has_info() {
+        if fill.is_known() {
             self.mask_tail();
         }
     }
@@ -650,10 +650,10 @@ mod tests {
     #[test]
     fn scalar_queries() {
         use Belnap::*;
-        assert!(!Unknown.has_info());
-        assert!(True.has_info());
-        assert!(False.has_info());
-        assert!(Both.has_info());
+        assert!(!Unknown.is_known());
+        assert!(True.is_known());
+        assert!(False.is_known());
+        assert!(Both.is_known());
 
         assert!(!Unknown.is_determined());
         assert!(True.is_determined());
