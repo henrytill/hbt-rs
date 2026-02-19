@@ -25,7 +25,17 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build
       - run: cargo test
+  linux-flake-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+      - uses: DeterminateSystems/nix-installer-action@main
+      - uses: DeterminateSystems/magic-nix-cache-action@main
+      - run: nix flake check -L
   linux-flake:
+    needs: linux-flake-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -35,7 +45,7 @@ jobs:
       - uses: DeterminateSystems/magic-nix-cache-action@main
       - run: nix build -L .#hbt -o result-hbt
   linux-flake-static:
-    needs: linux-flake
+    needs: linux-flake-check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
