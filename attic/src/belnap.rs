@@ -69,8 +69,8 @@ impl Belnap {
     /// Knowledge-ordering join: combine observations from independent sources.
     #[inline]
     #[must_use]
-    pub const fn merge(self, other: Self) -> Self {
-        FROM_BITS[(self as u8 | other as u8) as usize]
+    pub fn merge(self, other: Self) -> Self {
+        FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
     #[must_use]
@@ -562,8 +562,6 @@ mod tests {
     #[test]
     fn scalar_and_truth_table() {
         use Belnap::*;
-        // Full 4x4 truth table per Wikipedia B4
-        // Rows/columns follow `variants` order: N, T, F, B
         #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
             //      U         T        F      B
@@ -582,8 +580,6 @@ mod tests {
     #[test]
     fn scalar_or_truth_table() {
         use Belnap::*;
-        // Full 4x4 truth table per Wikipedia B4
-        // Rows/columns follow `variants` order: N, T, F, B
         #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
             //      U         T     F        B
@@ -602,8 +598,6 @@ mod tests {
     #[test]
     fn scalar_merge_truth_table() {
         use Belnap::*;
-        // Full 4x4 truth table (knowledge-ordering join)
-        // Rows/columns follow `variants` order: U, T, F, B
         #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
             //      U         T      F      B
