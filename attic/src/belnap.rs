@@ -34,14 +34,14 @@ impl From<Belnap> for u8 {
 }
 
 impl Belnap {
-    /// Returns `true` if this value carries any information (not `Unknown`).
+    /// Returns `true` if this value carries any information (not [`Belnap::Unknown`]).
     #[inline]
     #[must_use]
     pub const fn is_known(self) -> bool {
         self as u8 != 0
     }
 
-    /// Returns `true` if this value is exactly `True` or `False`.
+    /// Returns `true` if this value is exactly [`Belnap::True`] or [`Belnap::False`].
     #[inline]
     #[must_use]
     pub const fn is_determined(self) -> bool {
@@ -49,14 +49,14 @@ impl Belnap {
         (b & 1) ^ (b >> 1) != 0
     }
 
-    /// Returns `true` if this value is `Both` (contradicted).
+    /// Returns `true` if this value is [`Belnap::Both`] (contradicted).
     #[inline]
     #[must_use]
     pub const fn is_contradicted(self) -> bool {
         self as u8 == 0b11
     }
 
-    /// Converts to `bool` if the value is exactly `True` or `False`.
+    /// Converts to `bool` if the value is exactly [`Belnap::True`] or [`Belnap::False`].
     #[must_use]
     pub const fn to_bool(self) -> Option<bool> {
         match self {
@@ -73,6 +73,8 @@ impl Belnap {
         FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
+    /// Logical implication: equivalent to `!self | rhs`.
+    #[inline]
     #[must_use]
     pub fn implies(self, rhs: Self) -> Self {
         (!self) | rhs
@@ -119,16 +121,40 @@ impl std::ops::BitOr for Belnap {
 const BITS_LOG2: u32 = 6;
 const BITS_MASK: usize = (1 << BITS_LOG2) - 1;
 
+const _: () = assert!(BITS_MASK == 63);
+
+/// Returns the number of 64-bit word pairs needed to store `n` Belnap values.
 #[inline]
 const fn words_needed(n: usize) -> usize {
     (n + BITS_MASK) >> BITS_LOG2
 }
 
+const _: () = {
+    assert!(words_needed(0) == 0);
+    assert!(words_needed(1) == 1);
+    assert!(words_needed(64) == 1);
+    assert!(words_needed(65) == 2);
+};
+
+/// Returns a bitmask selecting the active bits in the last word of a vector of
+/// width `n`.
+///
+/// When `n` is a multiple of 64, the last word is fully used and all bits are
+/// active, so the mask is `u64::MAX`. Otherwise only the low `n % 64` bits
+/// are active.
 #[inline]
 const fn tail_mask(n: usize) -> u64 {
     let r = n & BITS_MASK;
     if r == 0 { u64::MAX } else { (1u64 << r) - 1 }
 }
+
+const _: () = {
+    assert!(tail_mask(0) == u64::MAX);
+    assert!(tail_mask(64) == u64::MAX);
+    assert!(tail_mask(1) == 0b01);
+    assert!(tail_mask(4) == 0b1111);
+    assert!(tail_mask(63) == u64::MAX >> 1);
+};
 
 #[inline]
 const fn pair(w: usize) -> std::ops::Range<usize> {
@@ -210,15 +236,11 @@ impl std::error::Error for OutOfBounds {}
 
 /// Packed Belnap bitvector: two-bitplane representation.
 ///
-/// Encoding per bit position:
-/// - pos=0, neg=0 → Unknown
-/// - pos=1, neg=0 → True
-/// - pos=0, neg=1 → False
-/// - pos=1, neg=1 → Both
+/// Each bit position encodes a [`Belnap`] value using the same `(pos, neg)`
+/// scheme described on that type.
 ///
 /// Uses an interleaved layout: `[pos_0, neg_0, pos_1, neg_1, ...]`.
-/// All four bit patterns are valid (no invariant).
-/// Unused high bits in the last word pair are always zero.
+/// Invariant: unused high bits in the last word pair are always zero.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BelnapVec {
     width: usize,
@@ -226,13 +248,23 @@ pub struct BelnapVec {
 }
 
 impl BelnapVec {
-    /// Create a vector of `width` elements, all Unknown.
+    /// Creates a vector of `width` elements, all [`Belnap::Unknown`].
     #[must_use]
     pub fn new(width: usize) -> Self {
         let nw = words_needed(width);
         Self {
             width,
             words: vec![0; 2 * nw],
+        }
+    }
+
+    fn mask_tail(&mut self) {
+        let nw = words_needed(self.width);
+        if nw > 0 {
+            let m = tail_mask(self.width);
+            let pn = &mut self.words[pair(nw - 1)];
+            pn[0] &= m;
+            pn[1] &= m;
         }
     }
 
@@ -260,16 +292,6 @@ impl BelnapVec {
         self.width
     }
 
-    fn mask_tail(&mut self) {
-        let nw = words_needed(self.width);
-        if nw > 0 {
-            let m = tail_mask(self.width);
-            let pn = &mut self.words[pair(nw - 1)];
-            pn[0] &= m;
-            pn[1] &= m;
-        }
-    }
-
     // Bulk resize
 
     pub fn truncate(&mut self, new_width: usize) {
@@ -287,23 +309,18 @@ impl BelnapVec {
             self.truncate(new_width);
             return;
         }
-        let old_width = self.width;
-        let old_nw = words_needed(old_width);
+        let old_nw = words_needed(self.width);
         let new_nw = words_needed(new_width);
         let fill_word = Word::splat(fill);
         // Fill remaining bits in the current last word pair
-        if old_nw > 0 && old_width & BITS_MASK != 0 {
-            let high_mask = !tail_mask(old_width);
+        if fill.is_known() && old_nw > 0 && self.width & BITS_MASK != 0 {
+            let fill_mask = !tail_mask(self.width);
             let pn = &mut self.words[pair(old_nw - 1)];
-            pn[0] |= fill_word.pos() & high_mask;
-            pn[1] |= fill_word.neg() & high_mask;
+            pn[0] |= fill_word.pos() & fill_mask;
+            pn[1] |= fill_word.neg() & fill_mask;
         }
-        // Grow by pushing interleaved pairs
-        self.words.reserve(2 * (new_nw - old_nw));
-        for _ in old_nw..new_nw {
-            self.words.push(fill_word.pos());
-            self.words.push(fill_word.neg());
-        }
+        self.words
+            .extend(std::iter::repeat_n(fill_word, new_nw - old_nw).flatten());
         self.width = new_width;
         if fill.is_known() {
             self.mask_tail();
@@ -325,7 +342,7 @@ impl BelnapVec {
 
     /// # Errors
     ///
-    /// Returns `OutOfBounds` if `i >= self.width()`.
+    /// Returns [`OutOfBounds`] if `i >= self.width()`.
     pub fn get(&self, i: usize) -> Result<Belnap, OutOfBounds> {
         if i >= self.width {
             return Err(OutOfBounds);
@@ -350,12 +367,7 @@ impl BelnapVec {
         if i >= self.width {
             let new_width = i + 1;
             let new_nw = words_needed(new_width);
-            let old_nw = words_needed(self.width);
-            self.words.reserve(2 * (new_nw - old_nw));
-            for _ in old_nw..new_nw {
-                self.words.push(0);
-                self.words.push(0);
-            }
+            self.words.resize(2 * new_nw, 0u64);
             self.width = new_width;
         }
         self.set_unchecked(i, v);
@@ -426,13 +438,13 @@ impl BelnapVec {
 
     // Queries
 
-    /// Returns `true` if no position is `Both`.
+    /// Returns `true` if no position is [`Belnap::Both`].
     #[must_use]
     pub fn is_consistent(&self) -> bool {
         self.word_iter().all(|w| w.pos() & w.neg() == 0)
     }
 
-    /// Returns `true` if every position is `True` or `False`.
+    /// Returns `true` if every position is [`Belnap::True`] or [`Belnap::False`].
     #[must_use]
     pub fn is_all_determined(&self) -> bool {
         let nw = words_needed(self.width);
@@ -552,11 +564,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn scalar_not() {
-        assert_eq!(!Belnap::True, Belnap::False);
-        assert_eq!(!Belnap::False, Belnap::True);
-        assert_eq!(!Belnap::Unknown, Belnap::Unknown);
-        assert_eq!(!Belnap::Both, Belnap::Both);
+    fn scalar_not_truth_table() {
+        use Belnap::*;
+        let expected: [Belnap; 4] = [Unknown, False, True, Both];
+        for (i, a) in Belnap::iter().enumerate() {
+            assert_eq!(!a, expected[i], "!{a:?}");
+        }
     }
 
     #[test]
