@@ -63,50 +63,57 @@
           strictDeps = true;
         };
 
-        buildEnv = {
-          HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
-          HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+        cargoEnvStatic = {
+          CARGO_BUILD_TARGET = muslTarget;
+          CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
+        cargoArtifactsStatic = craneLibStatic.buildDepsOnly (commonArgs // cargoEnvStatic);
+
         mkCrate =
-          pname:
+          pname: extra:
           commonArgs
           // {
             inherit pname cargoArtifacts;
-            env = buildEnv;
             cargoExtraArgs = "-p ${pname}";
-          };
+          }
+          // extra;
 
-        crates = {
-          hbt = mkCrate "hbt";
-          hbt-core = mkCrate "hbt-core";
-          hbt-pinboard = mkCrate "hbt-pinboard";
-          hbt-attic = mkCrate "hbt-attic";
+        mkCrateStatic =
+          pname: extra:
+          commonArgs
+          // cargoEnvStatic
+          // {
+            inherit pname;
+            cargoArtifacts = cargoArtifactsStatic;
+            cargoExtraArgs = "-p ${pname}";
+          }
+          // extra;
+
+        crateConfigs = {
+          hbt = {
+            env = {
+              HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
+              HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+            };
+          };
+          hbt-core = { };
+          hbt-pinboard = { };
+          hbt-attic = { };
         };
+
+        crates = builtins.mapAttrs mkCrate crateConfigs;
+
+        cratesStatic = pkgs.lib.mapAttrs' (
+          name: extra: pkgs.lib.nameValuePair "${name}-static" (mkCrateStatic name extra)
+        ) crateConfigs;
 
         packages = builtins.mapAttrs (_: craneLib.buildPackage) crates;
 
-        # Static build using musl via rust-overlay
-        cargoArtifactsStatic = craneLibStatic.buildDepsOnly (
-          commonArgs
-          // {
-            CARGO_BUILD_TARGET = muslTarget;
-            CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
-          }
-        );
-
-        hbt-static = craneLibStatic.buildPackage (
-          commonArgs
-          // {
-            pname = "hbt-static";
-            env = buildEnv;
-            cargoArtifacts = cargoArtifactsStatic;
-            cargoExtraArgs = "-p hbt";
-            CARGO_BUILD_TARGET = muslTarget;
-            CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
-          }
+        packagesStatic = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
+          builtins.mapAttrs (_: craneLibStatic.buildPackage) cratesStatic
         );
 
         checks =
@@ -123,7 +130,7 @@
 
         packages =
           packages
-          // pkgs.lib.optionalAttrs pkgs.stdenv.isLinux { inherit hbt-static; }
+          // packagesStatic
           // {
             default = packages.hbt;
           };
