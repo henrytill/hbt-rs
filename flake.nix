@@ -101,6 +101,8 @@
           };
           hbt-core = { };
           hbt-pinboard = { };
+          hbt-test = { };
+          hbt-test-macros = { };
           hbt-attic = { };
         };
 
