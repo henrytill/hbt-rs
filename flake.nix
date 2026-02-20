@@ -72,63 +72,39 @@
 
         cargoArtifactsStatic = craneLibStatic.buildDepsOnly (commonArgs // cargoEnvStatic);
 
-        mkCrate =
-          pname: extra:
-          commonArgs
-          // {
-            inherit pname cargoArtifacts;
-            cargoExtraArgs = "-p ${pname}";
-          }
-          // extra;
-
-        mkCrateStatic =
-          pname: extra:
-          commonArgs
-          // cargoEnvStatic
-          // {
-            inherit pname;
-            cargoArtifacts = cargoArtifactsStatic;
-            cargoExtraArgs = "-p ${pname}";
-          }
-          // extra;
-
-        crateConfigs = {
-          hbt = {
-            env = {
-              HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
-              HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
-            };
-          };
-          hbt-attic = { };
-          hbt-core = { };
-          hbt-pinboard = { };
-          hbt-test = { };
-          hbt-test-macros = { };
+        packages = {
+          hbt = craneLib.buildPackage (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              env = {
+                HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
+                HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+              };
+            }
+          );
         };
 
-        crates = builtins.mapAttrs mkCrate crateConfigs;
+        packagesStatic = {
+          hbt-static = craneLibStatic.buildPackage (
+            commonArgs
+            // cargoEnvStatic
+            // {
+              cargoArtifacts = cargoArtifactsStatic;
+              pname = "hbt-static";
+              env = {
+                HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
+                HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+              };
+            }
+          );
+        };
 
-        cratesStatic = pkgs.lib.mapAttrs' (
-          name: extra: pkgs.lib.nameValuePair "${name}-static" (mkCrateStatic name extra)
-        ) crateConfigs;
-
-        packages = builtins.mapAttrs (_: craneLib.buildPackage) crates;
-
-        packagesStatic = pkgs.lib.optionalAttrs pkgs.stdenv.isLinux (
-          builtins.mapAttrs (_: craneLibStatic.buildPackage) cratesStatic
-        );
-
-        checks =
-          packages
-          // pkgs.lib.mapAttrs' (
-            name: value: pkgs.lib.nameValuePair "${name}-clippy" (craneLib.cargoClippy value)
-          ) crates
-          // pkgs.lib.mapAttrs' (
-            name: value: pkgs.lib.nameValuePair "${name}-fmt" (craneLib.cargoFmt value)
-          ) crates
-          // {
-            cargo-deny = craneLib.cargoDeny commonArgs;
-          };
+        checks = packages // {
+          cargo-clippy = craneLib.cargoClippy (commonArgs // { inherit cargoArtifacts; });
+          cargo-deny = craneLib.cargoDeny commonArgs;
+          cargo-fmt = craneLib.cargoFmt commonArgs;
+        };
       in
       {
         inherit checks;
