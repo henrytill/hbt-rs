@@ -99,11 +99,11 @@
               HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
             };
           };
+          hbt-attic = { };
           hbt-core = { };
           hbt-pinboard = { };
           hbt-test = { };
           hbt-test-macros = { };
-          hbt-attic = { };
         };
 
         crates = builtins.mapAttrs mkCrate crateConfigs;
