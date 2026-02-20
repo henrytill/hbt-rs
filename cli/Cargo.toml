@@ -13,4 +13,4 @@ serde_json.workspace = true
 serde_norway.workspace = true
 
 [dev-dependencies]
-snapbox = { version = "0.6.21", default-features = false, features = ["diff"] }
+snapbox = { version = "1.0.0", default-features = false, features = ["diff"] }
