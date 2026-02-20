@@ -125,7 +125,10 @@
           ) crates
           // pkgs.lib.mapAttrs' (
             name: value: pkgs.lib.nameValuePair "${name}-fmt" (craneLib.cargoFmt value)
-          ) crates;
+          ) crates
+          // {
+            cargo-deny = craneLib.cargoDeny commonArgs;
+          };
       in
       {
         inherit checks;
