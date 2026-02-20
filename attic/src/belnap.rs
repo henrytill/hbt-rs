@@ -35,14 +35,12 @@ impl From<Belnap> for u8 {
 
 impl Belnap {
     /// Returns `true` if this value carries any information (not [`Belnap::Unknown`]).
-    #[inline]
     #[must_use]
     pub const fn is_known(self) -> bool {
         self as u8 != 0
     }
 
     /// Returns `true` if this value is exactly [`Belnap::True`] or [`Belnap::False`].
-    #[inline]
     #[must_use]
     pub const fn is_determined(self) -> bool {
         let b = self as u8;
@@ -50,7 +48,6 @@ impl Belnap {
     }
 
     /// Returns `true` if this value is [`Belnap::Both`] (contradicted).
-    #[inline]
     #[must_use]
     pub const fn is_contradicted(self) -> bool {
         self as u8 == 0b11
@@ -67,14 +64,12 @@ impl Belnap {
     }
 
     /// Knowledge-ordering join: combine observations from independent sources.
-    #[inline]
     #[must_use]
     pub fn merge(self, other: Self) -> Self {
         FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
     /// Logical implication: equivalent to `!self | rhs`.
-    #[inline]
     #[must_use]
     pub fn implies(self, rhs: Self) -> Self {
         (!self) | rhs
