@@ -289,9 +289,8 @@ impl Flag {
         self.0
     }
 
-    /// Concat: None+None=None, Some(x)+None=Some(x), Some(x)+Some(y)=Some(x||y)
     #[must_use]
-    pub const fn concat(self, other: Flag) -> Flag {
+    pub const fn merge(self, other: Flag) -> Flag {
         match (self.0, other.0) {
             (None, None) => Flag(None),
             (Some(x), None) | (None, Some(x)) => Flag(Some(x)),
@@ -325,8 +324,8 @@ impl Shared {
     }
 
     #[must_use]
-    pub const fn concat(self, other: Shared) -> Shared {
-        Shared(self.0.concat(other.0))
+    pub const fn merge(self, other: Shared) -> Shared {
+        Shared(self.0.merge(other.0))
     }
 }
 
@@ -355,8 +354,8 @@ impl ToRead {
     }
 
     #[must_use]
-    pub const fn concat(self, other: ToRead) -> ToRead {
-        ToRead(self.0.concat(other.0))
+    pub const fn merge(self, other: ToRead) -> ToRead {
+        ToRead(self.0.merge(other.0))
     }
 }
 
@@ -385,8 +384,8 @@ impl IsFeed {
     }
 
     #[must_use]
-    pub const fn concat(self, other: IsFeed) -> IsFeed {
-        IsFeed(self.0.concat(other.0))
+    pub const fn merge(self, other: IsFeed) -> IsFeed {
+        IsFeed(self.0.merge(other.0))
     }
 }
 
@@ -421,7 +420,7 @@ impl LastVisitedAt {
 
     /// Concat: keeps the most recent (max) time
     #[must_use]
-    pub fn concat(self, other: LastVisitedAt) -> LastVisitedAt {
+    pub fn merge(self, other: LastVisitedAt) -> LastVisitedAt {
         match (self.0, other.0) {
             (None, None) => LastVisitedAt(None),
             (Some(t), None) | (None, Some(t)) => LastVisitedAt(Some(t)),
@@ -497,10 +496,10 @@ impl Entity {
 
     pub fn merge(&mut self, other: Entity) -> &mut Entity {
         self.update(other.created_at, other.names, other.labels);
-        self.shared = self.shared.concat(other.shared);
-        self.to_read = self.to_read.concat(other.to_read);
-        self.is_feed = self.is_feed.concat(other.is_feed);
-        self.last_visited_at = self.last_visited_at.concat(other.last_visited_at);
+        self.shared = self.shared.merge(other.shared);
+        self.to_read = self.to_read.merge(other.to_read);
+        self.is_feed = self.is_feed.merge(other.is_feed);
+        self.last_visited_at = self.last_visited_at.merge(other.last_visited_at);
         self
     }
 
