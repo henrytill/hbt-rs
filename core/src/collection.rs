@@ -62,7 +62,7 @@ impl fmt::Display for Version {
     }
 }
 
-pub type Edges = Vec<Id>;
+type Edges = Vec<Id>;
 
 #[derive(Debug, Default, PartialEq, Eq)]
 pub struct Collection {
