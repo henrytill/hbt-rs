@@ -72,15 +72,16 @@
 
         cargoArtifactsStatic = craneLibStatic.buildDepsOnly (commonArgs // cargoEnvStatic);
 
+        env = {
+          HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
+          HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+        };
+
         packages = {
           hbt = craneLib.buildPackage (
             commonArgs
             // {
-              inherit cargoArtifacts;
-              env = {
-                HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
-                HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
-              };
+              inherit cargoArtifacts env;
             }
           );
         };
@@ -90,12 +91,9 @@
             commonArgs
             // cargoEnvStatic
             // {
+              inherit env;
               cargoArtifacts = cargoArtifactsStatic;
               pname = "hbt-static";
-              env = {
-                HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
-                HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
-              };
             }
           );
         };
