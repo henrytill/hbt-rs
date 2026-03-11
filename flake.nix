@@ -27,17 +27,16 @@
           overlays = [ (import rust-overlay) ];
         };
 
-        craneLib = crane.mkLib pkgs;
+        rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
+
+        craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
         muslTarget =
           builtins.replaceStrings [ "-gnu" ] [ "-musl" ]
             pkgs.stdenv.hostPlatform.rust.rustcTargetSpec;
 
         craneLibStatic = (crane.mkLib pkgs).overrideToolchain (
-          p:
-          p.rust-bin.stable.latest.default.override {
-            targets = [ muslTarget ];
-          }
+          rustToolchain.override { targets = [ muslTarget ]; }
         );
 
         extraExtensions = [
