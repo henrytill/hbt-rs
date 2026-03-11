@@ -109,7 +109,7 @@ impl<'a> ParserState<'a> {
         let entity = Entity::new(url, date.into(), name, labels);
         let id = coll.upsert(entity);
         if let Some(parent) = self.parents.last() {
-            coll.add_edges(*parent, id);
+            coll.add_edges(parent, &id);
         }
         self.maybe_parent = Some(id);
         Ok(())
@@ -151,8 +151,8 @@ impl Collection {
                 }
                 Event::Start(tag @ Tag::List(_)) => {
                     state.current_tag = Some(tag);
-                    if let Some(parent) = state.maybe_parent {
-                        state.parents.push(parent);
+                    if let Some(parent) = state.maybe_parent.as_ref() {
+                        state.parents.push(parent.clone());
                     }
                 }
                 Event::Start(

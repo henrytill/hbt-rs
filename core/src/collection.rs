@@ -2,6 +2,7 @@ use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     fmt,
     ops::{Index, IndexMut},
+    rc::{Rc, Weak},
 };
 
 use schemars::JsonSchema;
@@ -21,22 +22,19 @@ pub enum Error {
     ParseSemver(#[from] semver::Error),
 }
 
-#[derive(
-    Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
-)]
-pub struct Id(usize);
+#[derive(Debug, Clone)]
+pub struct Id {
+    index: usize,
+    owner: Weak<()>,
+}
 
-impl Id {
-    const fn new(id: usize) -> Id {
-        Id(id)
+impl PartialEq for Id {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index && Weak::ptr_eq(&self.owner, &other.owner)
     }
 }
 
-impl From<Id> for usize {
-    fn from(id: Id) -> usize {
-        id.0
-    }
-}
+impl Eq for Id {}
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[schemars(transparent)]
@@ -62,58 +60,81 @@ impl fmt::Display for Version {
     }
 }
 
-type Edges = Vec<Id>;
+type Edges = Vec<usize>;
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct Collection {
+    token: Rc<()>,
     nodes: Vec<Entity>,
     edges: Vec<Edges>,
-    urls: HashMap<Url, Id>,
+    urls: HashMap<Url, usize>,
 }
 
-impl Index<Id> for Vec<Entity> {
+impl Index<&Id> for Vec<Entity> {
     type Output = Entity;
 
-    fn index(&self, id: Id) -> &Self::Output {
-        &self[id.0]
+    fn index(&self, id: &Id) -> &Self::Output {
+        &self[id.index]
     }
 }
 
-impl IndexMut<Id> for Vec<Entity> {
-    fn index_mut(&mut self, id: Id) -> &mut Self::Output {
-        &mut self[id.0]
+impl IndexMut<&Id> for Vec<Entity> {
+    fn index_mut(&mut self, id: &Id) -> &mut Self::Output {
+        &mut self[id.index]
     }
 }
 
-impl Index<Id> for Vec<Edges> {
+impl Index<&Id> for Vec<Edges> {
     type Output = Edges;
 
-    fn index(&self, id: Id) -> &Self::Output {
-        &self[id.0]
+    fn index(&self, id: &Id) -> &Self::Output {
+        &self[id.index]
     }
 }
 
-impl IndexMut<Id> for Vec<Edges> {
-    fn index_mut(&mut self, id: Id) -> &mut Self::Output {
-        &mut self[id.0]
+impl IndexMut<&Id> for Vec<Edges> {
+    fn index_mut(&mut self, id: &Id) -> &mut Self::Output {
+        &mut self[id.index]
     }
 }
 
 impl Collection {
+    fn make_id(&self, index: usize) -> Id {
+        Id {
+            index,
+            owner: Rc::downgrade(&self.token),
+        }
+    }
+
+    fn check_id(&self, id: &Id) {
+        if let Some(rc) = id.owner.upgrade() {
+            assert!(
+                Rc::ptr_eq(&rc, &self.token),
+                "Id belongs to a different collection"
+            );
+        } else {
+            panic!("Id's collection has been dropped");
+        }
+    }
+
     #[must_use]
     pub fn new() -> Collection {
-        let nodes = Vec::new();
-        let edges = Vec::new();
-        let urls = HashMap::new();
-        Collection { nodes, edges, urls }
+        Collection {
+            token: Rc::new(()),
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            urls: HashMap::new(),
+        }
     }
 
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Collection {
-        let nodes = Vec::with_capacity(capacity);
-        let edges = Vec::with_capacity(capacity);
-        let urls = HashMap::with_capacity(capacity);
-        Collection { nodes, edges, urls }
+        Collection {
+            token: Rc::new(()),
+            nodes: Vec::with_capacity(capacity),
+            edges: Vec::with_capacity(capacity),
+            urls: HashMap::with_capacity(capacity),
+        }
     }
 
     /// Returns the number of entities in the collection.
@@ -147,52 +168,60 @@ impl Collection {
 
     #[must_use]
     pub fn id(&self, url: &Url) -> Option<Id> {
-        self.urls.get(url).copied()
+        self.urls.get(url).map(|&idx| self.make_id(idx))
     }
 
     pub fn insert(&mut self, entity: Entity) -> Id {
-        let id = Id::new(self.len());
+        let index = self.len();
         self.nodes.push(entity);
         self.edges.push(Vec::new());
-        let url = self.nodes[id].url().to_owned();
-        self.urls.insert(url, id);
-        id
+        let url = self.nodes[index].url().to_owned();
+        self.urls.insert(url, index);
+        self.make_id(index)
     }
 
     pub fn upsert(&mut self, other: Entity) -> Id {
         let Some(id) = self.id(other.url()) else {
             return self.insert(other);
         };
-        let entity = &mut self.nodes[id];
+        let entity = &mut self.nodes[&id];
         entity.merge(other);
         id
     }
 
-    pub fn add_edge(&mut self, from: Id, to: Id) {
+    pub fn add_edge(&mut self, from: &Id, to: &Id) {
+        self.check_id(from);
+        self.check_id(to);
         let from_edges = &mut self.edges[from];
-        if from_edges.contains(&to) {
+        if from_edges.contains(&to.index) {
             return;
         }
-        from_edges.push(to);
+        from_edges.push(to.index);
     }
 
-    pub fn add_edges(&mut self, from: Id, to: Id) {
+    pub fn add_edges(&mut self, from: &Id, to: &Id) {
         self.add_edge(from, to);
         self.add_edge(to, from);
     }
 
     #[must_use]
-    pub fn entity(&self, id: Id) -> &Entity {
+    pub fn entity(&self, id: &Id) -> &Entity {
+        self.check_id(id);
         &self.nodes[id]
     }
 
-    pub fn entity_mut(&mut self, id: Id) -> &mut Entity {
+    pub fn entity_mut(&mut self, id: &Id) -> &mut Entity {
+        self.check_id(id);
         &mut self.nodes[id]
     }
 
     #[must_use]
-    pub fn edges(&self, id: Id) -> &[Id] {
-        &self.edges[id]
+    pub fn edges(&self, id: &Id) -> Vec<Id> {
+        self.check_id(id);
+        self.edges[id]
+            .iter()
+            .map(|&idx| self.make_id(idx))
+            .collect()
     }
 
     #[must_use]
@@ -238,12 +267,26 @@ impl Collection {
     }
 }
 
+impl Default for Collection {
+    fn default() -> Collection {
+        Collection::new()
+    }
+}
+
+impl PartialEq for Collection {
+    fn eq(&self, other: &Self) -> bool {
+        self.nodes == other.nodes && self.edges == other.edges && self.urls == other.urls
+    }
+}
+
+impl Eq for Collection {}
+
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct NodeRepr {
-    id: Id,
+    id: usize,
     entity: Entity,
-    edges: Vec<Id>,
+    edges: Vec<usize>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
@@ -262,10 +305,14 @@ impl From<&Collection> for CollectionRepr {
 
         let value: Vec<_> = (0..length)
             .map(|i| {
-                let id = Id::new(i);
-                let entity = coll.entity(id).clone();
-                let edges = coll.edges(id).to_vec();
-                NodeRepr { id, entity, edges }
+                let id = coll.make_id(i);
+                let entity = coll.entity(&id).clone();
+                let edges = coll.edges[i].clone();
+                NodeRepr {
+                    id: i,
+                    entity,
+                    edges,
+                }
             })
             .collect();
 
@@ -293,7 +340,7 @@ impl TryFrom<CollectionRepr> for Collection {
         repr.value.sort();
 
         for NodeRepr { id, entity, edges } in repr.value {
-            assert_eq!(id.0, ret.len());
+            assert_eq!(id, ret.len());
             let url = entity.url().clone();
             ret.nodes.push(entity);
             ret.edges.push(edges);
@@ -320,5 +367,46 @@ impl<'de> Deserialize<'de> for Collection {
     {
         let coll = CollectionRepr::deserialize(deserializer)?;
         Collection::try_from(coll).map_err(serde::de::Error::custom)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+
+    use crate::entity::{Entity, Time, Url};
+
+    use super::Collection;
+
+    fn make_entity(url: &str) -> Entity {
+        let url = Url::parse(url).unwrap();
+        let now = Time::new(Utc::now());
+        Entity::new(url, now, None, Default::default())
+    }
+
+    #[test]
+    #[should_panic(expected = "Id belongs to a different collection")]
+    fn check_id_wrong_collection() {
+        let mut coll1 = Collection::new();
+        let id1 = coll1.insert(make_entity("https://example.com/1"));
+
+        let mut coll2 = Collection::new();
+        coll2.insert(make_entity("https://example.com/2"));
+
+        let _ = coll2.entity(&id1);
+    }
+
+    #[test]
+    #[should_panic(expected = "Id's collection has been dropped")]
+    fn check_id_dropped_collection() {
+        let id = {
+            let mut coll = Collection::new();
+            coll.insert(make_entity("https://example.com/"))
+        };
+
+        let mut coll2 = Collection::new();
+        coll2.insert(make_entity("https://example.com/2"));
+
+        let _ = coll2.entity(&id);
     }
 }
