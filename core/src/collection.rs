@@ -306,23 +306,21 @@ impl TryFrom<&Collection> for CollectionRepr {
     fn try_from(coll: &Collection) -> Result<CollectionRepr, Error> {
         let version = Version::EXPECTED;
 
-        let length = u32::try_from(coll.len())?;
+        let length = coll.len();
 
         let value: Vec<_> = (0..length)
             .map(|i| {
-                let id = coll.make_id(i as usize);
-                let entity = coll.entity(&id).clone();
-                let edges = coll.edges[i as usize]
+                let id = u32::try_from(i)?;
+                let entity = coll.nodes[i].clone();
+                let edges = coll.edges[i]
                     .iter()
-                    .map(|&e| u32::try_from(e).map_err(Error::from))
-                    .collect::<Result<Vec<u32>, Error>>()?;
-                Ok(NodeRepr {
-                    id: i,
-                    entity,
-                    edges,
-                })
+                    .map(|&i| u32::try_from(i))
+                    .collect::<Result<Vec<u32>, std::num::TryFromIntError>>()?;
+                Ok(NodeRepr { id, entity, edges })
             })
             .collect::<Result<Vec<NodeRepr>, Error>>()?;
+
+        let length = u32::try_from(length)?;
 
         Ok(CollectionRepr {
             version,
@@ -354,8 +352,8 @@ impl TryFrom<CollectionRepr> for Collection {
             ret.edges.push(
                 edges
                     .into_iter()
-                    .map(|e| usize::try_from(e).map_err(Error::from))
-                    .collect::<Result<Vec<usize>, Error>>()?,
+                    .map(|e| usize::try_from(e))
+                    .collect::<Result<Vec<usize>, std::num::TryFromIntError>>()?,
             );
             ret.urls.insert(url, usize::try_from(id)?);
         }
