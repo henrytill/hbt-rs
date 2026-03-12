@@ -20,6 +20,9 @@ pub enum Error {
 
     #[error("version parsing error: {0}")]
     ParseSemver(#[from] semver::Error),
+
+    #[error("integer conversion error: {0}")]
+    TryFromInt(#[from] std::num::TryFromIntError),
 }
 
 #[derive(Debug, Clone)]
@@ -284,43 +287,48 @@ impl Eq for Collection {}
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct NodeRepr {
-    id: usize,
+    id: u32,
     entity: Entity,
-    edges: Vec<usize>,
+    edges: Vec<u32>,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectionRepr {
     version: Version,
-    length: usize,
+    length: u32,
     value: Vec<NodeRepr>,
 }
 
-impl From<&Collection> for CollectionRepr {
-    fn from(coll: &Collection) -> CollectionRepr {
+impl TryFrom<&Collection> for CollectionRepr {
+    type Error = Error;
+
+    fn try_from(coll: &Collection) -> Result<CollectionRepr, Error> {
         let version = Version::EXPECTED;
 
-        let length = coll.len();
+        let length = u32::try_from(coll.len())?;
 
         let value: Vec<_> = (0..length)
             .map(|i| {
-                let id = coll.make_id(i);
+                let id = coll.make_id(i as usize);
                 let entity = coll.entity(&id).clone();
-                let edges = coll.edges[i].clone();
-                NodeRepr {
+                let edges = coll.edges[i as usize]
+                    .iter()
+                    .map(|&e| u32::try_from(e).map_err(Error::from))
+                    .collect::<Result<Vec<u32>, Error>>()?;
+                Ok(NodeRepr {
                     id: i,
                     entity,
                     edges,
-                }
+                })
             })
-            .collect();
+            .collect::<Result<Vec<NodeRepr>, Error>>()?;
 
-        CollectionRepr {
+        Ok(CollectionRepr {
             version,
             length,
             value,
-        }
+        })
     }
 }
 
@@ -335,16 +343,21 @@ impl TryFrom<CollectionRepr> for Collection {
             ));
         }
 
-        let mut ret = Collection::with_capacity(repr.length);
+        let mut ret = Collection::with_capacity(usize::try_from(repr.length)?);
 
         repr.value.sort();
 
         for NodeRepr { id, entity, edges } in repr.value {
-            assert_eq!(id, ret.len());
+            assert_eq!(id, u32::try_from(ret.len())?);
             let url = entity.url().clone();
             ret.nodes.push(entity);
-            ret.edges.push(edges);
-            ret.urls.insert(url, id);
+            ret.edges.push(
+                edges
+                    .into_iter()
+                    .map(|e| usize::try_from(e).map_err(Error::from))
+                    .collect::<Result<Vec<usize>, Error>>()?,
+            );
+            ret.urls.insert(url, usize::try_from(id)?);
         }
 
         Ok(ret)
@@ -356,7 +369,9 @@ impl Serialize for Collection {
     where
         S: serde::Serializer,
     {
-        CollectionRepr::from(self).serialize(serializer)
+        CollectionRepr::try_from(self)
+            .map_err(serde::ser::Error::custom)?
+            .serialize(serializer)
     }
 }
 
