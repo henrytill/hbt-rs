@@ -33,6 +33,12 @@ impl From<Belnap> for u8 {
     }
 }
 
+impl From<Belnap> for u64 {
+    fn from(v: Belnap) -> u64 {
+        v as u64
+    }
+}
+
 impl Belnap {
     /// Returns `true` if this value carries any information (not [`Belnap::Unknown`]).
     #[must_use]
@@ -156,68 +162,6 @@ const fn pair(w: usize) -> std::ops::Range<usize> {
     2 * w..2 * w + 2
 }
 
-/// A `[pos, neg]` bitplane pair encoding 64 Belnap values.
-#[derive(Clone, Copy, Default)]
-struct Word([u64; 2]);
-
-impl Word {
-    const fn splat(v: Belnap) -> Self {
-        let bits = v as u64;
-        Self([u64::MAX * (bits & 1), u64::MAX * (bits >> 1)])
-    }
-
-    const fn from_slice(pn: &[u64]) -> Self {
-        debug_assert!(pn.len() >= 2);
-        Self([pn[0], pn[1]])
-    }
-
-    const fn pos(self) -> u64 {
-        self.0[0]
-    }
-
-    const fn neg(self) -> u64 {
-        self.0[1]
-    }
-
-    const fn merge(self, other: Self) -> Self {
-        Self([self.pos() | other.pos(), self.neg() | other.neg()])
-    }
-}
-
-impl IntoIterator for Word {
-    type Item = u64;
-
-    type IntoIter = std::array::IntoIter<u64, 2>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
-
-impl std::ops::Not for Word {
-    type Output = Self;
-
-    fn not(self) -> Self {
-        Self([self.neg(), self.pos()])
-    }
-}
-
-impl std::ops::BitAnd for Word {
-    type Output = Self;
-
-    fn bitand(self, rhs: Self) -> Self {
-        Self([self.pos() & rhs.pos(), self.neg() | rhs.neg()])
-    }
-}
-
-impl std::ops::BitOr for Word {
-    type Output = Self;
-
-    fn bitor(self, rhs: Self) -> Self {
-        Self([self.pos() | rhs.pos(), self.neg() & rhs.neg()])
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OutOfBounds;
 
@@ -264,9 +208,15 @@ impl BelnapVec {
     }
 
     fn filled(width: usize, fill: Belnap) -> Self {
+        let bits = u64::from(fill);
+        let fill_pos = u64::MAX * (bits & 1);
+        let fill_neg = u64::MAX * (bits >> 1);
         let nw = words_needed(width);
-        let fill_word = Word::splat(fill);
-        let words = std::iter::repeat_n(fill_word, nw).flatten().collect();
+        let mut words = Vec::with_capacity(2 * nw);
+        for _ in 0..nw {
+            words.push(fill_pos);
+            words.push(fill_neg);
+        }
         let mut v = Self { width, words };
         v.mask_tail();
         v
@@ -306,16 +256,18 @@ impl BelnapVec {
         }
         let old_nw = words_needed(self.width);
         let new_nw = words_needed(new_width);
-        let fill_word = Word::splat(fill);
+        let bits = u64::from(fill);
+        let fill_pos = u64::MAX * (bits & 1);
+        let fill_neg = u64::MAX * (bits >> 1);
         // Fill remaining bits in the current last word pair
-        if fill.is_known() && old_nw > 0 && self.width & BITS_MASK != 0 {
+        if old_nw > 0 && self.width & BITS_MASK != 0 {
             let fill_mask = !tail_mask(self.width);
             let pn = &mut self.words[pair(old_nw - 1)];
-            pn[0] |= fill_word.pos() & fill_mask;
-            pn[1] |= fill_word.neg() & fill_mask;
+            pn[0] |= fill_pos & fill_mask;
+            pn[1] |= fill_neg & fill_mask;
         }
         self.words
-            .extend(std::iter::repeat_n(fill_word, new_nw - old_nw).flatten());
+            .extend(std::iter::repeat_n([fill_pos, fill_neg], new_nw - old_nw).flatten());
         self.width = new_width;
         if fill.is_known() {
             self.mask_tail();
@@ -351,7 +303,7 @@ impl BelnapVec {
         let b = i & BITS_MASK;
         let pn = &mut self.words[pair(w)];
         let mask = 1u64 << b;
-        let v = u64::from(u8::from(v));
+        let v = u64::from(v);
         let pos = (v & 1) << b;
         let neg = (v >> 1) << b;
         pn[0] = (pn[0] & !mask) | pos;
@@ -370,19 +322,12 @@ impl BelnapVec {
 
     // Bulk operations
 
-    fn word_iter(&self) -> impl Iterator<Item = Word> + '_ {
-        self.words.chunks_exact(2).map(Word::from_slice)
-    }
-
-    fn word_iter_padded(&self, nw: usize) -> impl Iterator<Item = Word> + '_ {
-        self.word_iter()
-            .chain(std::iter::repeat(Word::default()))
-            .take(nw)
-    }
-
     #[must_use]
     pub fn not(&self) -> Self {
-        let words = self.word_iter().flat_map(std::ops::Not::not).collect();
+        let mut words = self.words.clone();
+        for pn in words.chunks_exact_mut(2) {
+            pn.swap(0, 1);
+        }
         Self {
             width: self.width,
             words,
@@ -393,11 +338,14 @@ impl BelnapVec {
     pub fn and(&self, other: &Self) -> Self {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
-        let words = self
-            .word_iter_padded(nw)
-            .zip(other.word_iter_padded(nw))
-            .flat_map(|(a, b)| a & b)
-            .collect();
+        let mut words = vec![0u64; 2 * nw];
+        for w in 0..nw {
+            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let out = &mut words[pair(w)];
+            out[0] = sp & op;
+            out[1] = sn | on;
+        }
         Self { width, words }
     }
 
@@ -405,11 +353,14 @@ impl BelnapVec {
     pub fn or(&self, other: &Self) -> Self {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
-        let words = self
-            .word_iter_padded(nw)
-            .zip(other.word_iter_padded(nw))
-            .flat_map(|(a, b)| a | b)
-            .collect();
+        let mut words = vec![0u64; 2 * nw];
+        for w in 0..nw {
+            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let out = &mut words[pair(w)];
+            out[0] = sp | op;
+            out[1] = sn & on;
+        }
         Self { width, words }
     }
 
@@ -423,11 +374,14 @@ impl BelnapVec {
     pub fn merge(&self, other: &Self) -> Self {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
-        let words = self
-            .word_iter_padded(nw)
-            .zip(other.word_iter_padded(nw))
-            .flat_map(|(a, b)| a.merge(b))
-            .collect();
+        let mut words = vec![0u64; 2 * nw];
+        for w in 0..nw {
+            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let out = &mut words[pair(w)];
+            out[0] = sp | op;
+            out[1] = sn | on;
+        }
         Self { width, words }
     }
 
@@ -436,64 +390,92 @@ impl BelnapVec {
     /// Returns `true` if no position is [`Belnap::Both`].
     #[must_use]
     pub fn is_consistent(&self) -> bool {
-        self.word_iter().all(|w| w.pos() & w.neg() == 0)
+        for pn in self.words.chunks_exact(2) {
+            if pn[0] & pn[1] != 0 {
+                return false;
+            }
+        }
+        true
     }
 
     /// Returns `true` if every position is [`Belnap::True`] or [`Belnap::False`].
     #[must_use]
     pub fn is_all_determined(&self) -> bool {
         let nw = words_needed(self.width);
-        let tm = tail_mask(self.width);
-        self.word_iter().enumerate().all(|(i, w)| {
-            let mask = if i + 1 == nw { tm } else { u64::MAX };
-            w.pos() ^ w.neg() == mask
-        })
+        if nw == 0 {
+            return true;
+        }
+        for pn in self.words[..2 * (nw - 1)].chunks_exact(2) {
+            if pn[0] ^ pn[1] != u64::MAX {
+                return false;
+            }
+        }
+        let last = &self.words[pair(nw - 1)];
+        last[0] ^ last[1] == tail_mask(self.width)
     }
 
     #[must_use]
     pub fn is_all_true(&self) -> bool {
         let nw = words_needed(self.width);
-        let tm = tail_mask(self.width);
-        self.word_iter().enumerate().all(|(i, w)| {
-            let mask = if i + 1 == nw { tm } else { u64::MAX };
-            w.pos() == mask && w.neg() == 0
-        })
+        if nw == 0 {
+            return true;
+        }
+        for pn in self.words[..2 * (nw - 1)].chunks_exact(2) {
+            if pn[0] != u64::MAX || pn[1] != 0 {
+                return false;
+            }
+        }
+        let last = &self.words[pair(nw - 1)];
+        last[0] == tail_mask(self.width) && last[1] == 0
     }
 
     #[must_use]
     pub fn is_all_false(&self) -> bool {
         let nw = words_needed(self.width);
-        let tm = tail_mask(self.width);
-        self.word_iter().enumerate().all(|(i, w)| {
-            let mask = if i + 1 == nw { tm } else { u64::MAX };
-            w.pos() == 0 && w.neg() == mask
-        })
+        if nw == 0 {
+            return true;
+        }
+        for pn in self.words[..2 * (nw - 1)].chunks_exact(2) {
+            if pn[0] != 0 || pn[1] != u64::MAX {
+                return false;
+            }
+        }
+        let last = &self.words[pair(nw - 1)];
+        last[0] == 0 && last[1] == tail_mask(self.width)
     }
 
     #[must_use]
     pub fn count_true(&self) -> usize {
-        self.word_iter()
-            .map(|w| (w.pos() & !w.neg()).count_ones() as usize)
+        self.words
+            .chunks_exact(2)
+            .map(|pn| (pn[0] & !pn[1]).count_ones() as usize)
             .sum()
     }
 
     #[must_use]
     pub fn count_false(&self) -> usize {
-        self.word_iter()
-            .map(|w| (!w.pos() & w.neg()).count_ones() as usize)
+        self.words
+            .chunks_exact(2)
+            .map(|pn| (!pn[0] & pn[1]).count_ones() as usize)
             .sum()
     }
 
     #[must_use]
     pub fn count_both(&self) -> usize {
-        self.word_iter()
-            .map(|w| (w.pos() & w.neg()).count_ones() as usize)
+        self.words
+            .chunks_exact(2)
+            .map(|pn| (pn[0] & pn[1]).count_ones() as usize)
             .sum()
     }
 
     #[must_use]
     pub fn count_unknown(&self) -> usize {
-        self.width - self.count_true() - self.count_false() - self.count_both()
+        let known: usize = self
+            .words
+            .chunks_exact(2)
+            .map(|pn| (pn[0] | pn[1]).count_ones() as usize)
+            .sum();
+        self.width - known
     }
 }
 
