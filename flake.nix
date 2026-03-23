@@ -31,14 +31,6 @@
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
-        muslTarget =
-          builtins.replaceStrings [ "-gnu" ] [ "-musl" ]
-            pkgs.stdenv.hostPlatform.rust.rustcTargetSpec;
-
-        craneLibStatic = (crane.mkLib pkgs).overrideToolchain (
-          rustToolchain.override { targets = [ muslTarget ]; }
-        );
-
         extraExtensions = [
           ".html"
           ".jinja"
@@ -62,14 +54,7 @@
           strictDeps = true;
         };
 
-        cargoEnvStatic = {
-          CARGO_BUILD_TARGET = muslTarget;
-          CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
-        };
-
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-
-        cargoArtifactsStatic = craneLibStatic.buildDepsOnly (commonArgs // cargoEnvStatic);
 
         env = {
           HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
@@ -85,17 +70,32 @@
           );
         };
 
-        packagesStatic = {
-          hbt-static = craneLibStatic.buildPackage (
-            commonArgs
-            // cargoEnvStatic
-            // {
-              inherit env;
-              cargoArtifacts = cargoArtifactsStatic;
-              pname = "hbt-static";
-            }
-          );
-        };
+        packagesStatic = pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
+          let
+            muslTarget =
+              builtins.replaceStrings [ "-gnu" ] [ "-musl" ]
+                pkgs.stdenv.hostPlatform.rust.rustcTargetSpec;
+            craneLibStatic = (crane.mkLib pkgs).overrideToolchain (
+              rustToolchain.override { targets = [ muslTarget ]; }
+            );
+            cargoEnvStatic = {
+              CARGO_BUILD_TARGET = muslTarget;
+              CARGO_BUILD_RUSTFLAGS = "-C target-feature=+crt-static";
+            };
+            cargoArtifactsStatic = craneLibStatic.buildDepsOnly (commonArgs // cargoEnvStatic);
+          in
+          {
+            hbt-static = craneLibStatic.buildPackage (
+              commonArgs
+              // cargoEnvStatic
+              // {
+                inherit env;
+                cargoArtifacts = cargoArtifactsStatic;
+                pname = "hbt-static";
+              }
+            );
+          }
+        );
 
         checks = packages // {
           cargo-clippy = craneLib.cargoClippy (commonArgs // { inherit cargoArtifacts; });
