@@ -352,7 +352,7 @@ impl TryFrom<CollectionRepr> for Collection {
             ret.edges.push(
                 edges
                     .into_iter()
-                    .map(|e| usize::try_from(e))
+                    .map(usize::try_from)
                     .collect::<Result<Vec<usize>, std::num::TryFromIntError>>()?,
             );
             ret.urls.insert(url, usize::try_from(id)?);
@@ -385,6 +385,8 @@ impl<'de> Deserialize<'de> for Collection {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use chrono::Utc;
 
     use crate::entity::{Entity, Time, Url};
@@ -394,7 +396,7 @@ mod tests {
     fn make_entity(url: &str) -> Entity {
         let url = Url::parse(url).unwrap();
         let now = Time::new(Utc::now());
-        Entity::new(url, now, None, Default::default())
+        Entity::new(url, now, None, BTreeSet::default())
     }
 
     #[test]
