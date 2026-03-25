@@ -71,21 +71,21 @@ impl Belnap {
 
     /// Knowledge-ordering join: combine observations from independent sources.
     #[must_use]
-    pub fn merge(self, other: Self) -> Self {
+    pub fn merge(self, other: Belnap) -> Belnap {
         FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
     /// Logical implication: equivalent to `!self | rhs`.
     #[must_use]
-    pub fn implies(self, rhs: Self) -> Self {
+    pub fn implies(self, rhs: Belnap) -> Belnap {
         (!self) | rhs
     }
 }
 
 impl std::ops::Not for Belnap {
-    type Output = Self;
+    type Output = Belnap;
 
-    fn not(self) -> Self {
+    fn not(self) -> Belnap {
         match self {
             Belnap::True => Belnap::False,
             Belnap::False => Belnap::True,
@@ -96,9 +96,9 @@ impl std::ops::Not for Belnap {
 }
 
 impl std::ops::BitAnd for Belnap {
-    type Output = Self;
+    type Output = Belnap;
 
-    fn bitand(self, rhs: Self) -> Self {
+    fn bitand(self, rhs: Belnap) -> Belnap {
         let (a, b) = (u8::from(self), u8::from(rhs));
         let r_pos = (a & 1) & (b & 1);
         let r_neg = (a >> 1) | (b >> 1);
@@ -107,9 +107,9 @@ impl std::ops::BitAnd for Belnap {
 }
 
 impl std::ops::BitOr for Belnap {
-    type Output = Self;
+    type Output = Belnap;
 
-    fn bitor(self, rhs: Self) -> Self {
+    fn bitor(self, rhs: Belnap) -> Belnap {
         let (a, b) = (u8::from(self), u8::from(rhs));
         let r_pos = (a & 1) | (b & 1);
         let r_neg = (a >> 1) & (b >> 1);
@@ -189,9 +189,9 @@ pub struct BelnapVec {
 impl BelnapVec {
     /// Creates a vector of `width` elements, all [`Belnap::Unknown`].
     #[must_use]
-    pub fn new(width: usize) -> Self {
+    pub fn new(width: usize) -> BelnapVec {
         let nw = words_needed(width);
-        Self {
+        BelnapVec {
             width,
             words: vec![0; 2 * nw],
         }
@@ -207,7 +207,7 @@ impl BelnapVec {
         }
     }
 
-    fn filled(width: usize, fill: Belnap) -> Self {
+    fn filled(width: usize, fill: Belnap) -> BelnapVec {
         let bits = u64::from(fill);
         let fill_pos = u64::MAX * (bits & 1);
         let fill_neg = u64::MAX * (bits >> 1);
@@ -217,19 +217,19 @@ impl BelnapVec {
             words.push(fill_pos);
             words.push(fill_neg);
         }
-        let mut v = Self { width, words };
+        let mut v = BelnapVec { width, words };
         v.mask_tail();
         v
     }
 
     #[must_use]
-    pub fn all_true(width: usize) -> Self {
-        Self::filled(width, Belnap::True)
+    pub fn all_true(width: usize) -> BelnapVec {
+        BelnapVec::filled(width, Belnap::True)
     }
 
     #[must_use]
-    pub fn all_false(width: usize) -> Self {
-        Self::filled(width, Belnap::False)
+    pub fn all_false(width: usize) -> BelnapVec {
+        BelnapVec::filled(width, Belnap::False)
     }
 
     #[must_use]
@@ -323,19 +323,19 @@ impl BelnapVec {
     // Bulk operations
 
     #[must_use]
-    pub fn not(&self) -> Self {
+    pub fn not(&self) -> BelnapVec {
         let mut words = self.words.clone();
         for pn in words.chunks_exact_mut(2) {
             pn.swap(0, 1);
         }
-        Self {
+        BelnapVec {
             width: self.width,
             words,
         }
     }
 
     #[must_use]
-    pub fn and(&self, other: &Self) -> Self {
+    pub fn and(&self, other: &BelnapVec) -> BelnapVec {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let mut words = vec![0u64; 2 * nw];
@@ -346,11 +346,11 @@ impl BelnapVec {
             out[0] = sp & op;
             out[1] = sn | on;
         }
-        Self { width, words }
+        BelnapVec { width, words }
     }
 
     #[must_use]
-    pub fn or(&self, other: &Self) -> Self {
+    pub fn or(&self, other: &BelnapVec) -> BelnapVec {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let mut words = vec![0u64; 2 * nw];
@@ -361,17 +361,17 @@ impl BelnapVec {
             out[0] = sp | op;
             out[1] = sn & on;
         }
-        Self { width, words }
+        BelnapVec { width, words }
     }
 
     #[must_use]
-    pub fn implies(&self, other: &Self) -> Self {
+    pub fn implies(&self, other: &BelnapVec) -> BelnapVec {
         self.not().or(other)
     }
 
     /// Knowledge-ordering join: combine observations from independent sources.
     #[must_use]
-    pub fn merge(&self, other: &Self) -> Self {
+    pub fn merge(&self, other: &BelnapVec) -> BelnapVec {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let mut words = vec![0u64; 2 * nw];
@@ -382,7 +382,7 @@ impl BelnapVec {
             out[0] = sp | op;
             out[1] = sn | on;
         }
-        Self { width, words }
+        BelnapVec { width, words }
     }
 
     // Queries
@@ -500,7 +500,7 @@ macro_rules! impl_binop {
         impl std::ops::$trait for &BelnapVec {
             type Output = BelnapVec;
 
-            fn $method(self, rhs: Self) -> BelnapVec {
+            fn $method(self, rhs: &BelnapVec) -> BelnapVec {
                 self.$inherent(rhs)
             }
         }
@@ -524,7 +524,7 @@ macro_rules! impl_binop {
         impl std::ops::$trait for BelnapVec {
             type Output = BelnapVec;
 
-            fn $method(self, rhs: Self) -> BelnapVec {
+            fn $method(self, rhs: BelnapVec) -> BelnapVec {
                 self.$inherent(&rhs)
             }
         }
