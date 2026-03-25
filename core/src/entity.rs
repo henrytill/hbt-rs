@@ -521,7 +521,7 @@ impl Entity {
 impl TryFrom<Post> for Entity {
     type Error = Error;
 
-    fn try_from(post: Post) -> Result<Self, Self::Error> {
+    fn try_from(post: Post) -> Result<Entity, Error> {
         let url = Url::parse(&post.href)?;
         let created_at = CreatedAt::new(Time::parse_flexible(&post.time)?);
         let extended: Vec<Extended> = post.extended.map(Extended::new).into_iter().collect();

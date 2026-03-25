@@ -32,7 +32,7 @@ pub struct Id {
 }
 
 impl PartialEq for Id {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other: &Id) -> bool {
         self.index == other.index && Weak::ptr_eq(&self.owner, &other.owner)
     }
 }
@@ -76,13 +76,13 @@ pub struct Collection {
 impl Index<&Id> for Vec<Entity> {
     type Output = Entity;
 
-    fn index(&self, id: &Id) -> &Self::Output {
+    fn index(&self, id: &Id) -> &Entity {
         &self[id.index]
     }
 }
 
 impl IndexMut<&Id> for Vec<Entity> {
-    fn index_mut(&mut self, id: &Id) -> &mut Self::Output {
+    fn index_mut(&mut self, id: &Id) -> &mut Entity {
         &mut self[id.index]
     }
 }
@@ -90,13 +90,13 @@ impl IndexMut<&Id> for Vec<Entity> {
 impl Index<&Id> for Vec<Edges> {
     type Output = Edges;
 
-    fn index(&self, id: &Id) -> &Self::Output {
+    fn index(&self, id: &Id) -> &Edges {
         &self[id.index]
     }
 }
 
 impl IndexMut<&Id> for Vec<Edges> {
-    fn index_mut(&mut self, id: &Id) -> &mut Self::Output {
+    fn index_mut(&mut self, id: &Id) -> &mut Edges {
         &mut self[id.index]
     }
 }
@@ -277,7 +277,7 @@ impl Default for Collection {
 }
 
 impl PartialEq for Collection {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, other: &Collection) -> bool {
         self.nodes == other.nodes && self.edges == other.edges && self.urls == other.urls
     }
 }
@@ -333,7 +333,7 @@ impl TryFrom<&Collection> for CollectionRepr {
 impl TryFrom<CollectionRepr> for Collection {
     type Error = Error;
 
-    fn try_from(mut repr: CollectionRepr) -> Result<Self, Self::Error> {
+    fn try_from(mut repr: CollectionRepr) -> Result<Collection, Error> {
         if !repr.version.matches_requirement()? {
             return Err(Error::IncompatibleVersion(
                 repr.version.to_string(),
