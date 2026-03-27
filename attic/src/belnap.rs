@@ -69,6 +69,12 @@ impl Belnap {
         }
     }
 
+    /// Knowledge-ordering meet: keep only information both sources agree on.
+    #[must_use]
+    pub fn consensus(self, other: Belnap) -> Belnap {
+        FROM_BITS[usize::from(u8::from(self) & u8::from(other))]
+    }
+
     /// Knowledge-ordering join: combine observations from independent sources.
     #[must_use]
     pub fn merge(self, other: Belnap) -> Belnap {
@@ -365,9 +371,20 @@ impl BelnapVec {
         BelnapVec { width, words }
     }
 
+    /// Knowledge-ordering meet: keep only information both sources agree on.
     #[must_use]
-    pub fn implies(&self, other: &BelnapVec) -> BelnapVec {
-        self.not().or(other)
+    pub fn consensus(&self, other: &BelnapVec) -> BelnapVec {
+        let width = self.width.max(other.width);
+        let nw = words_needed(width);
+        let mut words = vec![0u64; 2 * nw];
+        for w in 0..nw {
+            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
+            let out = &mut words[pair(w)];
+            out[0] = sp & op;
+            out[1] = sn & on;
+        }
+        BelnapVec { width, words }
     }
 
     /// Knowledge-ordering join: combine observations from independent sources.
@@ -384,6 +401,11 @@ impl BelnapVec {
             out[1] = sn | on;
         }
         BelnapVec { width, words }
+    }
+
+    #[must_use]
+    pub fn implies(&self, other: &BelnapVec) -> BelnapVec {
+        self.not().or(other)
     }
 
     // Queries
@@ -605,6 +627,24 @@ mod tests {
     }
 
     #[test]
+    fn scalar_consensus_truth_table() {
+        use Belnap::*;
+        #[rustfmt::skip]
+        let expected: [[Belnap; 4]; 4] = [
+            /*      U         T        F        B      */
+            /* U */ [Unknown, Unknown, Unknown, Unknown],
+            /* T */ [Unknown, True,    Unknown, True   ],
+            /* F */ [Unknown, Unknown, False,   False  ],
+            /* B */ [Unknown, True,    False,   Both   ],
+        ];
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
+                assert_eq!(a.consensus(b), expected[i][j], "{a:?}.consensus({b:?})");
+            }
+        }
+    }
+
+    #[test]
     fn scalar_queries() {
         use Belnap::*;
         assert!(!Unknown.is_known());
@@ -676,6 +716,18 @@ mod tests {
         assert_eq!(c.count_true(), 0);
         assert_eq!(c.count_false(), 0);
         assert_eq!(c.count_unknown(), 0);
+    }
+
+    #[test]
+    fn vec_bulk_consensus() {
+        let a = BelnapVec::all_true(64);
+        let b = BelnapVec::all_false(64);
+        let c = a.consensus(&b);
+        // Consensus of True and False should give Unknown everywhere
+        assert_eq!(c.count_unknown(), 64);
+        assert_eq!(c.count_true(), 0);
+        assert_eq!(c.count_false(), 0);
+        assert_eq!(c.count_both(), 0);
     }
 
     #[test]
@@ -886,6 +938,33 @@ mod tests {
         // Unknown (short) merge True (long) = True
         assert_eq!(ab.get(99).unwrap(), Belnap::True);
         // Beyond short: Unknown merge Unknown = Unknown
+        assert_eq!(ab.get(50).unwrap(), Belnap::Unknown);
+    }
+
+    #[test]
+    fn vec_consensus_different_widths() {
+        let mut short = BelnapVec::new(10);
+        short.set(0, Belnap::Both);
+        short.set(1, Belnap::True);
+
+        let mut long = BelnapVec::new(100);
+        long.set(0, Belnap::True);
+        long.set(1, Belnap::True);
+        long.set(99, Belnap::True);
+
+        let ab = short.consensus(&long);
+        let ba = long.consensus(&short);
+        assert_eq!(ab.width(), 100);
+        assert_eq!(ba.width(), 100);
+        assert_eq!(ab, ba);
+
+        // Both consensus True = True
+        assert_eq!(ab.get(0).unwrap(), Belnap::True);
+        // True consensus True = True
+        assert_eq!(ab.get(1).unwrap(), Belnap::True);
+        // Unknown (short) consensus True (long) = Unknown
+        assert_eq!(ab.get(99).unwrap(), Belnap::Unknown);
+        // Beyond short: Unknown consensus Unknown = Unknown
         assert_eq!(ab.get(50).unwrap(), Belnap::Unknown);
     }
 
