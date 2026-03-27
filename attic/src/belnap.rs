@@ -159,7 +159,8 @@ const _: () = {
 
 #[inline]
 const fn pair(w: usize) -> std::ops::Range<usize> {
-    2 * w..2 * w + 2
+    let base = 2 * w;
+    base..base + 2
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -554,7 +555,7 @@ mod tests {
         use Belnap::*;
         #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
-            //      U         T        F      B
+            /*      U         T        F      B    */
             /* U */ [Unknown, Unknown, False, False],
             /* T */ [Unknown, True,    False, Both ],
             /* F */ [False,   False,   False, False],
@@ -572,7 +573,7 @@ mod tests {
         use Belnap::*;
         #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
-            //      U         T     F        B
+            /*      U         T     F        B   */
             /* U */ [Unknown, True, Unknown, True],
             /* T */ [True,    True, True,    True],
             /* F */ [Unknown, True, False,   Both],
@@ -590,7 +591,7 @@ mod tests {
         use Belnap::*;
         #[rustfmt::skip]
         let expected: [[Belnap; 4]; 4] = [
-            //      U         T      F      B
+            /*      U         T      F      B   */
             /* U */ [Unknown, True,  False, Both],
             /* T */ [True,    True,  Both,  Both],
             /* F */ [False,   Both,  False, Both],
