@@ -8,10 +8,10 @@ edition = "2024"
 license = "ISC"
 
 [workspace.dependencies]
-clap = { version = "4.5.17", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
+clap = { version = "4.6.0", default-features = false, features = ["std", "derive", "help", "string", "usage"] }
 schemars = { version = "1.0.4", features = ["chrono04", "url2", "semver1"] }
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = { version = "1.0.128" }
 serde_norway = { version = "0.9.42" }
-strum = { version = "0.27.2", features = ["derive"] }
+strum = { version = "0.28.0", features = ["derive"] }
 thiserror = "2.0.11"
