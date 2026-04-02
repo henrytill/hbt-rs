@@ -184,7 +184,7 @@ impl Collection {
         env.add_template("netscape", TEMPLATE)?;
         let entities = self.entities();
         let template = env.get_template("netscape")?;
-        template.render_to_write(context! { entities }, &mut writer)?;
+        template.render_captured_to(context! { entities }, &mut writer)?;
         writer.write_all(b"\n")?;
         Ok(())
     }
