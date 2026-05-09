@@ -1,5 +1,7 @@
 //! Belnap's four-valued logic: scalar type and packed bitvector.
 
+use std::cmp::Ordering;
+
 /// A single Belnap truth value.
 ///
 /// Uses `#[repr(u8)]` with discriminants encoding `(neg_bit << 1) | pos_bit`:
@@ -131,6 +133,44 @@ impl std::ops::BitOr for Belnap {
         let r_pos = (a & 1) | (b & 1);
         let r_neg = (a >> 1) & (b >> 1);
         FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+    }
+}
+
+/// [`Belnap`] viewed in the truth lattice: `False < {Unknown, Both} < True`.
+///
+/// `Unknown` and `Both` are incomparable, so `partial_cmp` returns `None`
+/// for that pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AsTruth(pub Belnap);
+
+impl PartialOrd for AsTruth {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let meet = self.0 & other.0;
+        match (meet == self.0, meet == other.0) {
+            (true, true) => Some(Ordering::Equal),
+            (true, false) => Some(Ordering::Less),
+            (false, true) => Some(Ordering::Greater),
+            (false, false) => None,
+        }
+    }
+}
+
+/// [`Belnap`] viewed in the knowledge lattice: `Unknown < {True, False} < Both`.
+///
+/// `True` and `False` are incomparable, so `partial_cmp` returns `None`
+/// for that pair.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AsKnowledge(pub Belnap);
+
+impl PartialOrd for AsKnowledge {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        let meet = self.0.consensus(other.0);
+        match (meet == self.0, meet == other.0) {
+            (true, true) => Some(Ordering::Equal),
+            (true, false) => Some(Ordering::Less),
+            (false, true) => Some(Ordering::Greater),
+            (false, false) => None,
+        }
     }
 }
 
@@ -679,6 +719,72 @@ mod tests {
         assert_eq!(Belnap::True.to_string(), "True");
         assert_eq!(Belnap::False.to_string(), "False");
         assert_eq!(Belnap::Both.to_string(), "Both");
+    }
+
+    #[test]
+    fn scalar_leq_truth_table() {
+        // Truth order: False < {Unknown, Both} < True; Unknown and Both incomparable.
+        #[rustfmt::skip]
+        let expected: [[bool; 4]; 4] = [
+            /*      U       T      F      B    */
+            /* U */ [true,  true,  false, false],
+            /* T */ [false, true,  false, false],
+            /* F */ [true,  true,  true,  true ],
+            /* B */ [false, true,  false, true ],
+        ];
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
+                assert_eq!(
+                    AsTruth(a) <= AsTruth(b),
+                    expected[i][j],
+                    "AsTruth({a:?}) <= AsTruth({b:?})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn scalar_leq_knowledge_table() {
+        // Knowledge order: Unknown < {True, False} < Both; True and False incomparable.
+        #[rustfmt::skip]
+        let expected: [[bool; 4]; 4] = [
+            /*      U       T      F      B    */
+            /* U */ [true,  true,  true,  true ],
+            /* T */ [false, true,  false, true ],
+            /* F */ [false, false, true,  true ],
+            /* B */ [false, false, false, true ],
+        ];
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
+                assert_eq!(
+                    AsKnowledge(a) <= AsKnowledge(b),
+                    expected[i][j],
+                    "AsKnowledge({a:?}) <= AsKnowledge({b:?})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn scalar_partial_cmp_incomparable() {
+        // Truth lattice: Unknown and Both are incomparable.
+        assert_eq!(
+            AsTruth(Belnap::Unknown).partial_cmp(&AsTruth(Belnap::Both)),
+            None
+        );
+        assert_eq!(
+            AsTruth(Belnap::Both).partial_cmp(&AsTruth(Belnap::Unknown)),
+            None
+        );
+        // Knowledge lattice: True and False are incomparable.
+        assert_eq!(
+            AsKnowledge(Belnap::True).partial_cmp(&AsKnowledge(Belnap::False)),
+            None
+        );
+        assert_eq!(
+            AsKnowledge(Belnap::False).partial_cmp(&AsKnowledge(Belnap::True)),
+            None
+        );
     }
 
     #[test]
