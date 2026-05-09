@@ -71,6 +71,24 @@ impl Belnap {
         }
     }
 
+    /// Truth-ordering meet: logical AND.
+    #[must_use]
+    pub fn and(self, other: Belnap) -> Belnap {
+        let (a, b) = (u8::from(self), u8::from(other));
+        let r_pos = (a & 1) & (b & 1);
+        let r_neg = (a >> 1) | (b >> 1);
+        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+    }
+
+    /// Truth-ordering join: logical OR.
+    #[must_use]
+    pub fn or(self, other: Belnap) -> Belnap {
+        let (a, b) = (u8::from(self), u8::from(other));
+        let r_pos = (a & 1) | (b & 1);
+        let r_neg = (a >> 1) & (b >> 1);
+        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+    }
+
     /// Knowledge-ordering meet: keep only information both sources agree on.
     #[must_use]
     pub fn consensus(self, other: Belnap) -> Belnap {
@@ -83,10 +101,10 @@ impl Belnap {
         FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
-    /// Logical implication: equivalent to `!self | rhs`.
+    /// Logical implication: equivalent to `(!self).or(rhs)`.
     #[must_use]
     pub fn implies(self, rhs: Belnap) -> Belnap {
-        (!self) | rhs
+        (!self).or(rhs)
     }
 }
 
@@ -118,10 +136,7 @@ impl std::ops::BitAnd for Belnap {
     type Output = Belnap;
 
     fn bitand(self, rhs: Belnap) -> Belnap {
-        let (a, b) = (u8::from(self), u8::from(rhs));
-        let r_pos = (a & 1) & (b & 1);
-        let r_neg = (a >> 1) | (b >> 1);
-        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+        self.and(rhs)
     }
 }
 
@@ -129,10 +144,7 @@ impl std::ops::BitOr for Belnap {
     type Output = Belnap;
 
     fn bitor(self, rhs: Belnap) -> Belnap {
-        let (a, b) = (u8::from(self), u8::from(rhs));
-        let r_pos = (a & 1) | (b & 1);
-        let r_neg = (a >> 1) & (b >> 1);
-        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+        self.or(rhs)
     }
 }
 
