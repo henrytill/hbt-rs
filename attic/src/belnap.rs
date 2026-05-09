@@ -291,6 +291,11 @@ impl BelnapVec {
     }
 
     #[must_use]
+    pub fn all_both(width: usize) -> BelnapVec {
+        BelnapVec::filled(width, Belnap::Both)
+    }
+
+    #[must_use]
     pub fn width(&self) -> usize {
         self.width
     }
@@ -1320,5 +1325,330 @@ mod tests {
         assert_eq!(result.get(0).unwrap(), Belnap::True);
         // Unknown -> True = True for positions beyond short
         assert_eq!(result.get(50).unwrap(), Belnap::True);
+    }
+
+    mod props {
+        use proptest::prelude::*;
+
+        use super::*;
+
+        const MAX_N: usize = 200;
+
+        fn arb_belnap() -> impl Strategy<Value = Belnap> {
+            prop_oneof![
+                Just(Belnap::Unknown),
+                Just(Belnap::True),
+                Just(Belnap::False),
+                Just(Belnap::Both),
+            ]
+        }
+
+        fn arb_xs() -> impl Strategy<Value = Vec<Belnap>> {
+            prop::collection::vec(arb_belnap(), 0..=MAX_N)
+        }
+
+        fn arb_xs2() -> impl Strategy<Value = (Vec<Belnap>, Vec<Belnap>)> {
+            (0usize..=MAX_N).prop_flat_map(|n| {
+                (
+                    prop::collection::vec(arb_belnap(), n),
+                    prop::collection::vec(arb_belnap(), n),
+                )
+            })
+        }
+
+        fn arb_xs3() -> impl Strategy<Value = (Vec<Belnap>, Vec<Belnap>, Vec<Belnap>)> {
+            (0usize..=MAX_N).prop_flat_map(|n| {
+                (
+                    prop::collection::vec(arb_belnap(), n),
+                    prop::collection::vec(arb_belnap(), n),
+                    prop::collection::vec(arb_belnap(), n),
+                )
+            })
+        }
+
+        fn arb_get_set() -> impl Strategy<Value = (Vec<Belnap>, usize, Belnap)> {
+            (1usize..=MAX_N)
+                .prop_flat_map(|n| (prop::collection::vec(arb_belnap(), n), 0..n, arb_belnap()))
+        }
+
+        proptest! {
+            // -- Lattice laws for | (or) --
+
+            #[test]
+            fn or_commutativity((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.or(&b), b.or(&a));
+            }
+
+            #[test]
+            fn or_associativity((xs, ys, zs) in arb_xs3()) {
+                let a = BelnapVec::from(&xs[..]);
+                let b = BelnapVec::from(&ys[..]);
+                let c = BelnapVec::from(&zs[..]);
+                prop_assert_eq!(a.or(&b).or(&c), a.or(&b.or(&c)));
+            }
+
+            #[test]
+            fn or_idempotency(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.or(&a), a.clone());
+            }
+
+            // -- Lattice laws for & (and) --
+
+            #[test]
+            fn and_commutativity((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.and(&b), b.and(&a));
+            }
+
+            #[test]
+            fn and_associativity((xs, ys, zs) in arb_xs3()) {
+                let a = BelnapVec::from(&xs[..]);
+                let b = BelnapVec::from(&ys[..]);
+                let c = BelnapVec::from(&zs[..]);
+                prop_assert_eq!(a.and(&b).and(&c), a.and(&b.and(&c)));
+            }
+
+            #[test]
+            fn and_idempotency(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.and(&a), a.clone());
+            }
+
+            // -- Absorption / distributivity --
+
+            #[test]
+            fn absorption_or_and((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.or(&a.and(&b)), a.clone());
+            }
+
+            #[test]
+            fn absorption_and_or((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.and(&a.or(&b)), a.clone());
+            }
+
+            #[test]
+            fn and_distributes_over_or((xs, ys, zs) in arb_xs3()) {
+                let a = BelnapVec::from(&xs[..]);
+                let b = BelnapVec::from(&ys[..]);
+                let c = BelnapVec::from(&zs[..]);
+                prop_assert_eq!(a.and(&b.or(&c)), a.and(&b).or(&a.and(&c)));
+            }
+
+            #[test]
+            fn or_distributes_over_and((xs, ys, zs) in arb_xs3()) {
+                let a = BelnapVec::from(&xs[..]);
+                let b = BelnapVec::from(&ys[..]);
+                let c = BelnapVec::from(&zs[..]);
+                prop_assert_eq!(a.or(&b.and(&c)), a.or(&b).and(&a.or(&c)));
+            }
+
+            // -- Identities and annihilators --
+
+            #[test]
+            fn or_false_identity(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.or(&BelnapVec::all_false(xs.len())), a.clone());
+            }
+
+            #[test]
+            fn and_true_identity(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.and(&BelnapVec::all_true(xs.len())), a.clone());
+            }
+
+            #[test]
+            fn or_true_annihilator(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.or(&BelnapVec::all_true(xs.len())), BelnapVec::all_true(xs.len()));
+            }
+
+            #[test]
+            fn and_false_annihilator(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.and(&BelnapVec::all_false(xs.len())), BelnapVec::all_false(xs.len()));
+            }
+
+            // -- Negation --
+
+            #[test]
+            fn implies_definition((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.implies(&b), a.not().or(&b));
+            }
+
+            #[test]
+            fn not_involutive(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.not().not(), a.clone());
+            }
+
+            #[test]
+            fn de_morgan_and((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.and(&b).not(), a.not().or(&b.not()));
+            }
+
+            #[test]
+            fn de_morgan_or((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.or(&b).not(), a.not().and(&b.not()));
+            }
+
+            // -- Merge (knowledge join) --
+
+            #[test]
+            fn merge_commutativity((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.merge(&b), b.merge(&a));
+            }
+
+            #[test]
+            fn merge_associativity((xs, ys, zs) in arb_xs3()) {
+                let a = BelnapVec::from(&xs[..]);
+                let b = BelnapVec::from(&ys[..]);
+                let c = BelnapVec::from(&zs[..]);
+                prop_assert_eq!(a.merge(&b).merge(&c), a.merge(&b.merge(&c)));
+            }
+
+            #[test]
+            fn merge_idempotency(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.merge(&a), a.clone());
+            }
+
+            #[test]
+            fn merge_unknown_identity(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.merge(&BelnapVec::new(xs.len())), a.clone());
+            }
+
+            // -- Consensus (knowledge meet) --
+
+            #[test]
+            fn consensus_commutativity((xs, ys) in arb_xs2()) {
+                let (a, b) = (BelnapVec::from(&xs[..]), BelnapVec::from(&ys[..]));
+                prop_assert_eq!(a.consensus(&b), b.consensus(&a));
+            }
+
+            #[test]
+            fn consensus_associativity((xs, ys, zs) in arb_xs3()) {
+                let a = BelnapVec::from(&xs[..]);
+                let b = BelnapVec::from(&ys[..]);
+                let c = BelnapVec::from(&zs[..]);
+                prop_assert_eq!(a.consensus(&b).consensus(&c), a.consensus(&b.consensus(&c)));
+            }
+
+            #[test]
+            fn consensus_idempotency(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.consensus(&a), a.clone());
+            }
+
+            #[test]
+            fn consensus_both_identity(xs in arb_xs()) {
+                let a = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(a.consensus(&BelnapVec::all_both(xs.len())), a.clone());
+            }
+
+            // -- Count invariants --
+
+            #[test]
+            fn counts_sum_to_width(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(
+                    v.count_true() + v.count_false() + v.count_both() + v.count_unknown(),
+                    xs.len()
+                );
+            }
+
+            #[test]
+            fn is_consistent_iff_no_both(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(v.is_consistent(), v.count_both() == 0);
+            }
+
+            #[test]
+            fn is_all_determined_iff(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(
+                    v.is_all_determined(),
+                    v.count_unknown() == 0 && v.count_both() == 0
+                );
+            }
+
+            #[test]
+            fn is_all_true_iff(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(v.is_all_true(), v.count_true() == xs.len());
+            }
+
+            #[test]
+            fn is_all_false_iff(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                prop_assert_eq!(v.is_all_false(), v.count_false() == xs.len());
+            }
+
+            // -- Slice round-trip and iter consistency --
+
+            #[test]
+            fn from_slice_iter_roundtrip(xs in arb_xs()) {
+                let collected: Vec<_> = BelnapVec::from(&xs[..]).iter().collect();
+                prop_assert_eq!(collected, xs);
+            }
+
+            #[test]
+            fn iter_matches_get(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                for (i, val) in v.iter().enumerate() {
+                    prop_assert_eq!(val, v.get(i).unwrap());
+                }
+            }
+
+            // -- find_first --
+
+            #[test]
+            fn find_first_returns_match((needle, xs) in (arb_belnap(), arb_xs())) {
+                let v = BelnapVec::from(&xs[..]);
+                if let Some(i) = v.find_first(needle) {
+                    prop_assert_eq!(v.get(i).unwrap(), needle);
+                }
+            }
+
+            #[test]
+            fn find_first_is_leftmost((needle, xs) in (arb_belnap(), arb_xs())) {
+                let v = BelnapVec::from(&xs[..]);
+                if let Some(i) = v.find_first(needle) {
+                    for j in 0..i {
+                        prop_assert_ne!(v.get(j).unwrap(), needle);
+                    }
+                }
+            }
+
+            #[test]
+            fn find_first_none_iff_count_zero(xs in arb_xs()) {
+                let v = BelnapVec::from(&xs[..]);
+                for (needle, count) in [
+                    (Belnap::True, v.count_true()),
+                    (Belnap::False, v.count_false()),
+                    (Belnap::Both, v.count_both()),
+                    (Belnap::Unknown, v.count_unknown()),
+                ] {
+                    prop_assert_eq!(v.find_first(needle).is_some(), count > 0);
+                }
+            }
+
+            // -- get/set --
+
+            #[test]
+            fn get_after_set((xs, i, val) in arb_get_set()) {
+                let mut v = BelnapVec::from(&xs[..]);
+                v.set(i, val);
+                prop_assert_eq!(v.get(i).unwrap(), val);
+            }
+        }
     }
 }

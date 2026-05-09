@@ -7,4 +7,5 @@ license.workspace = true
 [dependencies]
 
 [dev-dependencies]
+proptest = "1.11.0"
 strum.workspace = true
