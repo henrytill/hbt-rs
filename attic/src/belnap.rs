@@ -647,11 +647,20 @@ impl<'a> IntoIterator for &'a BelnapVec {
 
 impl From<&[Belnap]> for BelnapVec {
     fn from(xs: &[Belnap]) -> BelnapVec {
-        let mut v = BelnapVec::new(xs.len());
-        for (i, &x) in xs.iter().enumerate() {
-            v.set_unchecked(i, x);
+        let width = xs.len();
+        let nw = words_needed(width);
+        let mut words = Vec::with_capacity(2 * nw);
+        for chunk in xs.chunks(64) {
+            let (mut pos, mut neg) = (0u64, 0u64);
+            for (b, &x) in chunk.iter().enumerate() {
+                let v = u64::from(x);
+                pos |= (v & 1) << b;
+                neg |= (v >> 1) << b;
+            }
+            words.push(pos);
+            words.push(neg);
         }
-        v
+        BelnapVec { width, words }
     }
 }
 
