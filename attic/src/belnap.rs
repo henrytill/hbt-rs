@@ -535,38 +535,37 @@ impl BelnapVec {
         self.all_words(|pn| !pn[0] & pn[1])
     }
 
-    #[must_use]
-    pub fn count_true(&self) -> usize {
+    /// Sums `mask(pn).count_ones()` across all word pairs. The tail-mask
+    /// invariant keeps padding bits zero, so callers don't need to mask the
+    /// last word.
+    fn count_with<F>(&self, mask: F) -> usize
+    where
+        F: Fn(&[u64]) -> u64,
+    {
         self.words
             .chunks_exact(2)
-            .map(|pn| (pn[0] & !pn[1]).count_ones() as usize)
+            .map(|pn| mask(pn).count_ones() as usize)
             .sum()
+    }
+
+    #[must_use]
+    pub fn count_true(&self) -> usize {
+        self.count_with(|pn| pn[0] & !pn[1])
     }
 
     #[must_use]
     pub fn count_false(&self) -> usize {
-        self.words
-            .chunks_exact(2)
-            .map(|pn| (!pn[0] & pn[1]).count_ones() as usize)
-            .sum()
+        self.count_with(|pn| !pn[0] & pn[1])
     }
 
     #[must_use]
     pub fn count_both(&self) -> usize {
-        self.words
-            .chunks_exact(2)
-            .map(|pn| (pn[0] & pn[1]).count_ones() as usize)
-            .sum()
+        self.count_with(|pn| pn[0] & pn[1])
     }
 
     #[must_use]
     pub fn count_unknown(&self) -> usize {
-        let known: usize = self
-            .words
-            .chunks_exact(2)
-            .map(|pn| (pn[0] | pn[1]).count_ones() as usize)
-            .sum();
-        self.width - known
+        self.width - self.count_with(|pn| pn[0] | pn[1])
     }
 
     /// Returns the index of the first occurrence of `needle`, or `None` if absent.
