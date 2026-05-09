@@ -101,10 +101,21 @@ impl Belnap {
         FROM_BITS[usize::from(u8::from(self) | u8::from(other))]
     }
 
-    /// Logical implication: equivalent to `(!self).or(rhs)`.
+    /// Logical implication: equivalent to `self.not().or(rhs)`.
     #[must_use]
     pub fn implies(self, rhs: Belnap) -> Belnap {
-        (!self).or(rhs)
+        self.not().or(rhs)
+    }
+
+    /// Logical NOT.
+    #[must_use]
+    pub const fn not(self) -> Belnap {
+        match self {
+            Belnap::True => Belnap::False,
+            Belnap::False => Belnap::True,
+            Belnap::Unknown => Belnap::Unknown,
+            Belnap::Both => Belnap::Both,
+        }
     }
 }
 
@@ -123,12 +134,7 @@ impl std::ops::Not for Belnap {
     type Output = Belnap;
 
     fn not(self) -> Belnap {
-        match self {
-            Belnap::True => Belnap::False,
-            Belnap::False => Belnap::True,
-            Belnap::Unknown => Belnap::Unknown,
-            Belnap::Both => Belnap::Both,
-        }
+        Belnap::not(self)
     }
 }
 
