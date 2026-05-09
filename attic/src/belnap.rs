@@ -132,26 +132,13 @@ impl std::ops::Not for Belnap {
     }
 }
 
-impl std::ops::BitAnd for Belnap {
-    type Output = Belnap;
-
-    fn bitand(self, rhs: Belnap) -> Belnap {
-        self.and(rhs)
-    }
-}
-
-impl std::ops::BitOr for Belnap {
-    type Output = Belnap;
-
-    fn bitor(self, rhs: Belnap) -> Belnap {
-        self.or(rhs)
-    }
-}
-
 /// Viewed in the truth lattice: `False < {Unknown, Both} < True`.
 ///
 /// `Unknown` and `Both` are incomparable, so `partial_cmp` returns `None`
 /// for that pair.
+///
+/// `BitAnd` and `BitOr` are the truth-lattice meet (logical AND) and join
+/// (logical OR).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AsTruth<T>(pub T);
 
@@ -167,10 +154,29 @@ impl PartialOrd for AsTruth<Belnap> {
     }
 }
 
+impl std::ops::BitAnd for AsTruth<Belnap> {
+    type Output = AsTruth<Belnap>;
+
+    fn bitand(self, rhs: AsTruth<Belnap>) -> AsTruth<Belnap> {
+        AsTruth(self.0.and(rhs.0))
+    }
+}
+
+impl std::ops::BitOr for AsTruth<Belnap> {
+    type Output = AsTruth<Belnap>;
+
+    fn bitor(self, rhs: AsTruth<Belnap>) -> AsTruth<Belnap> {
+        AsTruth(self.0.or(rhs.0))
+    }
+}
+
 /// Viewed in the knowledge lattice: `Unknown < {True, False} < Both`.
 ///
 /// `True` and `False` are incomparable, so `partial_cmp` returns `None`
 /// for that pair.
+///
+/// `BitAnd` and `BitOr` are the knowledge-lattice meet (consensus) and join
+/// (merge).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct AsKnowledge<T>(pub T);
 
@@ -183,6 +189,22 @@ impl PartialOrd for AsKnowledge<Belnap> {
             (false, true) => Some(Ordering::Greater),
             (false, false) => None,
         }
+    }
+}
+
+impl std::ops::BitAnd for AsKnowledge<Belnap> {
+    type Output = AsKnowledge<Belnap>;
+
+    fn bitand(self, rhs: AsKnowledge<Belnap>) -> AsKnowledge<Belnap> {
+        AsKnowledge(self.0.consensus(rhs.0))
+    }
+}
+
+impl std::ops::BitOr for AsKnowledge<Belnap> {
+    type Output = AsKnowledge<Belnap>;
+
+    fn bitor(self, rhs: AsKnowledge<Belnap>) -> AsKnowledge<Belnap> {
+        AsKnowledge(self.0.merge(rhs.0))
     }
 }
 
@@ -734,7 +756,7 @@ mod tests {
         ];
         for (i, a) in Belnap::iter().enumerate() {
             for (j, b) in Belnap::iter().enumerate() {
-                assert_eq!(a & b, expected[i][j], "{a:?} & {b:?}");
+                assert_eq!(a.and(b), expected[i][j], "{a:?}.and({b:?})");
             }
         }
     }
@@ -752,7 +774,22 @@ mod tests {
         ];
         for (i, a) in Belnap::iter().enumerate() {
             for (j, b) in Belnap::iter().enumerate() {
-                assert_eq!(a | b, expected[i][j], "{a:?} | {b:?}");
+                assert_eq!(a.or(b), expected[i][j], "{a:?}.or({b:?})");
+            }
+        }
+    }
+
+    #[test]
+    fn scalar_newtype_operators_agree() {
+        // BitAnd/BitOr on AsTruth dispatch to the truth lattice (and / or).
+        // BitAnd/BitOr on AsKnowledge dispatch to the knowledge lattice
+        // (consensus / merge).
+        for a in Belnap::iter() {
+            for b in Belnap::iter() {
+                assert_eq!(AsTruth(a) & AsTruth(b), AsTruth(a.and(b)));
+                assert_eq!(AsTruth(a) | AsTruth(b), AsTruth(a.or(b)));
+                assert_eq!(AsKnowledge(a) & AsKnowledge(b), AsKnowledge(a.consensus(b)));
+                assert_eq!(AsKnowledge(a) | AsKnowledge(b), AsKnowledge(a.merge(b)));
             }
         }
     }
