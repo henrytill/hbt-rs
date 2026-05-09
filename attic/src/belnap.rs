@@ -998,6 +998,34 @@ mod tests {
     }
 
     #[test]
+    fn vec_word_boundaries() {
+        // Element 63 is bit 63 (sign bit) of word-pair 0.
+        let mut v = BelnapVec::new(65);
+        v.set(63, Belnap::Both);
+        assert_eq!(v.get(63), Ok(Belnap::Both));
+        assert_eq!(v.get(62), Ok(Belnap::Unknown));
+        assert_eq!(v.get(64), Ok(Belnap::Unknown));
+
+        // Element 64 is bit 0 of word-pair 1.
+        v.set(64, Belnap::True);
+        assert_eq!(v.get(64), Ok(Belnap::True));
+        assert_eq!(v.get(63), Ok(Belnap::Both));
+    }
+
+    #[test]
+    fn vec_width_63() {
+        // width=63 exercises r=63 in tail_mask: the largest non-aligned width.
+        let v = BelnapVec::all_true(63);
+        assert!(v.is_all_true());
+        assert!(v.is_all_determined());
+        assert!(v.is_consistent());
+        assert_eq!(v.get(62), Ok(Belnap::True));
+
+        let merged = v.merge(&BelnapVec::all_false(63));
+        assert_eq!(merged.count_both(), 63);
+    }
+
+    #[test]
     fn vec_auto_grow() {
         let mut v = BelnapVec::new(10);
         v.set(100, Belnap::Both);
