@@ -27,6 +27,8 @@
           overlays = [ (import rust-overlay) ];
         };
 
+        lib = pkgs.lib;
+
         rustToolchain = pkgs.rust-bin.fromRustupToolchainFile ./rust-toolchain.toml;
 
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
@@ -40,12 +42,11 @@
           ".yaml"
         ];
 
-        src = pkgs.lib.cleanSourceWith {
+        src = lib.cleanSourceWith {
           src = self;
           filter =
             path: type:
-            craneLib.filterCargoSources path type
-            || builtins.any (ext: pkgs.lib.hasSuffix ext path) extraExtensions;
+            craneLib.filterCargoSources path type || lib.any (lib.flip lib.hasSuffix path) extraExtensions;
         };
 
         commonArgs = {
@@ -57,8 +58,8 @@
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
 
         env = {
-          HBT_COMMIT_HASH = "${self.rev or self.dirtyRev}";
-          HBT_COMMIT_SHORT_HASH = "${self.shortRev or self.dirtyShortRev}";
+          HBT_COMMIT_HASH = self.rev or self.dirtyRev;
+          HBT_COMMIT_SHORT_HASH = self.shortRev or self.dirtyShortRev;
         };
 
         packages = {
@@ -70,7 +71,7 @@
           );
         };
 
-        packagesStatic = pkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
+        packagesStatic = lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux (
           let
             muslTarget =
               builtins.replaceStrings [ "-gnu" ] [ "-musl" ]
@@ -97,14 +98,19 @@
           }
         );
 
-        checks = packages // {
-          cargo-clippy = craneLib.cargoClippy (commonArgs // { inherit cargoArtifacts; });
-          cargo-deny = craneLib.cargoDeny commonArgs;
-          cargo-fmt = craneLib.cargoFmt commonArgs;
-        };
+        checks =
+          packages
+          // packagesStatic
+          // {
+            cargo-clippy = craneLib.cargoClippy (commonArgs // { inherit cargoArtifacts; });
+            cargo-deny = craneLib.cargoDeny commonArgs;
+            cargo-fmt = craneLib.cargoFmt commonArgs;
+          };
       in
       {
         inherit checks;
+
+        formatter = pkgs.nixfmt-tree;
 
         packages =
           packages
