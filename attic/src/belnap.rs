@@ -148,16 +148,16 @@ impl std::ops::BitOr for Belnap {
     }
 }
 
-/// [`Belnap`] viewed in the truth lattice: `False < {Unknown, Both} < True`.
+/// Viewed in the truth lattice: `False < {Unknown, Both} < True`.
 ///
 /// `Unknown` and `Both` are incomparable, so `partial_cmp` returns `None`
 /// for that pair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AsTruth(pub Belnap);
+pub struct AsTruth<T>(pub T);
 
-impl PartialOrd for AsTruth {
+impl PartialOrd for AsTruth<Belnap> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let meet = self.0 & other.0;
+        let meet = self.0.and(other.0);
         match (meet == self.0, meet == other.0) {
             (true, true) => Some(Ordering::Equal),
             (true, false) => Some(Ordering::Less),
@@ -167,14 +167,14 @@ impl PartialOrd for AsTruth {
     }
 }
 
-/// [`Belnap`] viewed in the knowledge lattice: `Unknown < {True, False} < Both`.
+/// Viewed in the knowledge lattice: `Unknown < {True, False} < Both`.
 ///
 /// `True` and `False` are incomparable, so `partial_cmp` returns `None`
 /// for that pair.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct AsKnowledge(pub Belnap);
+pub struct AsKnowledge<T>(pub T);
 
-impl PartialOrd for AsKnowledge {
+impl PartialOrd for AsKnowledge<Belnap> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         let meet = self.0.consensus(other.0);
         match (meet == self.0, meet == other.0) {
