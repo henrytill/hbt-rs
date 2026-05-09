@@ -501,50 +501,38 @@ impl BelnapVec {
         true
     }
 
-    /// Returns `true` if every position is [`Belnap::True`] or [`Belnap::False`].
-    #[must_use]
-    pub fn is_all_determined(&self) -> bool {
+    /// Returns `true` if `active(pn)` covers all bits in every word pair.
+    /// Full words must equal `u64::MAX`; the last word must equal `tail_mask`.
+    fn all_words<F>(&self, active: F) -> bool
+    where
+        F: Fn(&[u64]) -> u64,
+    {
         let nw = words_needed(self.width);
         if nw == 0 {
             return true;
         }
         for pn in self.words[..2 * (nw - 1)].chunks_exact(2) {
-            if pn[0] ^ pn[1] != u64::MAX {
+            if active(pn) != u64::MAX {
                 return false;
             }
         }
-        let last = &self.words[pair(nw - 1)];
-        last[0] ^ last[1] == tail_mask(self.width)
+        active(&self.words[pair(nw - 1)]) == tail_mask(self.width)
+    }
+
+    /// Returns `true` if every position is [`Belnap::True`] or [`Belnap::False`].
+    #[must_use]
+    pub fn is_all_determined(&self) -> bool {
+        self.all_words(|pn| pn[0] ^ pn[1])
     }
 
     #[must_use]
     pub fn is_all_true(&self) -> bool {
-        let nw = words_needed(self.width);
-        if nw == 0 {
-            return true;
-        }
-        for pn in self.words[..2 * (nw - 1)].chunks_exact(2) {
-            if pn[0] != u64::MAX || pn[1] != 0 {
-                return false;
-            }
-        }
-        let last = &self.words[pair(nw - 1)];
-        last[0] == tail_mask(self.width) && last[1] == 0
+        self.all_words(|pn| pn[0] & !pn[1])
     }
 
     #[must_use]
     pub fn is_all_false(&self) -> bool {
-        let nw = words_needed(self.width);
-        if nw == 0 {
-            return true;
-        }
-        for pn in self.words[..2 * (nw - 1)].chunks_exact(2) {
-            if pn[0] != 0 || pn[1] != u64::MAX {
-                return false;
-            }
-        }
-        let last = &self.words[pair(nw - 1)];
-        last[0] == 0 && last[1] == tail_mask(self.width)
+        self.all_words(|pn| !pn[0] & pn[1])
     }
 
     #[must_use]
