@@ -689,44 +689,46 @@ impl std::ops::Not for BelnapVec {
     }
 }
 
-macro_rules! impl_binop {
-    ($trait:ident, $method:ident, $inherent:ident) => {
-        impl std::ops::$trait for &BelnapVec {
-            type Output = BelnapVec;
+macro_rules! impl_lattice_binop {
+    ($wrapper:ident, $trait:ident, $method:ident, $inherent:ident) => {
+        impl std::ops::$trait for $wrapper<&BelnapVec> {
+            type Output = $wrapper<BelnapVec>;
 
-            fn $method(self, rhs: &BelnapVec) -> BelnapVec {
-                self.$inherent(rhs)
+            fn $method(self, rhs: $wrapper<&BelnapVec>) -> $wrapper<BelnapVec> {
+                $wrapper(self.0.$inherent(rhs.0))
             }
         }
 
-        impl std::ops::$trait<&BelnapVec> for BelnapVec {
-            type Output = BelnapVec;
+        impl std::ops::$trait<$wrapper<&BelnapVec>> for $wrapper<BelnapVec> {
+            type Output = $wrapper<BelnapVec>;
 
-            fn $method(self, rhs: &BelnapVec) -> BelnapVec {
-                self.$inherent(rhs)
+            fn $method(self, rhs: $wrapper<&BelnapVec>) -> $wrapper<BelnapVec> {
+                $wrapper(self.0.$inherent(rhs.0))
             }
         }
 
-        impl std::ops::$trait<BelnapVec> for &BelnapVec {
-            type Output = BelnapVec;
+        impl std::ops::$trait<$wrapper<BelnapVec>> for $wrapper<&BelnapVec> {
+            type Output = $wrapper<BelnapVec>;
 
-            fn $method(self, rhs: BelnapVec) -> BelnapVec {
-                self.$inherent(&rhs)
+            fn $method(self, rhs: $wrapper<BelnapVec>) -> $wrapper<BelnapVec> {
+                $wrapper(self.0.$inherent(&rhs.0))
             }
         }
 
-        impl std::ops::$trait for BelnapVec {
-            type Output = BelnapVec;
+        impl std::ops::$trait for $wrapper<BelnapVec> {
+            type Output = $wrapper<BelnapVec>;
 
-            fn $method(self, rhs: BelnapVec) -> BelnapVec {
-                self.$inherent(&rhs)
+            fn $method(self, rhs: $wrapper<BelnapVec>) -> $wrapper<BelnapVec> {
+                $wrapper(self.0.$inherent(&rhs.0))
             }
         }
     };
 }
 
-impl_binop!(BitAnd, bitand, and);
-impl_binop!(BitOr, bitor, or);
+impl_lattice_binop!(AsTruth, BitAnd, bitand, and);
+impl_lattice_binop!(AsTruth, BitOr, bitor, or);
+impl_lattice_binop!(AsKnowledge, BitAnd, bitand, consensus);
+impl_lattice_binop!(AsKnowledge, BitOr, bitor, merge);
 
 #[cfg(test)]
 mod tests {
@@ -1362,6 +1364,30 @@ mod tests {
         assert_ne!(a, d);
 
         assert_eq!(BelnapVec::new(0), BelnapVec::new(0));
+    }
+
+    #[test]
+    fn vec_newtype_operators_agree() {
+        let xs = [Belnap::Unknown, Belnap::True, Belnap::False, Belnap::Both];
+        let ys = [Belnap::True, Belnap::Both, Belnap::Unknown, Belnap::False];
+        let v = BelnapVec::from(&xs[..]);
+        let w = BelnapVec::from(&ys[..]);
+
+        // Borrowed operands.
+        assert_eq!((AsTruth(&v) & AsTruth(&w)).0, v.and(&w));
+        assert_eq!((AsTruth(&v) | AsTruth(&w)).0, v.or(&w));
+        assert_eq!((AsKnowledge(&v) & AsKnowledge(&w)).0, v.consensus(&w));
+        assert_eq!((AsKnowledge(&v) | AsKnowledge(&w)).0, v.merge(&w));
+
+        // Owned LHS, borrowed RHS.
+        assert_eq!((AsTruth(v.clone()) & AsTruth(&w)).0, v.and(&w));
+        // Borrowed LHS, owned RHS.
+        assert_eq!((AsTruth(&v) | AsTruth(w.clone())).0, v.or(&w));
+        // Owned both.
+        assert_eq!(
+            (AsKnowledge(v.clone()) & AsKnowledge(w.clone())).0,
+            v.consensus(&w)
+        );
     }
 
     #[test]
