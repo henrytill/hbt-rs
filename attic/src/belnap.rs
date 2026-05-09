@@ -551,6 +551,87 @@ impl BelnapVec {
             .sum();
         self.width - known
     }
+
+    /// Returns the index of the first occurrence of `needle`, or `None` if absent.
+    #[must_use]
+    pub fn find_first(&self, needle: Belnap) -> Option<usize> {
+        let nw = words_needed(self.width);
+        if nw == 0 {
+            return None;
+        }
+        let bits = u8::from(needle);
+        let want_pos = (bits & 1) != 0;
+        let want_neg = (bits >> 1) != 0;
+        let last = nw - 1;
+        let tail = tail_mask(self.width);
+        for w in 0..nw {
+            let pn = &self.words[pair(w)];
+            let pos_match = if want_pos { pn[0] } else { !pn[0] };
+            let neg_match = if want_neg { pn[1] } else { !pn[1] };
+            let mut m = pos_match & neg_match;
+            // Mask the last word to suppress garbage past `width`. For non-Unknown
+            // needles the invariant already keeps those bits at 0, but Unknown
+            // matches `(0, 0)` and would otherwise hit the padding.
+            if w == last {
+                m &= tail;
+            }
+            if m != 0 {
+                return Some(w * 64 + m.trailing_zeros() as usize);
+            }
+        }
+        None
+    }
+
+    /// Returns an iterator over all elements in index order.
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_> {
+        Iter { vec: self, next: 0 }
+    }
+}
+
+/// Iterator over a [`BelnapVec`]'s elements in index order.
+pub struct Iter<'a> {
+    vec: &'a BelnapVec,
+    next: usize,
+}
+
+impl Iterator for Iter<'_> {
+    type Item = Belnap;
+
+    fn next(&mut self) -> Option<Belnap> {
+        if self.next >= self.vec.width {
+            return None;
+        }
+        let v = self.vec.get_unchecked(self.next);
+        self.next += 1;
+        Some(v)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let remaining = self.vec.width - self.next;
+        (remaining, Some(remaining))
+    }
+}
+
+impl ExactSizeIterator for Iter<'_> {}
+
+impl<'a> IntoIterator for &'a BelnapVec {
+    type Item = Belnap;
+    type IntoIter = Iter<'a>;
+
+    fn into_iter(self) -> Iter<'a> {
+        self.iter()
+    }
+}
+
+impl From<&[Belnap]> for BelnapVec {
+    fn from(xs: &[Belnap]) -> BelnapVec {
+        let mut v = BelnapVec::new(xs.len());
+        for (i, &x) in xs.iter().enumerate() {
+            v.set_unchecked(i, x);
+        }
+        v
+    }
 }
 
 impl std::ops::Not for &BelnapVec {
@@ -1109,6 +1190,96 @@ mod tests {
         assert_eq!(ab.get(99).unwrap(), Belnap::Unknown);
         // Beyond short: Unknown consensus Unknown = Unknown
         assert_eq!(ab.get(50).unwrap(), Belnap::Unknown);
+    }
+
+    #[test]
+    fn vec_from_slice_iter_roundtrip() {
+        // Empty.
+        assert_eq!(BelnapVec::new(0).iter().count(), 0);
+        let empty: &[Belnap] = &[];
+        assert_eq!(BelnapVec::from(empty).width(), 0);
+
+        // 4 elements covering all variants.
+        let xs = [Belnap::Unknown, Belnap::True, Belnap::False, Belnap::Both];
+        let collected: Vec<_> = BelnapVec::from(&xs[..]).iter().collect();
+        assert_eq!(collected, xs);
+
+        // 64 elements: exactly one full word-pair.
+        let xs64 = [Belnap::True; 64];
+        let collected: Vec<_> = BelnapVec::all_true(64).iter().collect();
+        assert_eq!(collected, xs64);
+
+        // 65 elements: last element straddles into word-pair 1.
+        let mut xs65 = [Belnap::True; 65];
+        xs65[64] = Belnap::False;
+        let collected: Vec<_> = BelnapVec::from(&xs65[..]).iter().collect();
+        assert_eq!(collected, xs65);
+    }
+
+    #[test]
+    fn vec_iter_indexed_and_early_termination() {
+        let xs = [Belnap::Unknown, Belnap::True, Belnap::False, Belnap::Both];
+        let v = BelnapVec::from(&xs[..]);
+
+        let indexed: Vec<_> = v.iter().enumerate().collect();
+        assert_eq!(
+            indexed,
+            vec![
+                (0, Belnap::Unknown),
+                (1, Belnap::True),
+                (2, Belnap::False),
+                (3, Belnap::Both),
+            ]
+        );
+
+        // Early termination via take.
+        let first_two: Vec<_> = v.iter().take(2).collect();
+        assert_eq!(first_two, vec![Belnap::Unknown, Belnap::True]);
+
+        // ExactSizeIterator.
+        assert_eq!(v.iter().len(), 4);
+
+        // IntoIterator for &BelnapVec.
+        let collected: Vec<_> = (&v).into_iter().collect();
+        assert_eq!(collected, xs);
+    }
+
+    #[test]
+    fn vec_find_first() {
+        let xs = [Belnap::False, Belnap::False, Belnap::True, Belnap::Both];
+        let v = BelnapVec::from(&xs[..]);
+        assert_eq!(v.find_first(Belnap::True), Some(2));
+        assert_eq!(v.find_first(Belnap::False), Some(0));
+        assert_eq!(v.find_first(Belnap::Both), Some(3));
+        assert_eq!(v.find_first(Belnap::Unknown), None);
+
+        // Empty vec.
+        assert_eq!(BelnapVec::new(0).find_first(Belnap::True), None);
+
+        // Match at word boundary (index 64, word-pair 1).
+        let mut xs = [Belnap::False; 65];
+        xs[64] = Belnap::True;
+        let v = BelnapVec::from(&xs[..]);
+        assert_eq!(v.find_first(Belnap::True), Some(64));
+
+        // Tail-mask must not produce a false hit on garbage bits past width.
+        assert_eq!(BelnapVec::all_true(63).find_first(Belnap::Unknown), None);
+    }
+
+    #[test]
+    fn vec_equal() {
+        let a = BelnapVec::from(&[Belnap::True, Belnap::False, Belnap::Both][..]);
+        let b = BelnapVec::from(&[Belnap::True, Belnap::False, Belnap::Both][..]);
+        assert_eq!(a, b);
+
+        let c = BelnapVec::from(&[Belnap::True, Belnap::False, Belnap::Unknown][..]);
+        assert_ne!(a, c);
+
+        // Different widths are not equal.
+        let d = BelnapVec::from(&[Belnap::True, Belnap::False][..]);
+        assert_ne!(a, d);
+
+        assert_eq!(BelnapVec::new(0), BelnapVec::new(0));
     }
 
     #[test]
