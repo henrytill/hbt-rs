@@ -132,6 +132,17 @@ impl std::ops::Not for Belnap {
     }
 }
 
+/// Lattice ordering from a meet: `a <= b` iff `meet(a, b) == a`. Returns
+/// `None` when neither operand absorbs the other (incomparable elements).
+fn lattice_partial_cmp<T: PartialEq>(a: &T, b: &T, meet: T) -> Option<Ordering> {
+    match (meet == *a, meet == *b) {
+        (true, true) => Some(Ordering::Equal),
+        (true, false) => Some(Ordering::Less),
+        (false, true) => Some(Ordering::Greater),
+        (false, false) => None,
+    }
+}
+
 /// Viewed in the truth lattice: `False < {Unknown, Both} < True`.
 ///
 /// `Unknown` and `Both` are incomparable, so `partial_cmp` returns `None`
@@ -144,13 +155,7 @@ pub struct AsTruth<T>(pub T);
 
 impl PartialOrd for AsTruth<Belnap> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let meet = self.0.and(other.0);
-        match (meet == self.0, meet == other.0) {
-            (true, true) => Some(Ordering::Equal),
-            (true, false) => Some(Ordering::Less),
-            (false, true) => Some(Ordering::Greater),
-            (false, false) => None,
-        }
+        lattice_partial_cmp(&self.0, &other.0, self.0.and(other.0))
     }
 }
 
@@ -182,13 +187,7 @@ pub struct AsKnowledge<T>(pub T);
 
 impl PartialOrd for AsKnowledge<Belnap> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        let meet = self.0.consensus(other.0);
-        match (meet == self.0, meet == other.0) {
-            (true, true) => Some(Ordering::Equal),
-            (true, false) => Some(Ordering::Less),
-            (false, true) => Some(Ordering::Greater),
-            (false, false) => None,
-        }
+        lattice_partial_cmp(&self.0, &other.0, self.0.consensus(other.0))
     }
 }
 
