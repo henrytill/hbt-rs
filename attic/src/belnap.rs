@@ -88,6 +88,17 @@ impl Belnap {
     }
 }
 
+impl std::fmt::Display for Belnap {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Belnap::Unknown => "Unknown",
+            Belnap::True => "True",
+            Belnap::False => "False",
+            Belnap::Both => "Both",
+        })
+    }
+}
+
 impl std::ops::Not for Belnap {
     type Output = Belnap;
 
@@ -642,6 +653,32 @@ mod tests {
                 assert_eq!(a.consensus(b), expected[i][j], "{a:?}.consensus({b:?})");
             }
         }
+    }
+
+    #[test]
+    fn scalar_implies_truth_table() {
+        use Belnap::*;
+        #[rustfmt::skip]
+        let expected: [[Belnap; 4]; 4] = [
+            /*      U         T     F        B   */
+            /* U */ [Unknown, True, Unknown, True],
+            /* T */ [Unknown, True, False,   Both],
+            /* F */ [True,    True, True,    True],
+            /* B */ [True,    True, Both,    Both],
+        ];
+        for (i, a) in Belnap::iter().enumerate() {
+            for (j, b) in Belnap::iter().enumerate() {
+                assert_eq!(a.implies(b), expected[i][j], "{a:?}.implies({b:?})");
+            }
+        }
+    }
+
+    #[test]
+    fn scalar_display() {
+        assert_eq!(Belnap::Unknown.to_string(), "Unknown");
+        assert_eq!(Belnap::True.to_string(), "True");
+        assert_eq!(Belnap::False.to_string(), "False");
+        assert_eq!(Belnap::Both.to_string(), "Both");
     }
 
     #[test]
