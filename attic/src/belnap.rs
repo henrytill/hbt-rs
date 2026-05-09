@@ -77,7 +77,7 @@ impl Belnap {
         let (a, b) = (u8::from(self), u8::from(other));
         let r_pos = (a & 1) & (b & 1);
         let r_neg = (a >> 1) | (b >> 1);
-        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+        FROM_BITS[usize::from((r_neg << 1) | r_pos)]
     }
 
     /// Truth-ordering join: logical OR.
@@ -86,7 +86,7 @@ impl Belnap {
         let (a, b) = (u8::from(self), u8::from(other));
         let r_pos = (a & 1) | (b & 1);
         let r_neg = (a >> 1) & (b >> 1);
-        FROM_BITS[usize::from(r_neg << 1 | r_pos)]
+        FROM_BITS[usize::from((r_neg << 1) | r_pos)]
     }
 
     /// Knowledge-ordering meet: keep only information both sources agree on.
@@ -373,6 +373,7 @@ impl BelnapVec {
 
     // Scalar access
 
+    #[inline]
     #[must_use]
     fn get_unchecked(&self, i: usize) -> Belnap {
         debug_assert!(i < self.width);
@@ -381,7 +382,7 @@ impl BelnapVec {
         let pn = &self.words[pair(w)];
         let pos_bit = ((pn[0] >> b) & 1) as usize;
         let neg_bit = ((pn[1] >> b) & 1) as usize;
-        FROM_BITS[neg_bit << 1 | pos_bit]
+        FROM_BITS[(neg_bit << 1) | pos_bit]
     }
 
     /// # Errors
@@ -394,6 +395,7 @@ impl BelnapVec {
         Ok(self.get_unchecked(i))
     }
 
+    #[inline]
     fn set_unchecked(&mut self, i: usize, v: Belnap) {
         debug_assert!(i < self.width);
         let w = i >> BITS_LOG2;
@@ -407,6 +409,8 @@ impl BelnapVec {
         pn[1] = (pn[1] & !mask) | neg;
     }
 
+    /// Sets the value at index `i`. If `i >= self.width()`, the vector grows
+    /// to width `i + 1`, with intermediate positions filled with [`Belnap::Unknown`].
     pub fn set(&mut self, i: usize, v: Belnap) {
         if i >= self.width {
             let new_width = i + 1;
