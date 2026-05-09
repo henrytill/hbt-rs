@@ -435,8 +435,19 @@ impl BelnapVec {
         }
     }
 
-    #[must_use]
-    pub fn and(&self, other: &BelnapVec) -> BelnapVec {
+    /// Per-plane bitwise combine. `f_pos` and `f_neg` are applied independently
+    /// to the positive and negative bitplanes; missing words on the shorter
+    /// operand are treated as zero (i.e. [`Belnap::Unknown`]).
+    //
+    // Generic over `Fn` rather than `fn(u64, u64) -> u64` so each closure inlines
+    // into the inner loop instead of going through an indirect call. F and G are
+    // separate type parameters because each closure literal has its own anonymous
+    // type — a single parameter would force both arguments to coincide.
+    fn binop<F, G>(&self, other: &BelnapVec, f_pos: F, f_neg: G) -> BelnapVec
+    where
+        F: Fn(u64, u64) -> u64,
+        G: Fn(u64, u64) -> u64,
+    {
         let width = self.width.max(other.width);
         let nw = words_needed(width);
         let mut words = vec![0u64; 2 * nw];
@@ -444,57 +455,32 @@ impl BelnapVec {
             let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
             let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
             let out = &mut words[pair(w)];
-            out[0] = sp & op;
-            out[1] = sn | on;
+            out[0] = f_pos(sp, op);
+            out[1] = f_neg(sn, on);
         }
         BelnapVec { width, words }
     }
 
     #[must_use]
+    pub fn and(&self, other: &BelnapVec) -> BelnapVec {
+        self.binop(other, |a, b| a & b, |a, b| a | b)
+    }
+
+    #[must_use]
     pub fn or(&self, other: &BelnapVec) -> BelnapVec {
-        let width = self.width.max(other.width);
-        let nw = words_needed(width);
-        let mut words = vec![0u64; 2 * nw];
-        for w in 0..nw {
-            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
-            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
-            let out = &mut words[pair(w)];
-            out[0] = sp | op;
-            out[1] = sn & on;
-        }
-        BelnapVec { width, words }
+        self.binop(other, |a, b| a | b, |a, b| a & b)
     }
 
     /// Knowledge-ordering meet: keep only information both sources agree on.
     #[must_use]
     pub fn consensus(&self, other: &BelnapVec) -> BelnapVec {
-        let width = self.width.max(other.width);
-        let nw = words_needed(width);
-        let mut words = vec![0u64; 2 * nw];
-        for w in 0..nw {
-            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
-            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
-            let out = &mut words[pair(w)];
-            out[0] = sp & op;
-            out[1] = sn & on;
-        }
-        BelnapVec { width, words }
+        self.binop(other, |a, b| a & b, |a, b| a & b)
     }
 
     /// Knowledge-ordering join: combine observations from independent sources.
     #[must_use]
     pub fn merge(&self, other: &BelnapVec) -> BelnapVec {
-        let width = self.width.max(other.width);
-        let nw = words_needed(width);
-        let mut words = vec![0u64; 2 * nw];
-        for w in 0..nw {
-            let (sp, sn) = self.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
-            let (op, on) = other.words.get(pair(w)).map_or((0, 0), |p| (p[0], p[1]));
-            let out = &mut words[pair(w)];
-            out[0] = sp | op;
-            out[1] = sn | on;
-        }
-        BelnapVec { width, words }
+        self.binop(other, |a, b| a | b, |a, b| a | b)
     }
 
     #[must_use]
