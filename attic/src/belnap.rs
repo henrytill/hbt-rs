@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 /// | 0   | 1   | `0b10` | `False`   |
 /// | 1   | 1   | `0b11` | `Both`    |
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(test, derive(strum::EnumIter))]
+#[cfg_attr(test, derive(strum::EnumIter, strum::VariantArray))]
 #[repr(u8)]
 pub enum Belnap {
     Unknown = 0b00, // pos=0, neg=0
@@ -1395,18 +1395,15 @@ mod tests {
 
     mod props {
         use proptest::prelude::*;
+        use proptest::sample;
+        use strum::VariantArray;
 
         use super::*;
 
         const MAX_N: usize = 200;
 
         fn arb_belnap() -> impl Strategy<Value = Belnap> {
-            prop_oneof![
-                Just(Belnap::Unknown),
-                Just(Belnap::True),
-                Just(Belnap::False),
-                Just(Belnap::Both),
-            ]
+            sample::select(Belnap::VARIANTS)
         }
 
         fn arb_xs() -> impl Strategy<Value = Vec<Belnap>> {
