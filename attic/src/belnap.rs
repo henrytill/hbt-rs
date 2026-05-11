@@ -160,7 +160,7 @@ fn lattice_partial_cmp<T: PartialEq>(a: &T, b: &T, meet: T) -> Option<Ordering> 
 pub struct AsTruth<T>(pub T);
 
 impl PartialOrd for AsTruth<Belnap> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &AsTruth<Belnap>) -> Option<Ordering> {
         lattice_partial_cmp(&self.0, &other.0, self.0.and(other.0))
     }
 }
@@ -192,7 +192,7 @@ impl std::ops::BitOr for AsTruth<Belnap> {
 pub struct AsKnowledge<T>(pub T);
 
 impl PartialOrd for AsKnowledge<Belnap> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &AsKnowledge<Belnap>) -> Option<Ordering> {
         lattice_partial_cmp(&self.0, &other.0, self.0.consensus(other.0))
     }
 }
