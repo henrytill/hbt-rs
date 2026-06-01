@@ -106,6 +106,7 @@ pub mod xml {
     use std::io::BufRead;
 
     use quick_xml::{
+        XmlVersion,
         events::{Event, attributes::Attributes},
         reader::Reader,
     };
@@ -134,7 +135,7 @@ pub mod xml {
             for result in attrs {
                 let attr = result?;
                 let key = attr.key;
-                let value = attr.unescape_value()?;
+                let value = attr.normalized_value(XmlVersion::Explicit1_0)?;
                 match key.local_name().as_ref() {
                     KEY_HREF => {
                         ret.href = value.into_owned();
