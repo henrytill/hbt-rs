@@ -43,6 +43,11 @@ impl Url {
             .map(Url)
             .map_err(|err| Error::ParseUrl(err, s.to_string()))
     }
+
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
 }
 
 impl Hash for Url {
@@ -137,6 +142,12 @@ impl Time {
     #[must_use]
     pub const fn new(time: DateTime<Utc>) -> Time {
         Time(time)
+    }
+
+    /// Returns the time as a Unix timestamp, the form used on the wire.
+    #[must_use]
+    pub const fn timestamp(self) -> i64 {
+        self.0.timestamp()
     }
 
     /// Parses a Unix timestamp string into a `Time`.
@@ -524,8 +535,43 @@ impl Entity {
     }
 
     #[must_use]
+    pub fn updated_at(&self) -> &[UpdatedAt] {
+        &self.updated_at
+    }
+
+    #[must_use]
+    pub fn names(&self) -> &BTreeSet<Name> {
+        &self.names
+    }
+
+    #[must_use]
     pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
+    }
+
+    #[must_use]
+    pub fn extended(&self) -> &[Extended] {
+        &self.extended
+    }
+
+    #[must_use]
+    pub const fn shared(&self) -> Shared {
+        self.shared
+    }
+
+    #[must_use]
+    pub const fn to_read(&self) -> ToRead {
+        self.to_read
+    }
+
+    #[must_use]
+    pub const fn is_feed(&self) -> IsFeed {
+        self.is_feed
+    }
+
+    #[must_use]
+    pub const fn last_visited_at(&self) -> LastVisitedAt {
+        self.last_visited_at
     }
 
     pub fn labels_mut(&mut self) -> &mut BTreeSet<Label> {

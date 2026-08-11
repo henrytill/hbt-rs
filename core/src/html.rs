@@ -5,11 +5,12 @@ use std::{
 
 use minijinja::{Environment, context};
 use scraper::{ElementRef, Html, Selector};
+use serde::Serialize;
 use thiserror::Error;
 
 use crate::{
     collection::Collection,
-    entity::{self, Entity, Extended, Label, Name},
+    entity::{self, Entity, Extended, Label, Name, Time},
 };
 
 #[derive(Debug, Error)]
@@ -182,10 +183,191 @@ impl Collection {
         const TEMPLATE: &str = include_str!("html/netscape_bookmarks.jinja");
         let mut env = Environment::new();
         env.add_template("netscape", TEMPLATE)?;
-        let entities = self.entities();
+        let entities: Vec<EntityView> = self.entities().iter().map(EntityView::new).collect();
         let template = env.get_template("netscape")?;
         template.render_captured_to(context! { entities }, &mut writer)?;
         writer.write_all(b"\n")?;
         Ok(())
+    }
+}
+
+/// Escapes the characters that would otherwise be read as markup.
+///
+/// `quote` selects the context. Attribute values are delimited by double quotes, so those must be
+/// escaped there; in text content a double quote is an ordinary character and is left alone. The
+/// apostrophe passes through in both contexts: attributes here are always double-quoted, `&apos;`
+/// is not HTML 4, and bookmark titles like "O'Reilly Radar" should survive a round trip unchanged.
+fn escape(s: &str, quote: bool) -> String {
+    let mut out = String::with_capacity(s.len());
+    for c in s.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' if quote => out.push_str("&quot;"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+fn escape_attr(s: &str) -> String {
+    escape(s, true)
+}
+
+fn escape_text(s: &str) -> String {
+    escape(s, false)
+}
+
+/// One bookmark, with every string already escaped for the context it is rendered in.
+///
+/// Escaping happens here rather than in the template because only the code knows which context a
+/// value lands in. minijinja's own autoescaping is not usable for this: it rewrites `'` to `&#x27;`
+/// and `/` to `&#x2f;`, which would mangle every URL and every apostrophe in a title.
+#[derive(Debug, Serialize)]
+struct EntityView {
+    uri: String,
+    created_at: i64,
+    last_modified: Option<i64>,
+    tags: Option<String>,
+    shared: Option<bool>,
+    to_read: Option<bool>,
+    is_feed: Option<bool>,
+    last_visited_at: Option<i64>,
+    title: String,
+    extended: Option<String>,
+}
+
+impl EntityView {
+    fn new(entity: &Entity) -> EntityView {
+        let url = entity.url().as_str();
+
+        let tags = {
+            let labels = entity.labels();
+            if labels.is_empty() {
+                None
+            } else {
+                let joined = labels
+                    .iter()
+                    .map(Label::as_str)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                Some(escape_attr(&joined))
+            }
+        };
+
+        // The anchor text falls back to the URL when the bookmark has no name.
+        let title = entity
+            .names()
+            .iter()
+            .next()
+            .map_or_else(|| escape_text(url), |name| escape_text(name.as_str()));
+
+        EntityView {
+            uri: escape_attr(url),
+            created_at: entity.created_at().get().timestamp(),
+            last_modified: entity.updated_at().first().map(|u| u.get().timestamp()),
+            tags,
+            shared: entity.shared().get(),
+            to_read: entity.to_read().get(),
+            is_feed: entity.is_feed().get(),
+            last_visited_at: entity.last_visited_at().get().map(Time::timestamp),
+            title,
+            extended: entity.extended().first().map(|e| escape_text(e.as_str())),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::{BTreeSet, HashMap};
+
+    use crate::{
+        collection::Collection,
+        entity::{Entity, Extended, Label, Name},
+    };
+
+    fn render(url: &str, name: &str, labels: &[&str], extended: &[&str]) -> String {
+        let mut attrs = HashMap::new();
+        attrs.insert("href".to_string(), url.to_string());
+        attrs.insert("add_date".to_string(), "100".to_string());
+
+        let names: BTreeSet<Name> = std::iter::once(Name::from(name)).collect();
+        let labels: BTreeSet<Label> = labels.iter().copied().map(Label::from).collect();
+        let extended: Vec<Extended> = extended.iter().copied().map(Extended::from).collect();
+
+        let entity = Entity::from_attrs(attrs, names, labels, extended).unwrap();
+        let mut coll = Collection::new();
+        coll.insert(entity);
+
+        let mut out = Vec::new();
+        coll.to_html(&mut out).unwrap();
+        String::from_utf8(out).unwrap()
+    }
+
+    #[test]
+    fn escapes_ampersand_in_url_attribute() {
+        let html = render("https://example.com/?a=1&b=2", "x", &[], &[]);
+        assert!(
+            html.contains(r#"HREF="https://example.com/?a=1&amp;b=2""#),
+            "{html}"
+        );
+    }
+
+    #[test]
+    fn escapes_markup_in_anchor_text() {
+        let html = render("https://example.com/", "Tom & Jerry <b>bold</b>", &[], &[]);
+        assert!(
+            html.contains(">Tom &amp; Jerry &lt;b&gt;bold&lt;/b&gt;</A>"),
+            "{html}"
+        );
+    }
+
+    /// The whole point of escaping: the collection must survive a trip through HTML unchanged.
+    /// Before, `<b>` was emitted raw and swallowed as a tag on reparse.
+    #[test]
+    fn round_trips_markup_in_title() {
+        let name = "Tom & Jerry <b>bold</b>";
+        let html = render("https://example.com/", name, &[], &[]);
+
+        let reparsed = Collection::from_html(&html).unwrap();
+        let entity = &reparsed.entities()[0];
+
+        assert_eq!(
+            entity.names().iter().map(Name::as_str).collect::<Vec<_>>(),
+            vec![name]
+        );
+    }
+
+    #[test]
+    fn escapes_quote_in_attribute_but_not_in_text() {
+        let html = render("https://example.com/", r#"say "hi""#, &[r#"a"b"#], &[]);
+        // The double quote delimits the attribute, so it must go.
+        assert!(html.contains(r#"TAGS="a&quot;b""#), "{html}");
+        // In text content it is an ordinary character.
+        assert!(html.contains(r#">say "hi"</A>"#), "{html}");
+    }
+
+    /// Apostrophes must pass through in both contexts: `&apos;` is not HTML 4, and titles like
+    /// "O'Reilly Radar" appear in the shared fixtures.
+    #[test]
+    fn preserves_apostrophe() {
+        let html = render("https://example.com/o'r", "O'Reilly Radar", &["it's"], &[]);
+        assert!(html.contains(">O'Reilly Radar</A>"), "{html}");
+        assert!(html.contains(r#"TAGS="it's""#), "{html}");
+        assert!(!html.contains("&#x27;"), "{html}");
+    }
+
+    /// No URL sanitizer is involved, so a bookmark tool does not rewrite non-http schemes.
+    #[test]
+    fn preserves_non_http_scheme() {
+        let html = render("ftp://example.com/pub", "files", &[], &[]);
+        assert!(html.contains(r#"HREF="ftp://example.com/pub""#), "{html}");
+    }
+
+    #[test]
+    fn escapes_extended_description() {
+        let html = render("https://example.com/", "x", &[], &["a & b <c>"]);
+        assert!(html.contains("<DD>a &amp; b &lt;c&gt;"), "{html}");
     }
 }

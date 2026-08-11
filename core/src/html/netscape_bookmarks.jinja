@@ -4,19 +4,16 @@
 <H1>Bookmarks</H1>
 <DL><p>
 {%- for entity in entities %}
-{%- set title = entity.names | first | default(entity.uri) %}
-{%- set tags_str = entity.labels | join(",") if entity.labels else none %}
-{%- set last_modified = entity.updatedAt | first if entity.updatedAt else none %}
-    <DT><A HREF="{{ entity.uri }}" ADD_DATE="{{ entity.createdAt }}"
-        {%- if last_modified %} LAST_MODIFIED="{{ last_modified }}"{% endif -%}
-        {%- if tags_str %} TAGS="{{ tags_str }}"{% endif -%}
+    <DT><A HREF="{{ entity.uri }}" ADD_DATE="{{ entity.created_at }}"
+        {%- if entity.last_modified %} LAST_MODIFIED="{{ entity.last_modified }}"{% endif -%}
+        {%- if entity.tags %} TAGS="{{ entity.tags }}"{% endif -%}
         {%- if entity.shared is not none %} PRIVATE="{{ "0" if entity.shared else "1" }}"{% endif -%}
-        {%- if entity.toRead is not none %} TOREAD="{{ "1" if entity.toRead else "0" }}"{% endif -%}
-        {%- if entity.isFeed is not none %} FEED="{{ "true" if entity.isFeed else "false" }}"{% endif -%}
-        {%- if entity.lastVisitedAt %} LAST_VISIT="{{ entity.lastVisitedAt }}"{% endif -%}
-    >{{ title }}</A>
+        {%- if entity.to_read is not none %} TOREAD="{{ "1" if entity.to_read else "0" }}"{% endif -%}
+        {%- if entity.is_feed is not none %} FEED="{{ "true" if entity.is_feed else "false" }}"{% endif -%}
+        {%- if entity.last_visited_at %} LAST_VISIT="{{ entity.last_visited_at }}"{% endif -%}
+    >{{ entity.title }}</A>
 {%- if entity.extended %}
-    <DD>{{ entity.extended | first }}
+    <DD>{{ entity.extended }}
 {%- endif %}
 {%- endfor %}
 </DL><p>
