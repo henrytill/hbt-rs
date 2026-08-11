@@ -24,13 +24,18 @@ fn scratch(name: &str) -> PathBuf {
     dir
 }
 
+/// Compared raw. snapbox's default filters rewrite backslashes to forward slashes so that paths
+/// compare equal across platforms, and they reach inside JSON strings, which corrupts the one
+/// value here that legitimately contains backslashes: the SemVer pattern. Blessing the fixture
+/// through those filters is how it came to hold `//d*` in place of `\\d*` - a regex that rejected
+/// every version it was meant to match, `0.1.0` included.
 #[test]
 fn schema_output() {
     hbt()
         .args(["--schema"])
         .assert()
         .success()
-        .stdout_eq(file!["../../test-data/collection.schema.json"]);
+        .stdout_eq(file!["../../test-data/collection.schema.json"].raw());
 }
 
 #[test]
