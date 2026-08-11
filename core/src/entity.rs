@@ -499,6 +499,7 @@ impl Entity {
         self.shared = self.shared.merge(other.shared);
         self.to_read = self.to_read.merge(other.to_read);
         self.is_feed = self.is_feed.merge(other.is_feed);
+        self.extended.extend(other.extended);
         self.last_visited_at = self.last_visited_at.merge(other.last_visited_at);
         self
     }
@@ -633,5 +634,45 @@ pub mod html {
 
             Ok(entity)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeSet;
+
+    use super::{Entity, Extended, Time, Url};
+
+    fn entity_at(url: &str, secs: i64) -> Entity {
+        let url = Url::parse(url).unwrap();
+        let time = Time::parse_timestamp(&secs.to_string()).unwrap();
+        Entity::new(url, time, None, BTreeSet::default())
+    }
+
+    /// `merge` used to drop the incoming extended descriptions entirely.
+    #[test]
+    fn merge_concatenates_extended() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.extended.push(Extended::from("first"));
+
+        let mut b = entity_at("https://example.com/", 200);
+        b.extended.push(Extended::from("second"));
+
+        a.merge(b);
+
+        assert_eq!(
+            a.extended,
+            vec![Extended::from("first"), Extended::from("second")]
+        );
+    }
+
+    #[test]
+    fn merge_keeps_extended_when_other_has_none() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.extended.push(Extended::from("only"));
+
+        a.merge(entity_at("https://example.com/", 200));
+
+        assert_eq!(a.extended, vec![Extended::from("only")]);
     }
 }
