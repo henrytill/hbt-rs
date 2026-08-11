@@ -327,13 +327,30 @@ pub fn test_formatter(input: TokenStream) -> TokenStream {
 
             let expected = read_to_string(expected_path)?;
 
-            assert_eq!(
-                expected.trim(),
-                actual.trim(),
-                "Output mismatch for input: {}\nExpected from: {}",
-                input_path,
-                expected_path
-            );
+            // YAML is compared as a document rather than as bytes. Emitters differ on when to
+            // quote a scalar - serde_norway quotes a URL containing '#', the fixtures do not -
+            // and those spellings parse to the same value. Comparing documents still catches what
+            // matters: a field present on one side and absent on the other, or a differing value.
+            if output_format == OutputFormat::Yaml {
+                let expected_value: serde_norway::Value = serde_norway::from_str(&expected)?;
+                let actual_value: serde_norway::Value = serde_norway::from_str(&actual)?;
+
+                assert_eq!(
+                    expected_value,
+                    actual_value,
+                    "Output mismatch for input: {}\nExpected from: {}",
+                    input_path,
+                    expected_path
+                );
+            } else {
+                assert_eq!(
+                    expected.trim(),
+                    actual.trim(),
+                    "Output mismatch for input: {}\nExpected from: {}",
+                    input_path,
+                    expected_path
+                );
+            }
 
             Ok(())
         }

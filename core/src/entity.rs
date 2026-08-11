@@ -335,6 +335,11 @@ impl Shared {
     }
 
     #[must_use]
+    pub const fn is_none(&self) -> bool {
+        self.0.get().is_none()
+    }
+
+    #[must_use]
     pub const fn merge(self, other: Shared) -> Shared {
         Shared(self.0.merge(other.0))
     }
@@ -365,6 +370,11 @@ impl ToRead {
     }
 
     #[must_use]
+    pub const fn is_none(&self) -> bool {
+        self.0.get().is_none()
+    }
+
+    #[must_use]
     pub const fn merge(self, other: ToRead) -> ToRead {
         ToRead(self.0.merge(other.0))
     }
@@ -392,6 +402,11 @@ impl IsFeed {
     #[must_use]
     pub const fn get(self) -> Option<bool> {
         self.0.get()
+    }
+
+    #[must_use]
+    pub const fn is_none(&self) -> bool {
+        self.0.get().is_none()
     }
 
     #[must_use]
@@ -455,12 +470,20 @@ pub struct Entity {
     updated_at: Vec<UpdatedAt>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
+    // The shared wire format omits an optional field rather than writing it as null or empty; see
+    // the fixtures in test-data, where neither ever appears. Deserializing tolerates both.
+    #[serde(default, skip_serializing_if = "Shared::is_none")]
     shared: Shared,
+    #[serde(default, skip_serializing_if = "ToRead::is_none")]
     to_read: ToRead,
+    #[serde(default, skip_serializing_if = "IsFeed::is_none")]
     is_feed: IsFeed,
-    #[serde(default)]
+    // schemars drops a `default` annotation that its own skip_serializing_if would skip, so
+    // restate it: the published schema documents that an absent `extended` means the empty list.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[schemars(extend("default" = [] as [Extended; 0]))]
     extended: Vec<Extended>,
-    #[serde(skip_serializing_if = "LastVisitedAt::is_none")]
+    #[serde(default, skip_serializing_if = "LastVisitedAt::is_none")]
     last_visited_at: LastVisitedAt,
 }
 
