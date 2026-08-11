@@ -1,4 +1,5 @@
 use std::{
+    cmp::Ordering,
     collections::BTreeSet,
     hash::{Hash, Hasher},
 };
@@ -515,11 +516,18 @@ impl Entity {
         names: BTreeSet<Name>,
         labels: BTreeSet<Label>,
     ) -> &mut Entity {
-        if updated_at < self.created_at {
-            self.updated_at.push(UpdatedAt::new(self.created_at.get()));
-            self.created_at = updated_at;
-        } else {
-            self.updated_at.push(UpdatedAt::new(updated_at.get()));
+        match updated_at.cmp(&self.created_at) {
+            // An earlier timestamp becomes created_at, and the one it displaces becomes an update.
+            Ordering::Less => {
+                self.updated_at.push(UpdatedAt::new(self.created_at.get()));
+                self.created_at = updated_at;
+            }
+            Ordering::Greater => {
+                self.updated_at.push(UpdatedAt::new(updated_at.get()));
+            }
+            // A timestamp equal to created_at is deliberately not recorded: an "update" whose
+            // timestamp merely repeats created_at carries no information. See henrytill/hbt-go#57.
+            Ordering::Equal => {}
         }
         // Sort updated_at to maintain chronological order
         self.updated_at.sort();
@@ -741,7 +749,7 @@ pub mod html {
 mod tests {
     use std::collections::{BTreeSet, HashMap};
 
-    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Time, Url};
+    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, Url};
 
     fn entity_at(url: &str, secs: i64) -> Entity {
         let url = Url::parse(url).unwrap();
@@ -971,6 +979,58 @@ mod tests {
         assert_eq!(a, before);
         assert!(a.updated_at.is_empty());
         assert_eq!(a.extended, vec![Extended::from("desc")]);
+    }
+
+    /// Distinct entities sharing a `created_at` record no update: the timestamp would only repeat
+    /// `created_at`. Resolved as henrytill/hbt-go#57, where this implementation was the one that
+    /// appended; the equality guard above does not cover it, since the entities differ.
+    #[test]
+    fn merge_does_not_record_an_update_for_an_equal_timestamp() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.names.insert(Name::from("a"));
+
+        let mut b = entity_at("https://example.com/", 100);
+        b.names.insert(Name::from("b"));
+
+        a.merge(b);
+
+        assert!(a.updated_at.is_empty(), "{:?}", a.updated_at);
+        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.names.iter().map(Name::as_str).collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
+    }
+
+    #[test]
+    fn merge_records_a_later_timestamp_as_an_update() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.merge(entity_at("https://example.com/", 200));
+
+        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.updated_at
+                .iter()
+                .map(|u| u.get().timestamp())
+                .collect::<Vec<_>>(),
+            vec![200]
+        );
+    }
+
+    /// An earlier timestamp takes over `created_at` and displaces it into `updated_at`.
+    #[test]
+    fn merge_keeps_the_earliest_timestamp_as_created_at() {
+        let mut a = entity_at("https://example.com/", 200);
+        a.merge(entity_at("https://example.com/", 100));
+
+        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.updated_at
+                .iter()
+                .map(|u| u.get().timestamp())
+                .collect::<Vec<_>>(),
+            vec![200]
+        );
     }
 
     #[test]
