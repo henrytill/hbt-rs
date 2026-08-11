@@ -494,7 +494,16 @@ impl Entity {
         self
     }
 
+    /// Absorbs `other` into `self`.
+    ///
+    /// Merging an entity that already equals `self` is a no-op: without that guard, re-absorbing
+    /// an identical entity would append a redundant `updated_at` equal to `created_at` and repeat
+    /// its extended descriptions, so the result would depend on how many times the same bookmark
+    /// appeared in the input.
     pub fn merge(&mut self, other: Entity) -> &mut Entity {
+        if *self == other {
+            return self;
+        }
         self.update(other.created_at, other.names, other.labels);
         self.shared = self.shared.merge(other.shared);
         self.to_read = self.to_read.merge(other.to_read);
@@ -664,6 +673,22 @@ mod tests {
             a.extended,
             vec![Extended::from("first"), Extended::from("second")]
         );
+    }
+
+    /// Absorbing an identical entity used to append a redundant `updated_at` equal to
+    /// `created_at` and repeat the extended description once per occurrence.
+    #[test]
+    fn merge_is_idempotent_for_identical_entities() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.extended.push(Extended::from("desc"));
+        let before = a.clone();
+
+        a.merge(before.clone());
+        a.merge(before.clone());
+
+        assert_eq!(a, before);
+        assert!(a.updated_at.is_empty());
+        assert_eq!(a.extended, vec![Extended::from("desc")]);
     }
 
     #[test]
