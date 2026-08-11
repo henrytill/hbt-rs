@@ -90,10 +90,6 @@ impl Collection {
     ///
     /// Returns an error if the HTML is malformed or contains invalid bookmark data (e.g., missing URLs,
     /// invalid timestamps).
-    ///
-    /// # Panics
-    ///
-    /// Panics if there are pending bookmarks that were not properly closed at the end of parsing.
     pub fn from_html(html: &str) -> Result<Collection, Error> {
         let document = Html::parse_document(html);
         let root = document.root_element();
@@ -169,7 +165,18 @@ impl Collection {
             }
         }
 
-        assert!(pending.is_none());
+        // A bookmark stays pending until the next DT, a DD, or the end of its DL tells us whether a
+        // description follows. When the input ends with none of those still to come - a fragment
+        // with no enclosing DL, say - the last bookmark is simply description-less, so record it.
+        if let Some((attrs, maybe_desc)) = pending.take() {
+            add(
+                &mut coll,
+                attrs,
+                &folders,
+                maybe_desc,
+                Vec::<Extended>::new(),
+            )?;
+        }
 
         Ok(coll)
     }
@@ -303,6 +310,43 @@ mod tests {
         let mut out = Vec::new();
         coll.to_html(&mut out).unwrap();
         String::from_utf8(out).unwrap()
+    }
+
+    /// A bookmark fragment with no enclosing DL used to trip `assert!(pending.is_none())`, so the
+    /// CLI panicked and the bookmark was lost.
+    #[test]
+    fn parses_trailing_bookmark_without_enclosing_dl() {
+        let html = concat!(
+            "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n",
+            r#"<DT><A HREF="https://example.com/z" ADD_DATE="1700000000">Z</A>"#,
+            "\n"
+        );
+
+        let coll = Collection::from_html(html).unwrap();
+
+        assert_eq!(coll.len(), 1);
+        assert_eq!(
+            coll.entities()[0]
+                .names()
+                .iter()
+                .map(Name::as_str)
+                .collect::<Vec<_>>(),
+            vec!["Z"]
+        );
+    }
+
+    /// The same, one level in: a DL that the input never closes.
+    #[test]
+    fn parses_trailing_bookmark_in_unclosed_dl() {
+        let html = concat!(
+            "<!DOCTYPE NETSCAPE-Bookmark-file-1>\n<DL><p>\n",
+            r#"<DT><A HREF="https://example.com/a" ADD_DATE="1700000000">A</A>"#,
+            "\n"
+        );
+
+        let coll = Collection::from_html(html).unwrap();
+
+        assert_eq!(coll.len(), 1);
     }
 
     #[test]
