@@ -556,6 +556,93 @@ mod tests {
         assert_eq!(urls, expected.iter().collect::<Vec<_>>());
     }
 
+    fn entity_with_labels(url: &str, labels: &[&str]) -> Entity {
+        let url = Url::parse(url).unwrap();
+        let time = Time::parse_timestamp("1700000000").unwrap();
+        let labels = labels.iter().copied().map(Label::from).collect();
+        Entity::new(url, time, None, labels)
+    }
+
+    fn labels_of(coll: &Collection, index: usize) -> Vec<&str> {
+        coll.entities()[index]
+            .labels()
+            .iter()
+            .map(Label::as_str)
+            .collect()
+    }
+
+    #[test]
+    fn update_labels_rewrites_mapped_labels() {
+        let mut coll = Collection::new();
+        coll.insert(entity_with_labels("https://a.test/", &["old", "kept"]));
+
+        coll.update_labels([("old".to_string(), "new".to_string())]);
+
+        assert_eq!(labels_of(&coll, 0), vec!["kept", "new"]);
+    }
+
+    /// Two labels mapping onto one name collapse into a single label, since labels are a set.
+    #[test]
+    fn update_labels_collapses_labels_onto_one_name() {
+        let mut coll = Collection::new();
+        coll.insert(entity_with_labels("https://a.test/", &["js", "javascript"]));
+
+        coll.update_labels([
+            ("js".to_string(), "JavaScript".to_string()),
+            ("javascript".to_string(), "JavaScript".to_string()),
+        ]);
+
+        assert_eq!(labels_of(&coll, 0), vec!["JavaScript"]);
+    }
+
+    /// A mapping whose target is another mapping's source must not be applied twice in one pass.
+    #[test]
+    fn update_labels_does_not_chain_mappings() {
+        let mut coll = Collection::new();
+        coll.insert(entity_with_labels("https://a.test/", &["a"]));
+
+        coll.update_labels([
+            ("a".to_string(), "b".to_string()),
+            ("b".to_string(), "c".to_string()),
+        ]);
+
+        assert_eq!(labels_of(&coll, 0), vec!["b"]);
+    }
+
+    #[test]
+    fn update_labels_leaves_unmapped_labels_alone() {
+        let mut coll = Collection::new();
+        coll.insert(entity_with_labels("https://a.test/", &["x", "y"]));
+
+        coll.update_labels([("z".to_string(), "w".to_string())]);
+
+        assert_eq!(labels_of(&coll, 0), vec!["x", "y"]);
+    }
+
+    #[test]
+    fn upsert_returns_the_existing_id_and_merges() {
+        let mut coll = Collection::new();
+        let first = coll.upsert(entity_with_labels("https://a.test/", &["a"]));
+        let second = coll.upsert(entity_with_labels("https://a.test/", &["b"]));
+
+        assert_eq!(first, second);
+        assert_eq!(coll.len(), 1);
+        assert_eq!(labels_of(&coll, 0), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn add_edge_is_idempotent_and_add_edges_is_symmetric() {
+        let mut coll = Collection::new();
+        let a = coll.insert(make_entity("https://a.test/"));
+        let b = coll.insert(make_entity("https://b.test/"));
+
+        coll.add_edges(&a, &b);
+        coll.add_edges(&a, &b);
+
+        assert_eq!(coll.edges(&a), vec![b.clone()]);
+        assert_eq!(coll.edges(&b), vec![a]);
+    }
+
     fn node_yaml(id: u32, uri: &str, edges: &str) -> String {
         format!(
             concat!(

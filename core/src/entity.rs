@@ -632,6 +632,14 @@ pub mod html {
             labels: BTreeSet<Label>,
             extended: Vec<Extended>,
         ) -> Result<Entity, Error> {
+            // Normalize once. The href lookup below used the key verbatim while the match
+            // lowercased it, so an attribute map using the file's own casing - which this
+            // public entry point accepts - failed with MissingUrl on an uppercase HREF.
+            let attrs: HashMap<String, String> = attrs
+                .into_iter()
+                .map(|(key, value)| (key.to_lowercase(), value))
+                .collect();
+
             let href = attrs.get(KEY_HREF).ok_or(Error::MissingUrl)?;
             let url = Url::parse(href)?;
 
@@ -655,7 +663,7 @@ pub mod html {
 
             for (key, value) in attrs {
                 let trimmed = value.trim();
-                match key.to_lowercase().as_str() {
+                match key.as_str() {
                     KEY_ADD_DATE if !trimmed.is_empty() => {
                         entity.created_at = CreatedAt::new(Time::parse_timestamp(trimmed)?);
                     }
@@ -710,7 +718,7 @@ pub mod html {
 mod tests {
     use std::collections::{BTreeSet, HashMap};
 
-    use super::{Entity, Extended, Label, Time, Url};
+    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Time, Url};
 
     fn entity_at(url: &str, secs: i64) -> Entity {
         let url = Url::parse(url).unwrap();
@@ -732,6 +740,73 @@ mod tests {
         assert_eq!(
             a.extended,
             vec![Extended::from("first"), Extended::from("second")]
+        );
+    }
+
+    #[test]
+    fn parses_unix_timestamp_and_iso8601_alike() {
+        let from_unix = Time::parse_flexible("1700000000").unwrap();
+        let from_iso = Time::parse_flexible("2023-11-14T22:13:20Z").unwrap();
+        assert_eq!(from_unix, from_iso);
+        assert_eq!(from_unix.timestamp(), 1_700_000_000);
+    }
+
+    /// Timestamps are UTC regardless of the caller's TZ. hbt-ocaml parsed them as local time,
+    /// which made its output machine-dependent; chrono's `DateTime<Utc>` rules that out here, and
+    /// an offset in the input is converted rather than ignored.
+    #[test]
+    fn parses_iso8601_offset_as_utc() {
+        let utc = Time::parse_flexible("2023-11-14T22:13:20Z").unwrap();
+        let offset = Time::parse_flexible("2023-11-14T17:13:20-05:00").unwrap();
+        assert_eq!(utc, offset);
+    }
+
+    #[test]
+    fn parses_pre_epoch_timestamp() {
+        let time = Time::parse_flexible("-86400").unwrap();
+        assert_eq!(time.timestamp(), -86_400);
+    }
+
+    #[test]
+    fn parse_flexible_trims_surrounding_whitespace() {
+        let time = Time::parse_flexible("  1700000000\n").unwrap();
+        assert_eq!(time.timestamp(), 1_700_000_000);
+    }
+
+    /// A string that is neither form must report the ISO 8601 failure, not the integer one.
+    #[test]
+    fn parse_flexible_rejects_garbage() {
+        let err = Time::parse_flexible("not a date").unwrap_err();
+        assert!(matches!(err, Error::Chrono(..)), "{err:?}");
+    }
+
+    #[test]
+    fn parse_timestamp_rejects_out_of_range() {
+        let err = Time::parse_timestamp("999999999999999").unwrap_err();
+        assert!(matches!(err, Error::ParseTimestamp(..)), "{err:?}");
+    }
+
+    #[test]
+    fn flag_merge_absorbs_unset_and_ors_values() {
+        assert_eq!(Flag::default().merge(Flag::default()).get(), None);
+        assert_eq!(Flag::default().merge(Flag::new(true)).get(), Some(true));
+        assert_eq!(Flag::new(false).merge(Flag::default()).get(), Some(false));
+        assert_eq!(Flag::new(false).merge(Flag::new(true)).get(), Some(true));
+        assert_eq!(Flag::new(false).merge(Flag::new(false)).get(), Some(false));
+    }
+
+    #[test]
+    fn last_visited_at_merge_keeps_the_later_time() {
+        let early = LastVisitedAt::new(Time::parse_timestamp("100").unwrap());
+        let late = LastVisitedAt::new(Time::parse_timestamp("200").unwrap());
+
+        assert_eq!(early.merge(late).get(), late.get());
+        assert_eq!(late.merge(early).get(), late.get());
+        assert_eq!(LastVisitedAt::default().merge(late).get(), late.get());
+        assert!(
+            LastVisitedAt::default()
+                .merge(LastVisitedAt::default())
+                .is_none()
         );
     }
 
@@ -791,6 +866,72 @@ mod tests {
     fn to_read_is_unset_without_tag_or_attribute() {
         let entity = from_attrs(&[HREF, ("tags", "x")]);
         assert_eq!(entity.to_read().get(), None);
+    }
+
+    /// PRIVATE is inverted: PRIVATE="1" means not shared.
+    #[test]
+    fn private_attribute_inverts_into_shared() {
+        assert_eq!(
+            from_attrs(&[HREF, ("private", "1")]).shared().get(),
+            Some(false)
+        );
+        assert_eq!(
+            from_attrs(&[HREF, ("private", "0")]).shared().get(),
+            Some(true)
+        );
+        assert_eq!(from_attrs(&[HREF]).shared().get(), None);
+    }
+
+    #[test]
+    fn feed_attribute_reads_true_literally() {
+        assert_eq!(
+            from_attrs(&[HREF, ("feed", "true")]).is_feed().get(),
+            Some(true)
+        );
+        assert_eq!(
+            from_attrs(&[HREF, ("feed", "false")]).is_feed().get(),
+            Some(false)
+        );
+        assert_eq!(from_attrs(&[HREF]).is_feed().get(), None);
+    }
+
+    #[test]
+    fn reads_the_timestamp_attributes() {
+        let entity = from_attrs(&[
+            HREF,
+            ("add_date", "100"),
+            ("last_modified", "200"),
+            ("last_visit", "300"),
+        ]);
+
+        assert_eq!(entity.created_at().get().timestamp(), 100);
+        assert_eq!(
+            entity
+                .updated_at()
+                .iter()
+                .map(|u| u.get().timestamp())
+                .collect::<Vec<_>>(),
+            vec![200]
+        );
+        assert_eq!(
+            entity.last_visited_at().get().map(Time::timestamp),
+            Some(300)
+        );
+    }
+
+    /// Attribute names arrive in whatever case the file used.
+    #[test]
+    fn attribute_names_are_matched_case_insensitively() {
+        let entity = from_attrs(&[("HREF", "https://example.com/"), ("ADD_DATE", "100")]);
+        assert_eq!(entity.created_at().get().timestamp(), 100);
+    }
+
+    #[test]
+    fn from_attrs_requires_href() {
+        let attrs = HashMap::from([("add_date".to_string(), "100".to_string())]);
+        let err = Entity::from_attrs(attrs, BTreeSet::default(), BTreeSet::default(), Vec::new())
+            .unwrap_err();
+        assert!(matches!(err, Error::MissingUrl), "{err:?}");
     }
 
     /// Absorbing an identical entity used to append a redundant `updated_at` equal to
