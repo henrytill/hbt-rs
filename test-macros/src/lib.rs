@@ -123,8 +123,24 @@ fn discover_parser_tests(base_path: &Path, input_ext: &str) -> Result<Vec<TestCa
         .filter_map(TestCaseBuilder::build)
         .collect();
 
+    if test_cases.is_empty() {
+        return Err(no_test_cases(base_path, input_ext));
+    }
+
     test_cases.sort();
     Ok(test_cases)
+}
+
+/// Generating nothing is never what the caller wanted: the suite would pass vacuously with the
+/// entire golden set silently gone. The usual cause is an uninitialized `test-data` submodule,
+/// which leaves the directory present but empty, so `base_path.exists()` above still succeeds.
+fn no_test_cases(base_path: &Path, ext: &str) -> String {
+    format!(
+        "No test cases found in {} for extension {:?}. \
+         Is the test-data submodule initialized? Try `git submodule update --init`.",
+        base_path.display(),
+        ext
+    )
 }
 
 fn discover_formatter_tests(base_path: &Path, output_ext: &str) -> Result<Vec<TestCase>, String> {
@@ -175,6 +191,10 @@ fn discover_formatter_tests(base_path: &Path, output_ext: &str) -> Result<Vec<Te
         .into_values()
         .filter_map(TestCaseBuilder::build)
         .collect();
+
+    if test_cases.is_empty() {
+        return Err(no_test_cases(base_path, output_ext));
+    }
 
     test_cases.sort();
     Ok(test_cases)
