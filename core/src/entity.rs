@@ -649,6 +649,9 @@ pub mod html {
             };
 
             let mut tags = String::new();
+            // Carried alongside the entity so the decision does not depend on whether TAGS or
+            // TOREAD came first in the attribute list, which for a HashMap is arbitrary.
+            let mut tag_to_read = false;
 
             for (key, value) in attrs {
                 let trimmed = value.trim();
@@ -685,11 +688,17 @@ pub mod html {
                 if s.is_empty() {
                     continue;
                 }
-                if s == "toread" {
-                    entity.to_read = ToRead::new(true);
+                // An exact comparison, so a tag like "toreading" stays an ordinary label.
+                if s == KEY_TOREAD {
+                    tag_to_read = true;
                     continue;
                 }
                 entity.labels.insert(Label::from(s));
+            }
+
+            // An explicit TOREAD attribute is authoritative; the tag decides only in its absence.
+            if entity.to_read.get().is_none() && tag_to_read {
+                entity.to_read = ToRead::new(true);
             }
 
             Ok(entity)
@@ -699,9 +708,9 @@ pub mod html {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeSet, HashMap};
 
-    use super::{Entity, Extended, Time, Url};
+    use super::{Entity, Extended, Label, Time, Url};
 
     fn entity_at(url: &str, secs: i64) -> Entity {
         let url = Url::parse(url).unwrap();
@@ -724,6 +733,64 @@ mod tests {
             a.extended,
             vec![Extended::from("first"), Extended::from("second")]
         );
+    }
+
+    fn from_attrs(pairs: &[(&str, &str)]) -> Entity {
+        let attrs: HashMap<String, String> = pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
+            .collect();
+        Entity::from_attrs(attrs, BTreeSet::default(), BTreeSet::default(), Vec::new()).unwrap()
+    }
+
+    fn labels_of(entity: &Entity) -> Vec<&str> {
+        entity.labels().iter().map(Label::as_str).collect()
+    }
+
+    const HREF: (&str, &str) = ("href", "https://example.com/");
+
+    /// An explicit TOREAD attribute wins over a toread tag, whichever order they appear in.
+    /// The tag used to win unconditionally, since the tag loop ran after the attribute loop.
+    #[test]
+    fn explicit_toread_attribute_overrides_toread_tag() {
+        let entity = from_attrs(&[HREF, ("tags", "toread"), ("toread", "0")]);
+        assert_eq!(entity.to_read().get(), Some(false));
+        assert!(labels_of(&entity).is_empty());
+    }
+
+    #[test]
+    fn toread_tag_applies_when_attribute_is_absent() {
+        let entity = from_attrs(&[HREF, ("tags", "x,toread")]);
+        assert_eq!(entity.to_read().get(), Some(true));
+        assert_eq!(labels_of(&entity), vec!["x"]);
+    }
+
+    #[test]
+    fn explicit_toread_attribute_is_kept_when_set() {
+        let entity = from_attrs(&[HREF, ("tags", "x"), ("toread", "1")]);
+        assert_eq!(entity.to_read().get(), Some(true));
+    }
+
+    /// The comparison is exact, so a tag merely containing "toread" is an ordinary label.
+    #[test]
+    fn toreading_tag_is_an_ordinary_label() {
+        let entity = from_attrs(&[HREF, ("tags", "toreading")]);
+        assert_eq!(entity.to_read().get(), None);
+        assert_eq!(labels_of(&entity), vec!["toreading"]);
+    }
+
+    /// Tags are trimmed, so "x, toread" is the tag "x" plus the marker, not a label " toread".
+    #[test]
+    fn tags_are_trimmed() {
+        let entity = from_attrs(&[HREF, ("tags", "x, toread , y")]);
+        assert_eq!(entity.to_read().get(), Some(true));
+        assert_eq!(labels_of(&entity), vec!["x", "y"]);
+    }
+
+    #[test]
+    fn to_read_is_unset_without_tag_or_attribute() {
+        let entity = from_attrs(&[HREF, ("tags", "x")]);
+        assert_eq!(entity.to_read().get(), None);
     }
 
     /// Absorbing an identical entity used to append a redundant `updated_at` equal to
