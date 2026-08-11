@@ -23,6 +23,22 @@ pub enum Error {
 
     #[error("integer conversion error: {0}")]
     TryFromInt(#[from] std::num::TryFromIntError),
+
+    #[error("declared length {declared} does not match node count {actual}")]
+    LengthMismatch { declared: u32, actual: usize },
+
+    #[error("node at position {position} has id {id}, expected {position}")]
+    UnexpectedId { position: usize, id: u32 },
+
+    #[error("node {node}: edge index {edge} is out of bounds for {length} nodes")]
+    EdgeOutOfBounds {
+        node: usize,
+        edge: usize,
+        length: usize,
+    },
+
+    #[error("nodes {first} and {second} share a URL")]
+    DuplicateUrl { first: usize, second: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -353,21 +369,54 @@ impl TryFrom<CollectionRepr> for Collection {
             ));
         }
 
-        let mut ret = Collection::with_capacity(usize::try_from(repr.length)?);
-
         repr.value.sort();
 
-        for NodeRepr { id, entity, edges } in repr.value {
-            assert_eq!(id, u32::try_from(ret.len())?);
+        // Nothing downstream re-checks these, so a collection that gets past here is trusted: an
+        // out-of-range edge index would later hand out an Id that panics on lookup, and a repeated
+        // URL would leave an entity unreachable through `urls`.
+        let length = repr.value.len();
+
+        if usize::try_from(repr.length)? != length {
+            return Err(Error::LengthMismatch {
+                declared: repr.length,
+                actual: length,
+            });
+        }
+
+        let mut ret = Collection::with_capacity(length);
+
+        for (position, NodeRepr { id, entity, edges }) in repr.value.into_iter().enumerate() {
+            // The ids are sorted, so requiring id == position rejects gaps, out-of-range ids and
+            // duplicates in one comparison. This used to be an assert_eq!, i.e. a panic.
+            if usize::try_from(id)? != position {
+                return Err(Error::UnexpectedId { position, id });
+            }
+
+            let edges = edges
+                .into_iter()
+                .map(usize::try_from)
+                .collect::<Result<Vec<usize>, std::num::TryFromIntError>>()?;
+
+            for &edge in &edges {
+                if edge >= length {
+                    return Err(Error::EdgeOutOfBounds {
+                        node: position,
+                        edge,
+                        length,
+                    });
+                }
+            }
+
             let url = entity.url().clone();
+            if let Some(first) = ret.urls.insert(url, position) {
+                return Err(Error::DuplicateUrl {
+                    first,
+                    second: position,
+                });
+            }
+
             ret.nodes.push(entity);
-            ret.edges.push(
-                edges
-                    .into_iter()
-                    .map(usize::try_from)
-                    .collect::<Result<Vec<usize>, std::num::TryFromIntError>>()?,
-            );
-            ret.urls.insert(url, usize::try_from(id)?);
+            ret.edges.push(edges);
         }
 
         Ok(ret)
@@ -399,8 +448,6 @@ impl<'de> Deserialize<'de> for Collection {
 mod tests {
     use std::collections::BTreeSet;
 
-    use chrono::Utc;
-
     use hbt_pinboard::Post;
 
     use crate::entity::{CreatedAt, Entity, Label, Time, Url};
@@ -409,8 +456,10 @@ mod tests {
 
     fn make_entity(url: &str) -> Entity {
         let url = Url::parse(url).unwrap();
-        let now = Time::new(Utc::now());
-        Entity::new(url, now, None, BTreeSet::default())
+        // A whole-second time, since the wire format carries Unix seconds and a `Utc::now()` would
+        // not survive a round trip.
+        let time = Time::parse_timestamp("1700000000").unwrap();
+        Entity::new(url, time, None, BTreeSet::default())
     }
 
     fn post(href: &str, time: &str, description: &str, tags: &[&str]) -> Post {
@@ -505,6 +554,125 @@ mod tests {
             Url::parse("https://b.test/").unwrap(),
         ];
         assert_eq!(urls, expected.iter().collect::<Vec<_>>());
+    }
+
+    fn node_yaml(id: u32, uri: &str, edges: &str) -> String {
+        format!(
+            concat!(
+                "- id: {id}\n",
+                "  entity:\n",
+                "    uri: {uri}\n",
+                "    createdAt: 0\n",
+                "    updatedAt: []\n",
+                "    names: []\n",
+                "    labels: []\n",
+                "    shared: null\n",
+                "    toRead: null\n",
+                "    isFeed: null\n",
+                "    extended: []\n",
+                "  edges: {edges}\n",
+            ),
+            id = id,
+            uri = uri,
+            edges = edges
+        )
+    }
+
+    fn collection_yaml(length: u32, nodes: &[String]) -> String {
+        format!(
+            "version: 0.1.0\nlength: {length}\nvalue:\n{}",
+            nodes.concat()
+        )
+    }
+
+    fn load(yaml: &str) -> Result<Collection, serde_norway::Error> {
+        serde_norway::from_str(yaml)
+    }
+
+    #[test]
+    fn deserialize_round_trips_entities_and_edges() {
+        let mut coll = Collection::new();
+        let a = coll.insert(make_entity("https://a.test/"));
+        let b = coll.insert(make_entity("https://b.test/"));
+        coll.add_edges(&a, &b);
+
+        let yaml = serde_norway::to_string(&coll).unwrap();
+        let back: Collection = serde_norway::from_str(&yaml).unwrap();
+
+        assert_eq!(back, coll);
+        assert_eq!(back.len(), 2);
+        let a = back.id(&Url::parse("https://a.test/").unwrap()).unwrap();
+        assert_eq!(back.edges(&a).len(), 1);
+    }
+
+    /// Used to be `assert_eq!(id, ...)`, i.e. a panic on malformed input.
+    #[test]
+    fn deserialize_rejects_unexpected_id() {
+        let yaml = collection_yaml(1, &[node_yaml(7, "https://a.test/", "[]")]);
+        let err = load(&yaml).unwrap_err().to_string();
+        assert!(err.contains("has id 7, expected 0"), "{err}");
+    }
+
+    /// A duplicate id also arrives here: sorted, the second one cannot sit at its own position.
+    #[test]
+    fn deserialize_rejects_duplicate_id() {
+        let yaml = collection_yaml(
+            2,
+            &[
+                node_yaml(0, "https://a.test/", "[]"),
+                node_yaml(0, "https://b.test/", "[]"),
+            ],
+        );
+        let err = load(&yaml).unwrap_err().to_string();
+        assert!(err.contains("has id 0, expected 1"), "{err}");
+    }
+
+    /// Was accepted silently, producing a graph whose edges index nodes that do not exist.
+    #[test]
+    fn deserialize_rejects_out_of_bounds_edge() {
+        let yaml = collection_yaml(1, &[node_yaml(0, "https://a.test/", "[99]")]);
+        let err = load(&yaml).unwrap_err().to_string();
+        assert!(err.contains("edge index 99 is out of bounds"), "{err}");
+    }
+
+    /// `length` was read but never compared against the actual node count.
+    #[test]
+    fn deserialize_rejects_length_mismatch() {
+        let yaml = collection_yaml(5, &[node_yaml(0, "https://a.test/", "[]")]);
+        let err = load(&yaml).unwrap_err().to_string();
+        assert!(
+            err.contains("declared length 5 does not match node count 1"),
+            "{err}"
+        );
+    }
+
+    /// Two nodes for one URL left the first unreachable through the `urls` index.
+    #[test]
+    fn deserialize_rejects_duplicate_url() {
+        let yaml = collection_yaml(
+            2,
+            &[
+                node_yaml(0, "https://a.test/", "[]"),
+                node_yaml(1, "https://a.test/", "[]"),
+            ],
+        );
+        let err = load(&yaml).unwrap_err().to_string();
+        assert!(err.contains("share a URL"), "{err}");
+    }
+
+    /// A URI is intrinsic to an entity. Unlike the Go and OCaml implementations, which had to add
+    /// this check, `Url` cannot hold an empty value, so serde rejects it while building the entity.
+    #[test]
+    fn deserialize_rejects_missing_uri() {
+        let yaml = collection_yaml(1, &[node_yaml(0, r#""""#, "[]")]);
+        assert!(load(&yaml).is_err());
+    }
+
+    #[test]
+    fn deserialize_rejects_incompatible_version() {
+        let yaml = "version: 9.9.9\nlength: 0\nvalue: []\n";
+        let err = load(yaml).unwrap_err().to_string();
+        assert!(err.contains("incompatible version: 9.9.9"), "{err}");
     }
 
     #[test]
