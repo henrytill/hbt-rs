@@ -519,6 +519,11 @@ impl Entity {
     }
 
     #[must_use]
+    pub const fn created_at(&self) -> CreatedAt {
+        self.created_at
+    }
+
+    #[must_use]
     pub fn labels(&self) -> &BTreeSet<Label> {
         &self.labels
     }

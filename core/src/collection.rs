@@ -254,17 +254,29 @@ impl Collection {
 
     /// Creates a collection from a vector of Pinboard posts.
     ///
-    /// Posts are sorted by time before being converted to entities.
+    /// Posts are ordered by creation time, earliest first, so that an entity keeps the earliest
+    /// timestamp for a URL and later ones are recorded as updates. Posts sharing a URL are merged
+    /// into one entity.
     ///
     /// # Errors
     ///
     /// Returns an error if any post cannot be converted to a valid `Entity` (e.g., invalid URL or timestamp).
-    pub fn from_posts(mut posts: Vec<Post>) -> Result<Collection, entity::Error> {
-        posts.sort_by(|a, b| a.time.cmp(&b.time));
-        let mut coll = Collection::with_capacity(posts.len());
-        for post in posts {
-            let entity = Entity::try_from(post)?;
-            coll.insert(entity);
+    pub fn from_posts(posts: Vec<Post>) -> Result<Collection, entity::Error> {
+        let mut entities = posts
+            .into_iter()
+            .map(Entity::try_from)
+            .collect::<Result<Vec<Entity>, entity::Error>>()?;
+
+        // Sort on the parsed timestamp rather than the raw `time` string: a post carries either an
+        // ISO 8601 date or a Unix timestamp, and those do not share a lexicographic order. The sort
+        // is stable, so posts with equal timestamps keep their input order.
+        entities.sort_by_key(Entity::created_at);
+
+        let mut coll = Collection::with_capacity(entities.len());
+        for entity in entities {
+            // upsert, not insert: an export may list the same href twice, and two nodes for one URL
+            // leave `urls` pointing at only the last of them.
+            coll.upsert(entity);
         }
         Ok(coll)
     }
@@ -389,7 +401,9 @@ mod tests {
 
     use chrono::Utc;
 
-    use crate::entity::{Entity, Time, Url};
+    use hbt_pinboard::Post;
+
+    use crate::entity::{CreatedAt, Entity, Label, Time, Url};
 
     use super::Collection;
 
@@ -397,6 +411,100 @@ mod tests {
         let url = Url::parse(url).unwrap();
         let now = Time::new(Utc::now());
         Entity::new(url, now, None, BTreeSet::default())
+    }
+
+    fn post(href: &str, time: &str, description: &str, tags: &[&str]) -> Post {
+        Post {
+            href: href.to_string(),
+            time: time.to_string(),
+            description: Some(description.to_string()),
+            tags: tags.iter().map(ToString::to_string).collect(),
+            ..Post::default()
+        }
+    }
+
+    /// `from_posts` used to `insert`, so an export listing the same href twice produced two nodes
+    /// for one URL, with `urls` indexing only the last of them.
+    #[test]
+    fn from_posts_merges_duplicate_urls() {
+        let posts = vec![
+            post(
+                "https://example.com/",
+                "2024-02-01T00:00:00Z",
+                "second",
+                &["b"],
+            ),
+            post(
+                "https://example.com/",
+                "2024-01-01T00:00:00Z",
+                "first",
+                &["a"],
+            ),
+        ];
+
+        let coll = Collection::from_posts(posts).unwrap();
+
+        assert_eq!(coll.len(), 1);
+        let id = coll
+            .id(&Url::parse("https://example.com/").unwrap())
+            .unwrap();
+        let entity = coll.entity(&id);
+        // The earliest post keeps created_at, whichever order the posts arrived in.
+        let earliest = CreatedAt::new(Time::parse_flexible("2024-01-01T00:00:00Z").unwrap());
+        assert_eq!(entity.created_at(), earliest);
+        // Both posts' labels survive the merge.
+        assert_eq!(
+            entity
+                .labels()
+                .iter()
+                .map(Label::as_str)
+                .collect::<Vec<_>>(),
+            vec!["a", "b"]
+        );
+    }
+
+    /// Every entity must be reachable through the `urls` index by its own URL.
+    #[test]
+    fn from_posts_leaves_every_entity_indexed() {
+        let posts = vec![
+            post(
+                "https://example.com/",
+                "2024-02-01T00:00:00Z",
+                "second",
+                &[],
+            ),
+            post("https://example.com/", "2024-01-01T00:00:00Z", "first", &[]),
+            post("https://other.test/", "2024-01-01T00:00:00Z", "other", &[]),
+        ];
+
+        let coll = Collection::from_posts(posts).unwrap();
+
+        assert_eq!(coll.len(), 2);
+        for entity in coll.entities() {
+            let id = coll
+                .id(entity.url())
+                .expect("entity missing from urls index");
+            assert_eq!(coll.entity(&id).url(), entity.url());
+        }
+    }
+
+    /// Ordering must come from the parsed timestamp: a Unix timestamp and an ISO 8601 date do not
+    /// sort lexicographically against each other.
+    #[test]
+    fn from_posts_orders_by_parsed_time() {
+        let posts = vec![
+            post("https://b.test/", "2024-01-01T00:00:00Z", "b", &[]),
+            post("https://a.test/", "1000000000", "a", &[]),
+        ];
+
+        let coll = Collection::from_posts(posts).unwrap();
+
+        let urls: Vec<&Url> = coll.entities().iter().map(Entity::url).collect();
+        let expected = [
+            Url::parse("https://a.test/").unwrap(),
+            Url::parse("https://b.test/").unwrap(),
+        ];
+        assert_eq!(urls, expected.iter().collect::<Vec<_>>());
     }
 
     #[test]
