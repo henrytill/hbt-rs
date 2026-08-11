@@ -142,12 +142,47 @@ fn mappings_rewrite_labels() {
         .stdout_eq("Bar\nMisc\nRenamed\n");
 }
 
+/// The error has to name the file. It used to be a bare "No such file or directory (os error 2)",
+/// which does not say which of the input, output or mappings file was missing.
 #[test]
-fn missing_input_file_is_an_error() {
+fn missing_input_file_names_the_file() {
     hbt()
         .args(["-t", "yaml", "test-data/does-not-exist.md"])
         .assert()
-        .failure();
+        .failure()
+        .stderr_eq("Error: Could not open input file: test-data/does-not-exist.md\n\nCaused by:\n    [..]\n");
+}
+
+#[test]
+fn unwritable_output_file_names_the_file() {
+    let out = scratch("unwritable").join("no-such-dir").join("out.yaml");
+    hbt()
+        .args(["-t", "yaml", "-o"])
+        .arg(&out)
+        .arg(TEST_FILE)
+        .assert()
+        .failure()
+        .stderr_eq(format!(
+            "Error: Could not create output file: {}\n\nCaused by:\n    [..]\n",
+            out.display()
+        ));
+}
+
+/// A mapping entry that is not a string pair used to be dropped silently, so a typo left the
+/// labels it was meant to rewrite untouched with no indication why.
+#[test]
+fn non_string_mapping_value_is_an_error() {
+    let dir = scratch("non_string_mapping");
+    let mappings = dir.join("mappings.yaml");
+    fs::write(&mappings, "Foo: 42\n").unwrap();
+
+    hbt()
+        .args(["--list-tags", "--mappings"])
+        .arg(&mappings)
+        .arg(TEST_FILE)
+        .assert()
+        .failure()
+        .stderr_eq("Error: Mapping for \"Foo\" must be a string\n");
 }
 
 #[test]
@@ -175,7 +210,7 @@ fn undetectable_input_format_is_an_error() {
 }
 
 #[test]
-fn missing_mappings_file_is_an_error() {
+fn missing_mappings_file_names_the_file() {
     hbt()
         .args([
             "--info",
@@ -184,7 +219,8 @@ fn missing_mappings_file_is_an_error() {
             TEST_FILE,
         ])
         .assert()
-        .failure();
+        .failure()
+        .stderr_eq("Error: Could not read mappings file: test-data/no-such-mappings.yaml\n\nCaused by:\n    [..]\n");
 }
 
 #[test]
@@ -202,7 +238,8 @@ fn mappings_file_of_the_wrong_shape_is_an_error() {
         .stderr_eq("Error: Mapping file must contain a YAML mapping\n");
 }
 
-/// A link before any level-1 date heading has no creation time to take.
+/// A link before any level-1 date heading has no creation time to take. The parse error names the
+/// file it came from, which matters once a pipeline is running over many.
 #[test]
 fn markdown_link_without_a_date_is_an_error() {
     let dir = scratch("no_date");
@@ -214,5 +251,8 @@ fn markdown_link_without_a_date_is_an_error() {
         .arg(&input)
         .assert()
         .failure()
-        .stderr_eq("Error: missing date\n");
+        .stderr_eq(format!(
+            "Error: Could not parse {}\n\nCaused by:\n    missing date\n",
+            input.display()
+        ));
 }

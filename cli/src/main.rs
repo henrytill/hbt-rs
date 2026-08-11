@@ -10,7 +10,7 @@ use std::{
     process::ExitCode,
 };
 
-use anyhow::Error;
+use anyhow::{Context, Error};
 use clap::Parser;
 use schemars::schema_for;
 
@@ -55,24 +55,58 @@ struct Args {
     file: Option<PathBuf>,
 }
 
+/// Runs `f` against the output file if one was given, and stdout otherwise.
+///
+/// The buffer is flushed explicitly rather than left to the drop: a `BufWriter` dropped with
+/// buffered data discards the write error, so a failure to reach disk would look like success.
+fn with_writer<T>(
+    output: Option<&PathBuf>,
+    f: impl FnOnce(&mut dyn Write) -> Result<T, Error>,
+) -> Result<T, Error> {
+    if let Some(path) = output {
+        let file = File::create(path)
+            .with_context(|| format!("Could not create output file: {}", path.display()))?;
+        let mut writer = BufWriter::new(file);
+        let value = f(&mut writer)?;
+        writer
+            .flush()
+            .with_context(|| format!("Could not write to {}", path.display()))?;
+        Ok(value)
+    } else {
+        let stdout = io::stdout();
+        let mut writer = BufWriter::new(stdout.lock());
+        let value = f(&mut writer)?;
+        writer.flush()?;
+        Ok(value)
+    }
+}
+
 fn update(args: &Args, coll: &mut Collection) -> Result<(), Error> {
-    let Some(mappings) = &args.mappings else {
+    let Some(path) = &args.mappings else {
         return Ok(());
     };
 
-    let contents = fs::read_to_string(mappings)?;
-    let yaml: serde_norway::Value = serde_norway::from_str(&contents)?;
+    let contents = fs::read_to_string(path)
+        .with_context(|| format!("Could not read mappings file: {}", path.display()))?;
+    let yaml: serde_norway::Value = serde_norway::from_str(&contents)
+        .with_context(|| format!("Could not parse mappings file: {}", path.display()))?;
 
+    // An entry that is not a string pair used to be dropped silently, so a typo in the mappings
+    // file left the labels it was meant to rewrite untouched with no indication why.
     let mappings = yaml
         .as_mapping()
         .ok_or_else(|| Error::msg("Mapping file must contain a YAML mapping"))?
         .iter()
-        .filter_map(|(k, v)| {
-            let key = k.as_str()?.to_string();
-            let value = v.as_str()?.to_string();
-            Some((key, value))
+        .map(|(k, v)| {
+            let key = k
+                .as_str()
+                .ok_or_else(|| Error::msg("Mapping file keys must be strings"))?;
+            let value = v
+                .as_str()
+                .with_context(|| format!("Mapping for {key:?} must be a string"))?;
+            Ok((key.to_string(), value.to_string()))
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>, Error>>()?;
 
     coll.update_labels(mappings);
 
@@ -87,11 +121,7 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
             .as_ref()
             .map_or("input".into(), |f| f.to_string_lossy());
         let output = format!("{file_name}: {length} entities\n");
-        let stdout = io::stdout();
-        let mut writer = BufWriter::new(stdout);
-        writer.write_all(output.as_bytes())?;
-        writer.flush()?;
-        return Ok(());
+        return with_writer(None, |writer| Ok(writer.write_all(output.as_bytes())?));
     }
 
     if args.list_tags {
@@ -109,11 +139,7 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
         } else {
             format!("{tags_output}\n")
         };
-        let stdout = io::stdout();
-        let mut writer = BufWriter::new(stdout);
-        writer.write_all(output.as_bytes())?;
-        writer.flush()?;
-        return Ok(());
+        return with_writer(None, |writer| Ok(writer.write_all(output.as_bytes())?));
     }
 
     let format = match args.to {
@@ -122,18 +148,9 @@ fn print(args: &Args, coll: &Collection) -> Result<(), Error> {
     };
 
     if let Some(format) = format {
-        if let Some(output_file) = &args.output {
-            let file = File::create(output_file)?;
-            let mut writer = BufWriter::new(file);
-            format.unparse(&mut writer, coll)?;
-            writer.flush()?;
-        } else {
-            let stdout = io::stdout();
-            let mut writer = BufWriter::new(stdout);
-            format.unparse(&mut writer, coll)?;
-            writer.flush()?;
-        }
-        return Ok(());
+        return with_writer(args.output.as_ref(), |writer| {
+            Ok(format.unparse(&mut &mut *writer, coll)?)
+        });
     }
 
     Err(Error::msg(
@@ -146,17 +163,9 @@ fn main() -> Result<ExitCode, Error> {
 
     if args.schema {
         let schema = schema_for!(CollectionRepr);
-        if let Some(output_file) = &args.output {
-            let file = File::create(output_file)?;
-            let mut writer = BufWriter::new(file);
-            serde_json::to_writer_pretty(&mut writer, &schema)?;
-            writer.flush()?;
-        } else {
-            let stdout = io::stdout();
-            let mut writer = BufWriter::new(stdout);
-            serde_json::to_writer_pretty(&mut writer, &schema)?;
-            writer.flush()?;
-        }
+        with_writer(args.output.as_ref(), |writer| {
+            Ok(serde_json::to_writer_pretty(writer, &schema)?)
+        })?;
         return Ok(ExitCode::SUCCESS);
     }
 
@@ -172,9 +181,12 @@ fn main() -> Result<ExitCode, Error> {
         InputFormat::detect(file).ok_or_else(no_parser)?
     };
 
-    let f = File::open(file)?;
+    let f = File::open(file)
+        .with_context(|| format!("Could not open input file: {}", file.display()))?;
     let mut reader = BufReader::new(f);
-    let mut coll = input_format.parse(&mut reader)?;
+    let mut coll = input_format
+        .parse(&mut reader)
+        .with_context(|| format!("Could not parse {}", file.display()))?;
     update(&args, &mut coll)?;
     print(&args, &coll)?;
 
