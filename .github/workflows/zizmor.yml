@@ -3,10 +3,10 @@ name: zizmor
 on:
   push:
     branches: ["master"]
-    paths: [".github/workflows/**"]
+    paths: [".github/**"]
   pull_request:
     branches: ["master"]
-    paths: [".github/workflows/**"]
+    paths: [".github/**"]
   schedule:
     - cron: "0 0 * * 1"
   workflow_dispatch:
