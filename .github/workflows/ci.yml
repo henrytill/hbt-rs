@@ -9,8 +9,13 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   linux:
+    name: Linux (cargo)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -31,6 +36,7 @@ jobs:
       - run: cargo build
       - run: cargo test
   linux-flake:
+    name: Linux (Nix flake)
     runs-on: ubuntu-latest
     permissions:
       contents: read
