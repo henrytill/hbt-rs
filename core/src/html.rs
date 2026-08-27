@@ -280,7 +280,11 @@ impl EntityView {
             is_feed: entity.is_feed().get(),
             last_visited_at: entity.last_visited_at().get().map(Time::timestamp),
             title,
-            extended: entity.extended().first().map(|e| escape_text(e.as_str())),
+            extended: entity
+                .extended()
+                .iter()
+                .next()
+                .map(|e| escape_text(e.as_str())),
         }
     }
 }
@@ -301,7 +305,7 @@ mod tests {
 
         let names: BTreeSet<Name> = std::iter::once(Name::from(name)).collect();
         let labels: BTreeSet<Label> = labels.iter().copied().map(Label::from).collect();
-        let extended: Vec<Extended> = extended.iter().copied().map(Extended::from).collect();
+        let extended: BTreeSet<Extended> = extended.iter().copied().map(Extended::from).collect();
 
         let entity = Entity::from_attrs(attrs, names, labels, extended).unwrap();
         let mut coll = Collection::new();
