@@ -481,9 +481,9 @@ pub struct Entity {
     is_feed: IsFeed,
     // schemars drops a `default` annotation that its own skip_serializing_if would skip, so
     // restate it: the published schema documents that an absent `extended` means the empty list.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     #[schemars(extend("default" = [] as [Extended; 0]))]
-    extended: Vec<Extended>,
+    extended: BTreeSet<Extended>,
     #[serde(default, skip_serializing_if = "LastVisitedAt::is_none")]
     last_visited_at: LastVisitedAt,
 }
@@ -505,7 +505,7 @@ impl Entity {
             shared: Shared::default(),
             to_read: ToRead::default(),
             is_feed: IsFeed::default(),
-            extended: Vec::new(),
+            extended: BTreeSet::new(),
             last_visited_at: LastVisitedAt::default(),
         }
     }
@@ -539,9 +539,10 @@ impl Entity {
     /// Absorbs `other` into `self`.
     ///
     /// Merging an entity that already equals `self` is a no-op: without that guard, re-absorbing
-    /// an identical entity would append a redundant `updated_at` equal to `created_at` and repeat
-    /// its extended descriptions, so the result would depend on how many times the same bookmark
-    /// appeared in the input.
+    /// an identical entity would append a redundant `updated_at` equal to `created_at`, so the
+    /// result would depend on how many times the same bookmark appeared in the input. Entities
+    /// that differ bypass the guard, so `extended` is a set: a description shared by two of them
+    /// is kept once rather than once per occurrence.
     pub fn merge(&mut self, other: Entity) -> &mut Entity {
         if *self == other {
             return self;
@@ -581,7 +582,7 @@ impl Entity {
     }
 
     #[must_use]
-    pub fn extended(&self) -> &[Extended] {
+    pub fn extended(&self) -> &BTreeSet<Extended> {
         &self.extended
     }
 
@@ -616,7 +617,7 @@ impl TryFrom<Post> for Entity {
     fn try_from(post: Post) -> Result<Entity, Error> {
         let url = Url::parse(&post.href)?;
         let created_at = CreatedAt::new(Time::parse_flexible(&post.time)?);
-        let extended: Vec<Extended> = post.extended.map(Extended::new).into_iter().collect();
+        let extended: BTreeSet<Extended> = post.extended.map(Extended::new).into_iter().collect();
 
         Ok(Entity {
             url,
@@ -661,7 +662,7 @@ pub mod html {
             attrs: HashMap<String, String>,
             names: BTreeSet<Name>,
             labels: BTreeSet<Label>,
-            extended: Vec<Extended>,
+            extended: BTreeSet<Extended>,
         ) -> Result<Entity, Error> {
             // Normalize once. The href lookup below used the key verbatim while the match
             // lowercased it, so an attribute map using the file's own casing - which this
@@ -759,19 +760,36 @@ mod tests {
 
     /// `merge` used to drop the incoming extended descriptions entirely.
     #[test]
-    fn merge_concatenates_extended() {
+    fn merge_unions_extended() {
         let mut a = entity_at("https://example.com/", 100);
-        a.extended.push(Extended::from("first"));
+        a.extended.insert(Extended::from("first"));
 
         let mut b = entity_at("https://example.com/", 200);
-        b.extended.push(Extended::from("second"));
+        b.extended.insert(Extended::from("second"));
 
         a.merge(b);
 
         assert_eq!(
             a.extended,
-            vec![Extended::from("first"), Extended::from("second")]
+            BTreeSet::from([Extended::from("first"), Extended::from("second")])
         );
+    }
+
+    /// Entities that differ in any field bypass the equality guard in `merge`, so a description
+    /// they share used to land once per occurrence. See henrytill/hbt-rs#52.
+    #[test]
+    fn merge_keeps_a_shared_description_once_for_differing_entities() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.extended.insert(Extended::from("desc"));
+        a.labels.insert(Label::from("a"));
+
+        let mut b = entity_at("https://example.com/", 100);
+        b.extended.insert(Extended::from("desc"));
+        b.labels.insert(Label::from("b"));
+
+        a.merge(b);
+
+        assert_eq!(a.extended, BTreeSet::from([Extended::from("desc")]));
     }
 
     #[test]
@@ -846,7 +864,13 @@ mod tests {
             .iter()
             .map(|(k, v)| ((*k).to_string(), (*v).to_string()))
             .collect();
-        Entity::from_attrs(attrs, BTreeSet::default(), BTreeSet::default(), Vec::new()).unwrap()
+        Entity::from_attrs(
+            attrs,
+            BTreeSet::default(),
+            BTreeSet::default(),
+            BTreeSet::default(),
+        )
+        .unwrap()
     }
 
     fn labels_of(entity: &Entity) -> Vec<&str> {
@@ -960,8 +984,13 @@ mod tests {
     #[test]
     fn from_attrs_requires_href() {
         let attrs = HashMap::from([("add_date".to_string(), "100".to_string())]);
-        let err = Entity::from_attrs(attrs, BTreeSet::default(), BTreeSet::default(), Vec::new())
-            .unwrap_err();
+        let err = Entity::from_attrs(
+            attrs,
+            BTreeSet::default(),
+            BTreeSet::default(),
+            BTreeSet::default(),
+        )
+        .unwrap_err();
         assert!(matches!(err, Error::MissingUrl), "{err:?}");
     }
 
@@ -970,7 +999,7 @@ mod tests {
     #[test]
     fn merge_is_idempotent_for_identical_entities() {
         let mut a = entity_at("https://example.com/", 100);
-        a.extended.push(Extended::from("desc"));
+        a.extended.insert(Extended::from("desc"));
         let before = a.clone();
 
         a.merge(before.clone());
@@ -978,7 +1007,7 @@ mod tests {
 
         assert_eq!(a, before);
         assert!(a.updated_at.is_empty());
-        assert_eq!(a.extended, vec![Extended::from("desc")]);
+        assert_eq!(a.extended, BTreeSet::from([Extended::from("desc")]));
     }
 
     /// Distinct entities sharing a `created_at` record no update: the timestamp would only repeat
@@ -1036,10 +1065,10 @@ mod tests {
     #[test]
     fn merge_keeps_extended_when_other_has_none() {
         let mut a = entity_at("https://example.com/", 100);
-        a.extended.push(Extended::from("only"));
+        a.extended.insert(Extended::from("only"));
 
         a.merge(entity_at("https://example.com/", 200));
 
-        assert_eq!(a.extended, vec![Extended::from("only")]);
+        assert_eq!(a.extended, BTreeSet::from([Extended::from("only")]));
     }
 }
