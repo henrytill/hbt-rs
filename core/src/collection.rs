@@ -317,6 +317,7 @@ impl Eq for Collection {}
 struct NodeRepr {
     id: u32,
     entity: Entity,
+    #[schemars(extend("uniqueItems" = true))]
     edges: Vec<u32>,
 }
 
