@@ -468,7 +468,7 @@ pub struct Entity {
     #[serde(rename = "uri")]
     url: Url,
     created_at: CreatedAt,
-    updated_at: Vec<UpdatedAt>,
+    updated_at: BTreeSet<UpdatedAt>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
     // The shared wire format omits an optional field rather than writing it as null or empty; see
@@ -499,7 +499,7 @@ impl Entity {
         Entity {
             url,
             created_at: CreatedAt::new(created_at),
-            updated_at: Vec::new(),
+            updated_at: BTreeSet::new(),
             names: maybe_name.into_iter().collect(),
             labels,
             shared: Shared::default(),
@@ -519,18 +519,17 @@ impl Entity {
         match updated_at.cmp(&self.created_at) {
             // An earlier timestamp becomes created_at, and the one it displaces becomes an update.
             Ordering::Less => {
-                self.updated_at.push(UpdatedAt::new(self.created_at.get()));
+                self.updated_at
+                    .insert(UpdatedAt::new(self.created_at.get()));
                 self.created_at = updated_at;
             }
             Ordering::Greater => {
-                self.updated_at.push(UpdatedAt::new(updated_at.get()));
+                self.updated_at.insert(UpdatedAt::new(updated_at.get()));
             }
             // A timestamp equal to created_at is deliberately not recorded: an "update" whose
             // timestamp merely repeats created_at carries no information. See henrytill/hbt-go#57.
             Ordering::Equal => {}
         }
-        // Sort updated_at to maintain chronological order
-        self.updated_at.sort();
         self.names.extend(names);
         self.labels.extend(labels);
         self
@@ -541,8 +540,8 @@ impl Entity {
     /// Merging an entity that already equals `self` is a no-op: without that guard, re-absorbing
     /// an identical entity would append a redundant `updated_at` equal to `created_at`, so the
     /// result would depend on how many times the same bookmark appeared in the input. Entities
-    /// that differ bypass the guard, so `extended` is a set: a description shared by two of them
-    /// is kept once rather than once per occurrence.
+    /// that differ bypass the guard, so `updated_at` and `extended` are sets: a timestamp or a
+    /// description shared by two of them is kept once rather than once per occurrence.
     pub fn merge(&mut self, other: Entity) -> &mut Entity {
         if *self == other {
             return self;
@@ -567,7 +566,7 @@ impl Entity {
     }
 
     #[must_use]
-    pub fn updated_at(&self) -> &[UpdatedAt] {
+    pub fn updated_at(&self) -> &BTreeSet<UpdatedAt> {
         &self.updated_at
     }
 
@@ -622,7 +621,7 @@ impl TryFrom<Post> for Entity {
         Ok(Entity {
             url,
             created_at,
-            updated_at: Vec::new(),
+            updated_at: BTreeSet::new(),
             names: post.description.into_iter().map(Name::new).collect(),
             labels: post.tags.into_iter().map(Label::new).collect(),
             shared: Shared::new(post.shared),
@@ -678,7 +677,7 @@ pub mod html {
             let mut entity = Entity {
                 url,
                 created_at: CreatedAt::default(),
-                updated_at: Vec::new(),
+                updated_at: BTreeSet::new(),
                 names,
                 labels,
                 shared: Shared::default(),
@@ -701,7 +700,7 @@ pub mod html {
                     }
                     KEY_LAST_MODIFIED if !trimmed.is_empty() => {
                         let time = Time::parse_timestamp(trimmed)?;
-                        entity.updated_at.push(UpdatedAt::new(time));
+                        entity.updated_at.insert(UpdatedAt::new(time));
                     }
                     KEY_LAST_VISIT if !trimmed.is_empty() => {
                         let time = Time::parse_timestamp(trimmed)?;
@@ -1037,6 +1036,29 @@ mod tests {
         a.merge(entity_at("https://example.com/", 200));
 
         assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.updated_at
+                .iter()
+                .map(|u| u.get().timestamp())
+                .collect::<Vec<_>>(),
+            vec![200]
+        );
+    }
+
+    /// Entities that differ in any field bypass the equality guard in `merge`, so an update
+    /// timestamp they share used to land once per occurrence. Three occurrences rather than two,
+    /// since the count is what varied. See henrytill/hbt-rs#54.
+    #[test]
+    fn merge_keeps_a_shared_timestamp_once_for_differing_entities() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.labels.insert(Label::from("a"));
+
+        for label in ["b", "c", "d"] {
+            let mut other = entity_at("https://example.com/", 200);
+            other.labels.insert(Label::from(label));
+            a.merge(other);
+        }
+
         assert_eq!(
             a.updated_at
                 .iter()
