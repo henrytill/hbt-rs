@@ -273,7 +273,9 @@ impl EntityView {
         EntityView {
             uri: escape_attr(url),
             created_at: entity.created_at().get().timestamp(),
-            last_modified: entity.updated_at().first().map(|u| u.get().timestamp()),
+            // The one set here whose end is the maximum: taking the minimum, as the
+            // fields around it do, discarded every later update (henrytill/hbt-go#71).
+            last_modified: entity.updated_at().last().map(|u| u.get().timestamp()),
             tags,
             shared: entity.shared().get(),
             to_read: entity.to_read().get(),
@@ -295,7 +297,7 @@ mod tests {
 
     use crate::{
         collection::Collection,
-        entity::{Entity, Extended, Label, Name},
+        entity::{Entity, Extended, Label, Name, Time, Url},
     };
 
     fn render(url: &str, name: &str, labels: &[&str], extended: &[&str]) -> String {
@@ -311,6 +313,10 @@ mod tests {
         let mut coll = Collection::new();
         coll.insert(entity);
 
+        html_of(&coll)
+    }
+
+    fn html_of(coll: &Collection) -> String {
         let mut out = Vec::new();
         coll.to_html(&mut out).unwrap();
         String::from_utf8(out).unwrap()
@@ -351,6 +357,25 @@ mod tests {
         let coll = Collection::from_html(html).unwrap();
 
         assert_eq!(coll.len(), 1);
+    }
+
+    /// An entity with more than one update used to export the oldest (henrytill/hbt-go#71).
+    #[test]
+    fn last_modified_takes_the_latest_update() {
+        let url = Url::parse("https://example.com/").unwrap();
+        let mut coll = Collection::new();
+        for timestamp in ["100", "300", "200"] {
+            let created_at = Time::parse_timestamp(timestamp).unwrap();
+            let entity = Entity::new(url.clone(), created_at, None, BTreeSet::new());
+            coll.upsert(entity);
+        }
+
+        // The earliest wins created_at; the other two become updates.
+        assert_eq!(coll.entities()[0].updated_at().len(), 2);
+
+        let html = html_of(&coll);
+
+        assert!(html.contains(r#"LAST_MODIFIED="300""#), "{html}");
     }
 
     #[test]
