@@ -77,7 +77,7 @@ Three layers: unit tests beside the code in `core/`, the conformance harness run
 
 **Shared fixtures.** `test-data/` is a git submodule of [hbt-data](https://github.com/henrytill/hbt-data), consumed by all four implementations. Clone with `--recurse-submodules`, or run `git submodule update --init`. Changing a fixture is a cross-language decision: it will go red in the other three until their fixes land, so a fix and its submodule bump belong in the same commit.
 
-**Conformance.** `test-data/` also carries hbt-data's conformance harness (henrytill/hbt-data#14), which runs every fixture through the built `hbt` and compares what the CLI writes - the serialized form every implementation shares, not decoded values, so a change to serialization alone cannot stay green. It is the `conformance` flake check. In the dev shell, which provides Python with Click and PyYAML:
+**Conformance.** `test-data/` also carries hbt-data's conformance harness (henrytill/hbt-data#14), which runs every fixture through the built `hbt` and compares what the CLI writes - the serialized form every implementation shares, not decoded values, so a change to serialization alone cannot stay green. It is the `conformance` flake check: `test-data/` is also the `hbt-data` flake input (`path:./test-data`), whose `lib.check` runs the harness, so nothing about the harness is wired up here. A relative path input locks relative to this flake rather than by hash, so bumping the submodule needs no relock. In the dev shell, which provides the harness's Python from the same input:
 
 ```sh
 cargo build -p hbt

@@ -33,6 +33,25 @@
         "type": "github"
       }
     },
+    "hbt-data": {
+      "inputs": {
+        "flake-utils": [
+          "flake-utils"
+        ],
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "path": "./test-data",
+        "type": "path"
+      },
+      "original": {
+        "path": "./test-data",
+        "type": "path"
+      },
+      "parent": []
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1787964612,
@@ -53,6 +72,7 @@
       "inputs": {
         "crane": "crane",
         "flake-utils": "flake-utils",
+        "hbt-data": "hbt-data",
         "nixpkgs": "nixpkgs",
         "rust-overlay": "rust-overlay"
       }

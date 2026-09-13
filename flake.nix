@@ -4,6 +4,14 @@
     nixpkgs.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     crane.url = "github:ipetkov/crane";
     flake-utils.url = "github:numtide/flake-utils";
+    # hbt-data's own flake, read from the corpus submodule: a relative path
+    # input locks relative to this flake, not by hash, so the submodule stays
+    # the one pin on the harness and the corpus it checks; see AGENTS.md.
+    hbt-data = {
+      url = "path:./test-data";
+      inputs.nixpkgs.follows = "nixpkgs";
+      inputs.flake-utils.follows = "flake-utils";
+    };
     rust-overlay = {
       url = "github:oxalica/rust-overlay";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -17,6 +25,7 @@
       crane,
       flake-utils,
       rust-overlay,
+      hbt-data,
       ...
     }:
     flake-utils.lib.eachDefaultSystem (
@@ -96,23 +105,9 @@
           }
         );
 
-        harnessPython = pkgs.python3.withPackages (ps: [
-          ps.click
-          ps.pyyaml
-        ]);
-
-        # hbt-data's conformance harness, run from the pinned submodule so the
-        # corpus and the harness are always one revision's pair; see AGENTS.md.
-        conformance =
-          pkgs.runCommand "hbt-conformance"
-            {
-              nativeBuildInputs = [ harnessPython ];
-            }
-            ''
-              cd ${./test-data}
-              python3 -m hbt.conformance --binary ${packages.hbt}/bin/hbt
-              touch $out
-            '';
+        conformance = hbt-data.lib.${system}.check {
+          binary = "${packages.hbt}/bin/hbt";
+        };
 
         checks =
           packages
@@ -142,6 +137,7 @@
             rust-analyzer
             cargo-deny
             yaml-language-server
+            hbt-data.packages.${system}.python
           ];
         };
       }
