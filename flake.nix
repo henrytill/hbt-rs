@@ -98,7 +98,6 @@
           }
         );
 
-        # The conformance harness needs Python, Click and PyYAML and nothing else.
         harnessPython = pkgs.python3.withPackages (ps: [
           ps.click
           ps.pyyaml
