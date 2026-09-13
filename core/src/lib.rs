@@ -39,12 +39,15 @@ pub enum ParseError {
     Pinboard(#[from] hbt_pinboard::Error),
 }
 
+/// The names are the `-f` values, which all four implementations share. Markdown is `markdown`, as
+/// in the other three, not `md`: it was spelled after the file extension here alone, so no `-f`
+/// value for markdown worked everywhere (henrytill/hbt-data#16). The extension is still `md`; see
+/// [`InputFormat::detect`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, IntoStaticStr, VariantArray)]
 #[strum(serialize_all = "lowercase")]
 pub enum InputFormat {
     Json,
     Xml,
-    #[strum(serialize = "md")]
     Markdown,
     Html,
 }

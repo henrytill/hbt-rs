@@ -125,11 +125,23 @@ fn input_format_can_be_forced() {
     fs::copy(workspace_root().join(TEST_FILE), &input).unwrap();
 
     hbt()
-        .args(["-f", "md", "--info"])
+        .args(["-f", "markdown", "--info"])
         .arg(&input)
         .assert()
         .success()
         .stdout_eq(format!("{}: 3 entities\n", input.display()));
+}
+
+/// `md` is the file extension, not a format name. It used to be the only spelling accepted here,
+/// while the other three implementations accept only `markdown` (henrytill/hbt-data#16), so keep
+/// it refused rather than letting an alias creep back in.
+#[test]
+fn input_format_md_is_not_a_format_name() {
+    hbt()
+        .args(["-f", "md", "--info", TEST_FILE])
+        .assert()
+        .code(2)
+        .stderr_eq("error: one of the values isn't valid for an argument\n");
 }
 
 #[test]

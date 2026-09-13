@@ -116,7 +116,7 @@ cargo run -p hbt -- --mappings mappings.yaml -t yaml input.html
 
 | Flag | Meaning |
 | --- | --- |
-| `-f`, `--from` | Input format: `json`, `xml`, `md`, `html`. Inferred from the extension when omitted |
+| `-f`, `--from` | Input format: `json`, `xml`, `markdown`, `html` - the names all four implementations accept. Inferred from the extension when omitted |
 | `-t`, `--to` | Output format: `html`, `yaml`. Inferred from `--output`'s extension when omitted |
 | `-o`, `--output` | Output file; stdout otherwise. Applies to `-t` output and `--schema` only - `--info` and `--list-tags` always write to stdout and ignore it silently |
 | `--info` | Entity count |
