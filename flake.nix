@@ -34,11 +34,9 @@
         craneLib = (crane.mkLib pkgs).overrideToolchain rustToolchain;
 
         extraExtensions = [
-          ".html"
           ".jinja"
           ".json"
           ".md"
-          ".xml"
           ".yaml"
         ];
 
