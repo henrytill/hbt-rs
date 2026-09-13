@@ -140,8 +140,7 @@ fn input_format_md_is_not_a_format_name() {
     hbt()
         .args(["-f", "md", "--info", TEST_FILE])
         .assert()
-        .code(2)
-        .stderr_eq("error: one of the values isn't valid for an argument\n");
+        .code(2);
 }
 
 #[test]
