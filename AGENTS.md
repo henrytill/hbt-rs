@@ -143,10 +143,10 @@ The flake sets `self.submodules = true`, so flake builds see `test-data/`. `HBT_
 
 `.github/workflows/ci.yml` runs on pushes and PRs to `master`, with no path filter, so every PR gets both jobs:
 
-- **Linux (cargo)** - `cargo build`, `cargo test`, with a cargo cache.
+- **Linux (cargo)** - `cargo build`, `cargo test`, with a cargo cache, then the conformance harness without Nix: `python3-click` and `python3-yaml` from apt, and `python3 -m hbt.conformance --binary ../target/debug/hbt` from `test-data/`. A red job with a green `cargo test` is a fixture failing conformance - see [Testing](#testing).
 - **Linux (Nix flake)** - `nix flake check -L` plus both package builds.
 
-Both are required status checks. **Formatting, clippy and cargo-deny run only in the Nix job**, so a green local `cargo test` says nothing about whether CI will pass; run `cargo fmt` and `cargo clippy` yourself before pushing. Two other workflows: `zizmor.yml` (Actions security scan, path-filtered to `.github/**` plus a weekly cron) and `update.yml` (monthly flake lock bump).
+Both are required status checks. **Formatting, clippy and cargo-deny run only in the Nix job**, so a green local `cargo test` says nothing about whether CI will pass; run `cargo fmt`, `cargo clippy` and the conformance harness yourself before pushing. Two other workflows: `zizmor.yml` (Actions security scan, path-filtered to `.github/**` plus a weekly cron) and `update.yml` (monthly flake lock bump).
 
 ## Git Workflow
 
