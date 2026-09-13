@@ -1,5 +1,5 @@
 [workspace]
-members = ["attic","cli", "core", "pinboard", "test", "test-macros"]
+members = ["attic","cli", "core", "pinboard"]
 resolver = "2"
 
 [workspace.package]

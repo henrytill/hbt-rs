@@ -42,13 +42,9 @@ Crates, edition 2024, ISC, versioned together via `workspace.package`.
 | `hbt-core` | `core/` | Collection and entity model, parsers, formatters |
 | `hbt` | `cli/` | Command-line binary |
 | `hbt-pinboard` | `pinboard/` | Pinboard export decoding (`Post::from_json`, `Post::from_xml`) |
-| `hbt-test` | `test/` | Golden-test harness; all tests, no library code |
-| `hbt-test-macros` | `test-macros/` | Proc macros that generate one test per fixture |
 | `hbt-attic` | `attic/` | Scratch space, not depended on by anything |
 
 Each crate root opens with `#![forbid(unsafe_code)]`, `#![warn(clippy::pedantic)]`, `#![deny(clippy::unwrap_in_result)]`. Give a new crate the same header - there is no `[workspace.lints]` table, so nothing detects the omission.
-
-`hbt-test` is the exception, and not deliberately: `test/src/lib.rs` is empty, and its integration tests and `build.rs` are each their own compilation unit with no header at all.
 
 `hbt-attic`'s clippy warnings are long-standing; don't treat them as a regression you introduced.
 
@@ -77,11 +73,11 @@ When touching this, add a unit test in `core/src/entity.rs` *and* consider wheth
 
 ## Testing
 
-Four layers: unit tests beside the code in `core/`, golden tests generated from shared fixtures, the conformance harness run against the built binary, and CLI integration tests.
+Three layers: unit tests beside the code in `core/`, the conformance harness run against the built binary, and CLI integration tests.
 
 **Shared fixtures.** `test-data/` is a git submodule of [hbt-data](https://github.com/henrytill/hbt-data), consumed by all four implementations. Clone with `--recurse-submodules`, or run `git submodule update --init`. Changing a fixture is a cross-language decision: it will go red in the other three until their fixes land, so a fix and its submodule bump belong in the same commit.
 
-**Conformance.** `test-data/` also carries hbt-data's conformance harness (henrytill/hbt-data#14), which runs every fixture through the built `hbt` and compares what the CLI writes - the serialized form every implementation shares, which the golden tests below compare only as decoded values. It is the `conformance` flake check. In the dev shell, which provides Python with Click and PyYAML:
+**Conformance.** `test-data/` also carries hbt-data's conformance harness (henrytill/hbt-data#14), which runs every fixture through the built `hbt` and compares what the CLI writes - the serialized form every implementation shares, not decoded values, so a change to serialization alone cannot stay green. It replaced the golden tests `hbt_test_macros` generated from the same fixtures, which compared decoded `Collection` values and so could not see that. It is the `conformance` flake check. In the dev shell, which provides Python with Click and PyYAML:
 
 ```sh
 cargo build -p hbt
@@ -91,11 +87,7 @@ cargo build -p hbt
 
 The harness's flags, what counts as a match, and its timezone policy are documented in `test-data/README.md`.
 
-**Golden tests.** Fixtures are input/output pairs named `<stem>.input.<ext>` and `<stem>.expected.<ext>` under `html/`, `markdown/`, `pinboard/json/`, and `pinboard/xml/`. `hbt_test_macros::test_parser!` and `test_formatter!` walk a directory and emit one `#[test]` per pair; they are instantiated in `test/tests/parsing.rs` and `test/tests/formatting.rs`. Matching nothing is a compile error rather than an empty suite, since that usually means the submodule is uninitialized.
-
-**Comparison granularity.** Parser tests deserialize the expected YAML and compare `Collection` values. Formatter tests compare output text, except for YAML, which is compared as a parsed document - emitters disagree about when a scalar needs quoting, and those spellings mean the same thing.
-
-**Fixture discovery happens at compile time**, inside the proc macro. Cargo cannot see through a macro to learn what it read, so `test/build.rs` declares `test-data` as an input; without it, a newly added fixture generates no test and the suite stays green without covering it.
+**Fixture layout and what counts as a match** - `<stem>.input.<ext>` beside `<stem>.expected.yaml`, plus `.expected.html` for HTML, under `html/`, `markdown/`, `pinboard/json/` and `pinboard/xml/`; YAML compared as a data model, HTML as bytes - are hbt-data's to define, and its README is the reference.
 
 **CLI integration tests.** `cli/tests/cli.rs` drives the built binary with `snapbox`, covering the flags and the error paths. snapbox's default filters rewrite backslashes to forward slashes, so `schema_output` compares `.raw()` - the JSON schema contains a regex that would otherwise be corrupted.
 
