@@ -77,9 +77,19 @@ When touching this, add a unit test in `core/src/entity.rs` *and* consider wheth
 
 ## Testing
 
-Three layers: unit tests beside the code in `core/`, golden tests generated from shared fixtures, and CLI integration tests.
+Four layers: unit tests beside the code in `core/`, golden tests generated from shared fixtures, the conformance harness run against the built binary, and CLI integration tests.
 
 **Shared fixtures.** `test-data/` is a git submodule of [hbt-data](https://github.com/henrytill/hbt-data), consumed by all four implementations. Clone with `--recurse-submodules`, or run `git submodule update --init`. Changing a fixture is a cross-language decision: it will go red in the other three until their fixes land, so a fix and its submodule bump belong in the same commit.
+
+**Conformance.** `test-data/` also carries hbt-data's conformance harness (henrytill/hbt-data#14), which runs every fixture through the built `hbt` and compares what the CLI writes - the serialized form every implementation shares, which the golden tests below compare only as decoded values. It is the `conformance` flake check. In the dev shell, which provides Python with Click and PyYAML:
+
+```sh
+cargo build -p hbt
+(cd test-data && python3 -m hbt.conformance --binary ../target/debug/hbt)                 # every fixture
+(cd test-data && python3 -m hbt.conformance --binary ../target/debug/hbt markdown/basic)  # a name, substring or glob
+```
+
+`-q` prints only what did not pass. The harness does not pin `TZ`, so a run outside UTC checks timezone invariance that CI cannot.
 
 **Golden tests.** Fixtures are input/output pairs named `<stem>.input.<ext>` and `<stem>.expected.<ext>` under `html/`, `markdown/`, `pinboard/json/`, and `pinboard/xml/`. `hbt_test_macros::test_parser!` and `test_formatter!` walk a directory and emit one `#[test]` per pair; they are instantiated in `test/tests/parsing.rs` and `test/tests/formatting.rs`. Matching nothing is a compile error rather than an empty suite, since that usually means the submodule is uninitialized.
 
@@ -129,10 +139,10 @@ An output format or an analysis flag is required; with neither, the CLI errors. 
 ### Nix
 
 ```sh
-nix flake check -L        # cargo-clippy, cargo-deny, cargo-fmt, plus both package builds
+nix flake check -L        # cargo-clippy, cargo-deny, cargo-fmt, conformance, plus both package builds
 nix build -L .#hbt
 nix build -L .#hbt-static # musl static build, Linux only
-nix develop               # adds rust-analyzer, cargo-deny, yaml-language-server
+nix develop               # adds rust-analyzer, cargo-deny, yaml-language-server, and the harness's Python
 ```
 
 The flake sets `self.submodules = true`, so flake builds see `test-data/`. `HBT_COMMIT_HASH` and `HBT_COMMIT_SHORT_HASH` are baked in for `--version`.
