@@ -89,7 +89,7 @@ cargo build -p hbt
 (cd test-data && python3 -m hbt.conformance --binary ../target/debug/hbt markdown/basic)  # a name, substring or glob
 ```
 
-`-q` prints only what did not pass. The harness does not pin `TZ`, so a run outside UTC checks timezone invariance that CI cannot.
+The harness's flags, what counts as a match, and its timezone policy are documented in `test-data/README.md`.
 
 **Golden tests.** Fixtures are input/output pairs named `<stem>.input.<ext>` and `<stem>.expected.<ext>` under `html/`, `markdown/`, `pinboard/json/`, and `pinboard/xml/`. `hbt_test_macros::test_parser!` and `test_formatter!` walk a directory and emit one `#[test]` per pair; they are instantiated in `test/tests/parsing.rs` and `test/tests/formatting.rs`. Matching nothing is a compile error rather than an empty suite, since that usually means the submodule is uninitialized.
 
