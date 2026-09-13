@@ -104,14 +104,8 @@
           ps.pyyaml
         ]);
 
-        # The shared corpus, held against the built binary by the harness that
-        # lives beside it in the test-data submodule, a checkout of hbt-data
-        # (henrytill/hbt-data#14). It
-        # compares what the CLI writes, which the golden tests never did: they
-        # compare decoded values, so a change to the serialized form alone stayed
-        # green. Run from the submodule's own source rather than as a package, so
-        # the corpus and the harness are always the pinned revision's pair. TZ is
-        # not pinned: the harness checks timezone invariance, not one zone.
+        # hbt-data's conformance harness, run from the pinned submodule so the
+        # corpus and the harness are always one revision's pair; see AGENTS.md.
         conformance =
           pkgs.runCommand "hbt-conformance"
             {
