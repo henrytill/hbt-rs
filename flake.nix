@@ -152,7 +152,6 @@
             rust-analyzer
             cargo-deny
             yaml-language-server
-            harnessPython
           ];
         };
       }
