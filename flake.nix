@@ -109,7 +109,6 @@
           pkgs.runCommand "hbt-conformance"
             {
               nativeBuildInputs = [ harnessPython ];
-              PYTHONDONTWRITEBYTECODE = "1";
             }
             ''
               cd ${./test-data}
