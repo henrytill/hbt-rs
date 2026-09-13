@@ -87,8 +87,6 @@ cargo build -p hbt
 
 The harness's flags, what counts as a match, and its timezone policy are documented in `test-data/README.md`.
 
-**Fixture layout and what counts as a match** - `<stem>.input.<ext>` beside `<stem>.expected.yaml`, plus `.expected.html` for HTML, under `html/`, `markdown/`, `pinboard/json/` and `pinboard/xml/`; YAML compared as a data model, HTML as bytes - are hbt-data's to define, and its README is the reference.
-
 **CLI integration tests.** `cli/tests/cli.rs` drives the built binary with `snapbox`, covering the flags and the error paths. snapbox's default filters rewrite backslashes to forward slashes, so `schema_output` compares `.raw()` - the JSON schema contains a regex that would otherwise be corrupted.
 
 **Regenerating the schema.** `cli/tests/cli.rs` pins `test-data/collection.schema.json` against `hbt --schema`. Changing a serialized type changes the schema, so regenerate it into the submodule and commit it there:
