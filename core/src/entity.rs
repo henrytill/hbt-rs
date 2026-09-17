@@ -520,7 +520,9 @@ impl Entity {
             // An earlier timestamp becomes created_at, and the one it displaces becomes an
             // update. HTML reads ADD_DATE and LAST_MODIFIED independently, so an earlier mention
             // may already have recorded the new created_at as an update; by the rule below, it
-            // goes. See henrytill/hbt-rs#65.
+            // goes. See henrytill/hbt-rs#65. An update strictly *below* the new created_at stays:
+            // a parse states that shape from a single anchor, and whether a merge may leave it
+            // behind is a corpus question, henrytill/hbt-data#34.
             Ordering::Less => {
                 self.updated_at.remove(&UpdatedAt::new(updated_at.get()));
                 self.updated_at
