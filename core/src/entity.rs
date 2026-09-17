@@ -1,5 +1,5 @@
 use std::{
-    cmp::Ordering,
+    cmp::min,
     collections::BTreeSet,
     hash::{Hash, Hasher},
 };
@@ -510,35 +510,27 @@ impl Entity {
         }
     }
 
-    fn update(
-        &mut self,
-        updated_at: CreatedAt,
-        names: BTreeSet<Name>,
-        labels: BTreeSet<Label>,
-    ) -> &mut Entity {
-        match updated_at.cmp(&self.created_at) {
-            // An earlier timestamp becomes created_at, and the one it displaces becomes an
-            // update. HTML reads ADD_DATE and LAST_MODIFIED independently, so an earlier mention
-            // may already have recorded the new created_at as an update; by the rule below, it
-            // goes. See henrytill/hbt-rs#65. An update strictly *below* the new created_at stays:
-            // a parse states that shape from a single anchor, and whether a merge may leave it
-            // behind is a corpus question, henrytill/hbt-data#34.
-            Ordering::Less => {
-                self.updated_at.remove(&UpdatedAt::new(updated_at.get()));
-                self.updated_at
-                    .insert(UpdatedAt::new(self.created_at.get()));
-                self.created_at = updated_at;
-            }
-            Ordering::Greater => {
-                self.updated_at.insert(UpdatedAt::new(updated_at.get()));
-            }
-            // A timestamp equal to created_at is deliberately not recorded: an "update" whose
-            // timestamp merely repeats created_at carries no information. See henrytill/hbt-go#57.
-            Ordering::Equal => {}
-        }
-        self.names.extend(names);
-        self.labels.extend(labels);
-        self
+    /// The merged update history: both histories and both creation times, minus the one that
+    /// wins.
+    ///
+    /// Adding both creation times before removing the winner is what makes merging associative.
+    /// Each merge puts its operands' creation times back into the history, so however a sequence
+    /// of mentions is bracketed the result is every history and every creation time in it, minus
+    /// the smallest creation time. Removing the winner only when the two creation times differ
+    /// is not associative, and neither is removing every update at or below `created_at`; both
+    /// counterexamples are in henrytill/hbt-data#36, which pins this rule.
+    ///
+    /// So an update equal to the winning creation time goes -- an "update" that merely repeats
+    /// `created_at` carries no information, henrytill/hbt-go#57 -- and one strictly below it
+    /// stays, which HTML can state by reading `ADD_DATE` and `LAST_MODIFIED` independently.
+    fn merged_updates(&self, other: &Entity) -> (CreatedAt, BTreeSet<UpdatedAt>) {
+        let created_at = min(self.created_at, other.created_at);
+        let mut updated_at: BTreeSet<UpdatedAt> =
+            self.updated_at.union(&other.updated_at).copied().collect();
+        updated_at.insert(UpdatedAt::new(self.created_at.get()));
+        updated_at.insert(UpdatedAt::new(other.created_at.get()));
+        updated_at.remove(&UpdatedAt::new(created_at.get()));
+        (created_at, updated_at)
     }
 
     /// Absorbs `other` into `self`.
@@ -552,7 +544,9 @@ impl Entity {
         if *self == other {
             return self;
         }
-        self.update(other.created_at, other.names, other.labels);
+        (self.created_at, self.updated_at) = self.merged_updates(&other);
+        self.names.extend(other.names);
+        self.labels.extend(other.labels);
         self.shared = self.shared.merge(other.shared);
         self.to_read = self.to_read.merge(other.to_read);
         self.is_feed = self.is_feed.merge(other.is_feed);
@@ -755,7 +749,7 @@ pub mod html {
 mod tests {
     use std::collections::{BTreeSet, HashMap};
 
-    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, Url};
+    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, UpdatedAt, Url};
 
     fn entity_at(url: &str, secs: i64) -> Entity {
         let url = Url::parse(url).unwrap();
@@ -1088,6 +1082,53 @@ mod tests {
                 .collect::<Vec<_>>(),
             vec![200]
         );
+    }
+
+    /// The incoming entity's own history is kept, not discarded: a second mention of a URL can
+    /// state a LAST_MODIFIED of its own, and it is an update like any other. Was henrytill/hbt-rs#64,
+    /// and `html/bookmarks_incoming_update` pins it.
+    #[test]
+    fn merge_keeps_the_incoming_history() {
+        let mut a = entity_at("https://example.com/", 100);
+        let mut b = entity_at("https://example.com/", 200);
+        b.updated_at
+            .insert(UpdatedAt::new(Time::parse_timestamp("300").unwrap()));
+
+        a.merge(b);
+
+        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.updated_at
+                .iter()
+                .map(|u| u.get().timestamp())
+                .collect::<Vec<_>>(),
+            vec![200, 300]
+        );
+    }
+
+    /// Merging is associative, which is what decides the rule: see henrytill/hbt-data#36. The
+    /// shape that discriminates is a history holding an instant equal to its own `created_at`,
+    /// which a single anchor states by repeating ADD_DATE in LAST_MODIFIED. Removing the winning
+    /// creation time only when the two differ passes every other case and fails this one.
+    #[test]
+    fn merge_is_associative() {
+        let mut a = entity_at("https://example.com/", 100);
+        a.updated_at
+            .insert(UpdatedAt::new(Time::parse_timestamp("100").unwrap()));
+        let b = entity_at("https://example.com/", 100);
+        let c = entity_at("https://example.com/", 200);
+
+        let mut left = a.clone();
+        left.merge(b.clone());
+        left.merge(c.clone());
+
+        let mut right = b;
+        right.merge(c);
+        let mut right_all = a;
+        right_all.merge(right);
+
+        assert_eq!(left.updated_at, right_all.updated_at);
+        assert_eq!(left.created_at, right_all.created_at);
     }
 
     /// The displaced timestamp is the only update left. A mention that stated the timestamp that
