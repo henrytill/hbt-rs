@@ -517,11 +517,16 @@ impl Entity {
         labels: BTreeSet<Label>,
     ) -> &mut Entity {
         match updated_at.cmp(&self.created_at) {
-            // An earlier timestamp becomes created_at, and the one it displaces becomes an update.
+            // An earlier timestamp becomes created_at, and the one it displaces becomes an
+            // update. An earlier mention may already have stated the new created_at as one of
+            // its own updates -- HTML reads ADD_DATE and LAST_MODIFIED as independent
+            // attributes -- and such an update now merely repeats created_at, so it goes.
+            // See henrytill/hbt-rs#65.
             Ordering::Less => {
                 self.updated_at
                     .insert(UpdatedAt::new(self.created_at.get()));
                 self.created_at = updated_at;
+                self.updated_at.remove(&UpdatedAt::new(updated_at.get()));
             }
             Ordering::Greater => {
                 self.updated_at.insert(UpdatedAt::new(updated_at.get()));
@@ -749,7 +754,7 @@ pub mod html {
 mod tests {
     use std::collections::{BTreeSet, HashMap};
 
-    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, Url};
+    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, UpdatedAt, Url};
 
     fn entity_at(url: &str, secs: i64) -> Entity {
         let url = Url::parse(url).unwrap();
@@ -789,6 +794,28 @@ mod tests {
         a.merge(b);
 
         assert_eq!(a.extended, BTreeSet::from([Extended::from("desc")]));
+    }
+
+    /// A merge that lowers `created_at` onto an instant an earlier mention stated outright as
+    /// its own update used to leave that update repeating `created_at`. See henrytill/hbt-rs#65
+    /// and the `html/bookmarks_superseded_creation` fixture.
+    #[test]
+    fn merge_drops_an_update_the_lowered_created_at_supersedes() {
+        let mut a = entity_at("https://example.com/", 200);
+        a.updated_at
+            .insert(UpdatedAt::new(Time::parse_timestamp("100").unwrap()));
+        a.labels.insert(Label::from("a"));
+
+        let mut b = entity_at("https://example.com/", 100);
+        b.labels.insert(Label::from("b"));
+
+        a.merge(b);
+
+        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.updated_at,
+            BTreeSet::from([UpdatedAt::new(Time::parse_timestamp("200").unwrap())])
+        );
     }
 
     #[test]
