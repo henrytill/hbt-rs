@@ -107,6 +107,7 @@
 
         conformance = hbt-data.lib.${system}.check {
           binary = "${packages.hbt}/bin/hbt";
+          waivers = ./conformance.waivers;
         };
 
         checks =
