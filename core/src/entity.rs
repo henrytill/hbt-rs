@@ -753,7 +753,7 @@ pub mod html {
 mod tests {
     use std::collections::{BTreeSet, HashMap};
 
-    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, UpdatedAt, Url};
+    use super::{Entity, Error, Extended, Flag, Label, LastVisitedAt, Name, Time, Url};
 
     fn entity_at(url: &str, secs: i64) -> Entity {
         let url = Url::parse(url).unwrap();
@@ -793,28 +793,6 @@ mod tests {
         a.merge(b);
 
         assert_eq!(a.extended, BTreeSet::from([Extended::from("desc")]));
-    }
-
-    /// A merge that lowers `created_at` onto an instant an earlier mention stated outright as
-    /// its own update used to leave that update repeating `created_at`. See henrytill/hbt-rs#65
-    /// and the `html/bookmarks_superseded_creation` fixture.
-    #[test]
-    fn merge_drops_an_update_the_lowered_created_at_supersedes() {
-        let mut a = entity_at("https://example.com/", 200);
-        a.updated_at
-            .insert(UpdatedAt::new(Time::parse_timestamp("100").unwrap()));
-        a.labels.insert(Label::from("a"));
-
-        let mut b = entity_at("https://example.com/", 100);
-        b.labels.insert(Label::from("b"));
-
-        a.merge(b);
-
-        assert_eq!(a.created_at.get().timestamp(), 100);
-        assert_eq!(
-            a.updated_at,
-            BTreeSet::from([UpdatedAt::new(Time::parse_timestamp("200").unwrap())])
-        );
     }
 
     #[test]
@@ -1099,6 +1077,24 @@ mod tests {
     fn merge_keeps_the_earliest_timestamp_as_created_at() {
         let mut a = entity_at("https://example.com/", 200);
         a.merge(entity_at("https://example.com/", 100));
+
+        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(
+            a.updated_at
+                .iter()
+                .map(|u| u.get().timestamp())
+                .collect::<Vec<_>>(),
+            vec![200]
+        );
+    }
+
+    /// The displaced timestamp is the only update left. A mention that stated the timestamp that
+    /// later becomes `created_at` as its own LAST_MODIFIED used to leave it there, repeating
+    /// `created_at`. See henrytill/hbt-rs#65 and the `html/bookmarks_superseded_creation` fixture.
+    #[test]
+    fn merge_drops_an_update_the_lowered_created_at_supersedes() {
+        let mut a = from_attrs(&[HREF, ("add_date", "200"), ("last_modified", "100")]);
+        a.merge(entity_at(HREF.1, 100));
 
         assert_eq!(a.created_at.get().timestamp(), 100);
         assert_eq!(
