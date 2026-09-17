@@ -518,15 +518,14 @@ impl Entity {
     ) -> &mut Entity {
         match updated_at.cmp(&self.created_at) {
             // An earlier timestamp becomes created_at, and the one it displaces becomes an
-            // update. An earlier mention may already have stated the new created_at as one of
-            // its own updates -- HTML reads ADD_DATE and LAST_MODIFIED as independent
-            // attributes -- and such an update now merely repeats created_at, so it goes.
-            // See henrytill/hbt-rs#65.
+            // update. HTML reads ADD_DATE and LAST_MODIFIED independently, so an earlier mention
+            // may already have recorded the new created_at as an update; by the rule below, it
+            // goes. See henrytill/hbt-rs#65.
             Ordering::Less => {
+                self.updated_at.remove(&UpdatedAt::new(updated_at.get()));
                 self.updated_at
                     .insert(UpdatedAt::new(self.created_at.get()));
                 self.created_at = updated_at;
-                self.updated_at.remove(&UpdatedAt::new(updated_at.get()));
             }
             Ordering::Greater => {
                 self.updated_at.insert(UpdatedAt::new(updated_at.get()));
