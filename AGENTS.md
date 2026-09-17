@@ -87,6 +87,8 @@ cargo build -p hbt
 
 The harness's flags, what counts as a match, and its timezone policy are documented in `test-data/README.md`.
 
+A `github:` flake reference carries no submodules, so it lacks the `hbt-data` input: `nix build github:henrytill/hbt-rs` still works, but `nix develop` and `nix flake check` fail on it and need a reference that includes submodules, such as `git+https://github.com/henrytill/hbt-rs?submodules=1`, or a checkout.
+
 **CLI integration tests.** `cli/tests/cli.rs` drives the built binary with `snapbox`, covering the flags and the error paths. snapbox's default filters rewrite backslashes to forward slashes, so `schema_output` compares `.raw()` - the JSON schema contains a regex that would otherwise be corrupted.
 
 **Regenerating the schema.** `cli/tests/cli.rs` pins `test-data/collection.schema.json` against `hbt --schema`. Changing a serialized type changes the schema, so regenerate it into the submodule and commit it there:
