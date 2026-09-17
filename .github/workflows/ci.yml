@@ -35,11 +35,11 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - run: cargo build
       - run: cargo test
-      # The conformance harness without Nix, as AGENTS.md documents running it. Running without Nix is
-      # why the corpus is a submodule rather than a flake input, so this job keeps that path working.
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends python3-click python3-yaml
-      - run: python3 -m hbt.conformance --binary ../target/debug/hbt
-        working-directory: test-data
+      # The conformance harness without Nix. Running without Nix is why the corpus is a submodule
+      # rather than a flake input, so this job keeps that path working.
+      - uses: ./test-data/.github/actions/conformance
+        with:
+          binary: target/debug/hbt
   linux-flake:
     name: Linux (Nix flake)
     runs-on: ubuntu-latest
