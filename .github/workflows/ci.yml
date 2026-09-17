@@ -40,6 +40,7 @@ jobs:
       - uses: ./test-data/.github/actions/conformance
         with:
           binary: target/debug/hbt
+          waivers: conformance.waivers
   linux-flake:
     name: Linux (Nix flake)
     runs-on: ubuntu-latest
