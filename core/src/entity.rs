@@ -763,6 +763,18 @@ mod tests {
         Entity::new(url, time, None, BTreeSet::default())
     }
 
+    fn update_at(secs: i64) -> UpdatedAt {
+        UpdatedAt::new(Time::parse_timestamp(&secs.to_string()).unwrap())
+    }
+
+    fn updates_of(entity: &Entity) -> Vec<i64> {
+        entity
+            .updated_at
+            .iter()
+            .map(|u| u.get().timestamp())
+            .collect()
+    }
+
     /// `merge` used to drop the incoming extended descriptions entirely.
     #[test]
     fn merge_unions_extended() {
@@ -965,14 +977,7 @@ mod tests {
         ]);
 
         assert_eq!(entity.created_at().get().timestamp(), 100);
-        assert_eq!(
-            entity
-                .updated_at()
-                .iter()
-                .map(|u| u.get().timestamp())
-                .collect::<Vec<_>>(),
-            vec![200]
-        );
+        assert_eq!(updates_of(&entity), vec![200]);
         assert_eq!(
             entity.last_visited_at().get().map(Time::timestamp),
             Some(300)
@@ -1042,13 +1047,7 @@ mod tests {
         a.merge(entity_at("https://example.com/", 200));
 
         assert_eq!(a.created_at.get().timestamp(), 100);
-        assert_eq!(
-            a.updated_at
-                .iter()
-                .map(|u| u.get().timestamp())
-                .collect::<Vec<_>>(),
-            vec![200]
-        );
+        assert_eq!(updates_of(&a), vec![200]);
     }
 
     /// Entities that differ in any field bypass the equality guard in `merge`, so an update
@@ -1065,13 +1064,7 @@ mod tests {
             a.merge(other);
         }
 
-        assert_eq!(
-            a.updated_at
-                .iter()
-                .map(|u| u.get().timestamp())
-                .collect::<Vec<_>>(),
-            vec![200]
-        );
+        assert_eq!(updates_of(&a), vec![200]);
     }
 
     /// An earlier timestamp takes over `created_at` and displaces it into `updated_at`.
@@ -1081,13 +1074,7 @@ mod tests {
         a.merge(entity_at("https://example.com/", 100));
 
         assert_eq!(a.created_at.get().timestamp(), 100);
-        assert_eq!(
-            a.updated_at
-                .iter()
-                .map(|u| u.get().timestamp())
-                .collect::<Vec<_>>(),
-            vec![200]
-        );
+        assert_eq!(updates_of(&a), vec![200]);
     }
 
     /// The incoming entity's own history is kept, not discarded: a second mention of a URL can
@@ -1097,19 +1084,12 @@ mod tests {
     fn merge_keeps_the_incoming_history() {
         let mut a = entity_at("https://example.com/", 100);
         let mut b = entity_at("https://example.com/", 200);
-        b.updated_at
-            .insert(UpdatedAt::new(Time::parse_timestamp("300").unwrap()));
+        b.updated_at.insert(update_at(300));
 
         a.merge(b);
 
         assert_eq!(a.created_at.get().timestamp(), 100);
-        assert_eq!(
-            a.updated_at
-                .iter()
-                .map(|u| u.get().timestamp())
-                .collect::<Vec<_>>(),
-            vec![200, 300]
-        );
+        assert_eq!(updates_of(&a), vec![200, 300]);
     }
 
     /// Merging is associative, which is what decides the rule: see henrytill/hbt-data#36. The
@@ -1119,8 +1099,7 @@ mod tests {
     #[test]
     fn merge_is_associative() {
         let mut a = entity_at("https://example.com/", 100);
-        a.updated_at
-            .insert(UpdatedAt::new(Time::parse_timestamp("100").unwrap()));
+        a.updated_at.insert(update_at(100));
         let b = entity_at("https://example.com/", 100);
         let c = entity_at("https://example.com/", 200);
 
@@ -1145,13 +1124,7 @@ mod tests {
         a.merge(entity_at(HREF.1, 100));
 
         assert_eq!(a.created_at.get().timestamp(), 100);
-        assert_eq!(
-            a.updated_at
-                .iter()
-                .map(|u| u.get().timestamp())
-                .collect::<Vec<_>>(),
-            vec![200]
-        );
+        assert_eq!(updates_of(&a), vec![200]);
     }
 
     #[test]
