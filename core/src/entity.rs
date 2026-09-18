@@ -537,11 +537,13 @@ impl Entity {
     ///
     /// Merging an entity that already equals `self` is a no-op, so the same anchor twice reads
     /// like the same anchor once. That is the guard's whole remaining effect under the rule
-    /// above: an anchor whose `LAST_MODIFIED` repeats its `ADD_DATE` keeps that update, as
-    /// `html/bookmarks_simple` pins, where merging it with its own duplicate would remove it.
-    /// The other three implementations guard the same way -- hbt-hs in `absorb`, outside the
-    /// `Semigroup` instance -- so this is parity, not a local quirk, and it cannot affect
-    /// associativity: any later merge puts both creation times back regardless.
+    /// above: an anchor whose `LAST_MODIFIED` repeats its `ADD_DATE` -- the shape
+    /// `html/bookmarks_simple` parses -- keeps that update, where merging it with a byte-identical
+    /// duplicate would remove it. No fixture states that, since the corpus has no duplicated
+    /// anchor carrying `LAST_MODIFIED`; `merge_is_idempotent_for_identical_entities` is what
+    /// pins it here. The other three implementations guard the same way -- hbt-hs in `absorb`,
+    /// outside the `Semigroup` instance -- so this is parity, not a local quirk, and it cannot
+    /// affect associativity: any later merge puts both creation times back regardless.
     ///
     /// Entities that differ bypass the guard, so `updated_at` and `extended` are sets: a
     /// timestamp or a description shared by two of them is kept once rather than once per
