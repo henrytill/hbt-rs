@@ -1124,17 +1124,16 @@ mod tests {
         let b = entity_at("https://example.com/", 100);
         let c = entity_at("https://example.com/", 200);
 
-        let mut left = a.clone();
-        left.merge(b.clone());
-        left.merge(c.clone());
-
-        let mut right = b;
-        right.merge(c);
-        let mut right_all = a;
+        let mut right = b.clone();
+        right.merge(c.clone());
+        let mut right_all = a.clone();
         right_all.merge(right);
 
-        assert_eq!(left.updated_at, right_all.updated_at);
-        assert_eq!(left.created_at, right_all.created_at);
+        let mut left = a;
+        left.merge(b);
+        left.merge(c);
+
+        assert_eq!(left, right_all);
     }
 
     /// The displaced timestamp is the only update left. A mention that stated the timestamp that
