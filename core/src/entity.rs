@@ -535,11 +535,17 @@ impl Entity {
 
     /// Absorbs `other` into `self`.
     ///
-    /// Merging an entity that already equals `self` is a no-op: without that guard, re-absorbing
-    /// an identical entity would append a redundant `updated_at` equal to `created_at`, so the
-    /// result would depend on how many times the same bookmark appeared in the input. Entities
-    /// that differ bypass the guard, so `updated_at` and `extended` are sets: a timestamp or a
-    /// description shared by two of them is kept once rather than once per occurrence.
+    /// Merging an entity that already equals `self` is a no-op, so the same anchor twice reads
+    /// like the same anchor once. That is the guard's whole remaining effect under the rule
+    /// above: an anchor whose `LAST_MODIFIED` repeats its `ADD_DATE` keeps that update, as
+    /// `html/bookmarks_simple` pins, where merging it with its own duplicate would remove it.
+    /// The other three implementations guard the same way -- hbt-hs in `absorb`, outside the
+    /// `Semigroup` instance -- so this is parity, not a local quirk, and it cannot affect
+    /// associativity: any later merge puts both creation times back regardless.
+    ///
+    /// Entities that differ bypass the guard, so `updated_at` and `extended` are sets: a
+    /// timestamp or a description shared by two of them is kept once rather than once per
+    /// occurrence.
     pub fn merge(&mut self, other: Entity) -> &mut Entity {
         if *self == other {
             return self;
