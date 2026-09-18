@@ -520,9 +520,9 @@ impl Entity {
     /// is not associative, and neither is removing every update at or below `created_at`; both
     /// counterexamples are in henrytill/hbt-data#36, which pins this rule.
     ///
-    /// So an update equal to the winning creation time goes -- an "update" that merely repeats
-    /// `created_at` carries no information, henrytill/hbt-go#57 -- and one strictly below it
-    /// stays, which HTML can state by reading `ADD_DATE` and `LAST_MODIFIED` independently.
+    /// So an update equal to the winner goes, carrying no information that `created_at` does not
+    /// (henrytill/hbt-go#57), while one strictly below it stays -- a shape HTML can state, since
+    /// it reads `ADD_DATE` and `LAST_MODIFIED` independently.
     fn merged_updates(&self, other: &Entity) -> (CreatedAt, BTreeSet<UpdatedAt>) {
         let created_at = min(self.created_at, other.created_at);
         let mut updated_at: BTreeSet<UpdatedAt> =
