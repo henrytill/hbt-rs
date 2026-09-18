@@ -1085,8 +1085,9 @@ mod tests {
 
     /// Absorbing an identical entity used to append a redundant `updated_at` equal to
     /// `created_at` and repeat the extended description once per occurrence. The update equal to
-    /// `created_at` is what keeps this test load-bearing: under the merge rule that is the one
-    /// element `merged_updates` would remove, so this is the only shape the guard still changes.
+    /// `created_at` is what keeps this test load-bearing: that is the one element `normalize`
+    /// removes, so this is the shape the guard still changes -- and, since parsing and decoding
+    /// normalize, one only a hand-written entity can have. See `merge`.
     #[test]
     fn merge_is_idempotent_for_identical_entities() {
         let mut a = entity_at("https://example.com/", 100);
