@@ -6,7 +6,7 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
 use hbt_pinboard::Post;
@@ -463,11 +463,17 @@ impl From<Time> for LastVisitedAt {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", remote = "Self")]
 pub struct Entity {
     #[serde(rename = "uri")]
     url: Url,
     created_at: CreatedAt,
+    // Updates, never including `created_at`. HTML reads ADD_DATE and LAST_MODIFIED
+    // independently, so one anchor may state the same instant in both; `normalize` is what makes
+    // that not survive, and html/bookmarks_simple pins it. The two are separate fields because a
+    // creation time is not an update, and an entity may have been created without ever being
+    // updated. A doc comment here would land in the generated schema, which no other field
+    // carries; see the `shared` note above.
     updated_at: BTreeSet<UpdatedAt>,
     names: BTreeSet<Name>,
     labels: BTreeSet<Label>,
@@ -486,6 +492,26 @@ pub struct Entity {
     extended: BTreeSet<Extended>,
     #[serde(default, skip_serializing_if = "LastVisitedAt::is_none")]
     last_visited_at: LastVisitedAt,
+}
+
+// `remote = "Self"` turns the two derives into inherent `Entity::serialize` and
+// `Entity::deserialize` functions, leaving the trait impls to be written here. Serializing just
+// forwards. Deserializing normalizes: a serialized history is input like any other, so a
+// collection read back must not reintroduce an entity whose `updated_at` holds its `created_at`.
+// The corpus cannot pin this half -- there is no YAML *input* format -- so
+// `decoding_normalizes_the_update_history` does. See `Entity::normalize`.
+impl Serialize for Entity {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        Entity::serialize(self, serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for Entity {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Entity, D::Error> {
+        let mut entity = Entity::deserialize(deserializer)?;
+        entity.normalize();
+        Ok(entity)
+    }
 }
 
 impl Entity {
@@ -510,8 +536,26 @@ impl Entity {
         }
     }
 
-    /// The merged update history: both histories and both creation times, minus the one that
-    /// wins.
+    /// Drops an update that merely repeats `created_at`.
+    ///
+    /// A timestamp equal to `created_at` carries no information that `created_at` does not
+    /// (henrytill/hbt-go#57). An update strictly *below* `created_at` is a different thing and is
+    /// untouched: henrytill/hbt-data#34.
+    ///
+    /// This is the whole of the normal form (henrytill/hbt-data#38), and three places maintain
+    /// it. `merge` ends here, so a merge that demotes the later creation time to an update does
+    /// not then record the earlier one twice. `Deserialize` and `from_attrs` end here because
+    /// both take a history from input: HTML reads `ADD_DATE` and `LAST_MODIFIED` independently,
+    /// so one anchor may state the same instant in both -- `html/bookmarks_simple`. The
+    /// remaining constructors, `new` and `TryFrom<Post>`, are normal for a weaker reason: they
+    /// record no updates at all. One that learns to would have to normalize too, and nothing but
+    /// this note says so.
+    fn normalize(&mut self) {
+        self.updated_at
+            .remove(&UpdatedAt::new(self.created_at.get()));
+    }
+
+    /// The merged update history: both histories and both creation times.
     ///
     /// Adding both creation times before removing the winner is what makes merging associative.
     /// Each merge puts its operands' creation times back into the history, so however a sequence
@@ -520,7 +564,9 @@ impl Entity {
     /// is not associative, and neither is removing every update at or below `created_at`; both
     /// counterexamples are in henrytill/hbt-data#36, which pins this rule.
     ///
-    /// So an update equal to the winner goes, carrying no information that `created_at` does not
+    /// Putting *both* times in, and leaving it to `normalize` to take the winner back out, is
+    /// what keeps merging associative -- and is why the removal is not spelled here. So an update
+    /// equal to the winner goes, carrying no information that `created_at` does not
     /// (henrytill/hbt-go#57), while one strictly below it stays -- a shape HTML can state, since
     /// it reads `ADD_DATE` and `LAST_MODIFIED` independently.
     fn merged_updates(&self, other: &Entity) -> (CreatedAt, BTreeSet<UpdatedAt>) {
@@ -529,21 +575,26 @@ impl Entity {
             self.updated_at.union(&other.updated_at).copied().collect();
         updated_at.insert(UpdatedAt::new(self.created_at.get()));
         updated_at.insert(UpdatedAt::new(other.created_at.get()));
-        updated_at.remove(&UpdatedAt::new(created_at.get()));
         (created_at, updated_at)
     }
 
     /// Absorbs `other` into `self`.
     ///
-    /// Merging an entity that already equals `self` is a no-op, so the same anchor twice reads
-    /// like the same anchor once. That is the guard's whole remaining effect under the rule
-    /// above: an anchor whose `LAST_MODIFIED` repeats its `ADD_DATE` -- the shape
-    /// `html/bookmarks_simple` parses -- keeps that update, where merging it with a byte-identical
-    /// duplicate would remove it. No fixture states that, since the corpus has no duplicated
-    /// anchor carrying `LAST_MODIFIED`; `merge_is_idempotent_for_identical_entities` is what
-    /// pins it here. The other three implementations guard the same way -- hbt-hs in `absorb`,
-    /// outside the `Semigroup` instance -- so this is parity, not a local quirk, and it cannot
-    /// affect associativity: any later merge puts both creation times back regardless.
+    /// Merging is field-wise, then `normalize`d: the merged history holds both creation times,
+    /// and normalizing removes the one that won. The instant that survives is typically another
+    /// mention's creation time -- `html/bookmarks_superseded_creation`. Do not re-split it by
+    /// giving `merged_updates` a removal of its own; two spellings of one rule is what a later
+    /// change would have to keep in step.
+    ///
+    /// Merging an entity that already equals `self` is a no-op. Since normalizing at parse and at
+    /// decode makes an entity whose history repeats its own `created_at` unreachable, the guard
+    /// no longer changes the result for anything the program can build -- but nothing in the type
+    /// stops such an entity being written down, and for one the guard is what keeps that update.
+    /// `merge_is_idempotent_for_identical_entities` pins that, and
+    /// `merge_is_idempotent_without_the_guard` pins the stronger claim the normal form buys. The
+    /// other three implementations guard the same way -- hbt-hs in `absorb`, outside the
+    /// `Semigroup` instance -- so this is parity, not a local quirk, and it cannot affect
+    /// associativity: any later merge puts both creation times back regardless.
     ///
     /// Entities that differ bypass the guard, so `updated_at` and `extended` are sets: a
     /// timestamp or a description shared by two of them is kept once rather than once per
@@ -552,6 +603,12 @@ impl Entity {
         if *self == other {
             return self;
         }
+        self.merge_unguarded(other)
+    }
+
+    /// The field-wise merge, then `normalize`. Split out from `merge` so the equality guard can
+    /// be stated as the one line it is, and so a test can ask what the merge does without it.
+    fn merge_unguarded(&mut self, other: Entity) -> &mut Entity {
         (self.created_at, self.updated_at) = self.merged_updates(&other);
         self.names.extend(other.names);
         self.labels.extend(other.labels);
@@ -560,6 +617,7 @@ impl Entity {
         self.is_feed = self.is_feed.merge(other.is_feed);
         self.extended.extend(other.extended);
         self.last_visited_at = self.last_visited_at.merge(other.last_visited_at);
+        self.normalize();
         self
     }
 
@@ -747,6 +805,11 @@ pub mod html {
             if entity.to_read.get().is_none() && tag_to_read {
                 entity.to_read = ToRead::new(true);
             }
+
+            // ADD_DATE and LAST_MODIFIED are read independently above, so an anchor stating the
+            // same instant in both lands here with the repeat -- the `html/bookmarks_simple`
+            // shape. Normalizing once the whole anchor is read is what drops it.
+            entity.normalize();
 
             Ok(entity)
         }
@@ -1130,6 +1193,60 @@ mod tests {
 
         assert_eq!(a.created_at.get().timestamp(), 100);
         assert_eq!(updates_of(&a), vec![200]);
+    }
+
+    /// The normal form makes the equality guard redundant for everything the program can build:
+    /// for a normalized entity the field-wise merge is already idempotent, because the creation
+    /// time it puts back is the one `normalize` then removes. Calling `merge_unguarded` is the
+    /// point -- through `merge` the guard would answer, and the test could not tell.
+    #[test]
+    fn merge_is_idempotent_without_the_guard() {
+        let mut a = entity_at("https://example.com/", 200);
+        a.updated_at.insert(update_at(100));
+        a.extended.insert(Extended::from("desc"));
+        let before = a.clone();
+
+        a.merge_unguarded(before.clone());
+
+        assert_eq!(a, before);
+    }
+
+    /// An anchor may state the same instant in `ADD_DATE` and `LAST_MODIFIED` -- the
+    /// `html/bookmarks_simple` shape -- and the parse must not keep the repeat
+    /// (henrytill/hbt-data#38). An update strictly below `created_at` is a different thing and
+    /// stays, which is the half that tells `normalize` from a rule dropping everything at or
+    /// below `created_at`.
+    #[test]
+    fn parsing_drops_an_update_that_repeats_the_creation_time() {
+        let repeat = from_attrs(&[HREF, ("add_date", "100"), ("last_modified", "100")]);
+        assert!(repeat.updated_at.is_empty(), "{:?}", repeat.updated_at);
+        assert_eq!(repeat.created_at.get().timestamp(), 100);
+
+        let below = from_attrs(&[HREF, ("add_date", "200"), ("last_modified", "100")]);
+        assert_eq!(updates_of(&below), vec![100]);
+    }
+
+    /// Decoding normalizes, so a serialized collection cannot reintroduce an entity whose history
+    /// repeats its own creation time. The corpus cannot pin this: `hbt` has no YAML *input*
+    /// format, so nothing round-trips there.
+    ///
+    /// Both halves are asserted for the same reason as in the parse test: an implementation that
+    /// dropped every update at or below `createdAt` would pass on `100` alone, and only the `50`
+    /// separates it from the rule that removes exactly `createdAt`.
+    #[test]
+    fn decoding_normalizes_the_update_history() {
+        let yaml = concat!(
+            "uri: https://example.com/\n",
+            "createdAt: 100\n",
+            "updatedAt: [50, 100, 300]\n",
+            "names: []\n",
+            "labels: []\n",
+        );
+
+        let entity: Entity = serde_norway::from_str(yaml).unwrap();
+
+        assert_eq!(entity.created_at.get().timestamp(), 100);
+        assert_eq!(updates_of(&entity), vec![50, 300]);
     }
 
     #[test]
