@@ -1121,7 +1121,7 @@ mod tests {
     }
 
     /// The displaced timestamp is the only update left. A mention that stated the timestamp that
-    /// later becomes `created_at` as its own LAST_MODIFIED used to leave it there, repeating
+    /// later becomes `created_at` as its own `LAST_MODIFIED` used to leave it there, repeating
     /// `created_at`. See henrytill/hbt-rs#65 and the `html/bookmarks_superseded_creation` fixture.
     #[test]
     fn merge_drops_an_update_the_lowered_created_at_supersedes() {
