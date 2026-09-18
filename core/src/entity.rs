@@ -140,9 +140,23 @@ pub struct Time(
 );
 
 impl Time {
+    /// Wraps a `DateTime`, truncated to whole seconds.
+    ///
+    /// The wire form is `ts_seconds`, so a `Time` holding sub-second precision would compare and
+    /// deduplicate in memory differently from how it reads on the page. `Eq` and `Ord` are
+    /// derived, and `updated_at` is a `BTreeSet` whose schema declares `uniqueItems`, so keeping
+    /// the sub-second part let two instants that serialize identically sit in one entity: a
+    /// history repeating its own `created_at` (which `normalize` could not see, since in memory
+    /// the two differed), and duplicate entries in a set the schema says has none. Both were
+    /// reachable from Pinboard input, whose `time` is RFC 3339 and may carry a fraction.
+    ///
+    /// Truncating here makes the in-memory value exactly what serializing will emit and decoding
+    /// would give back, so every comparison in the program agrees with the wire.
     #[must_use]
-    pub const fn new(time: DateTime<Utc>) -> Time {
-        Time(time)
+    pub fn new(time: DateTime<Utc>) -> Time {
+        // In range by construction -- the timestamp came from a `DateTime` -- so the fallback is
+        // unreachable, and is spelled this way to keep the constructor panic-free.
+        Time(DateTime::from_timestamp(time.timestamp(), 0).unwrap_or(time))
     }
 
     /// Returns the time as a Unix timestamp, the form used on the wire.
@@ -160,14 +174,14 @@ impl Time {
         let timestamp: i64 = time.parse()?;
         let time = DateTime::from_timestamp(timestamp, 0)
             .ok_or_else(|| Error::ParseTimestamp(timestamp, time.to_string()))?;
-        Ok(Time(time))
+        Ok(Time::new(time))
     }
 
     fn parse_iso8601(time: &str) -> Result<Time, Error> {
         let time = DateTime::parse_from_rfc3339(time)
             .map_err(|err| Error::Chrono(err, time.to_string()))?
             .with_timezone(&Utc);
-        Ok(Time(time))
+        Ok(Time::new(time))
     }
 
     /// Parses a time string that could be either a Unix timestamp or ISO 8601 format.
@@ -189,7 +203,7 @@ impl Time {
 
 impl From<DateTime<Utc>> for Time {
     fn from(time: DateTime<Utc>) -> Time {
-        Time(time)
+        Time::new(time)
     }
 }
 
@@ -904,6 +918,57 @@ mod tests {
         let utc = Time::parse_flexible("2023-11-14T22:13:20Z").unwrap();
         let offset = Time::parse_flexible("2023-11-14T17:13:20-05:00").unwrap();
         assert_eq!(utc, offset);
+    }
+
+    /// The wire form is whole seconds, so a `Time` must not carry a fraction into memory: two
+    /// instants in the same second would compare unequal while serializing identically. Pinboard
+    /// `time` is RFC 3339 and may carry one.
+    #[test]
+    fn parse_flexible_truncates_sub_second_precision() {
+        let early = Time::parse_flexible("2010-06-18T20:27:37.100Z").unwrap();
+        let late = Time::parse_flexible("2010-06-18T20:27:37.900Z").unwrap();
+
+        assert_eq!(early, late);
+        assert_eq!(early.timestamp(), late.timestamp());
+    }
+
+    /// A pre-epoch fraction truncates the same way serializing does -- towards the floor second,
+    /// which is what `timestamp()` returns -- so the two still agree.
+    #[test]
+    fn parse_flexible_truncates_pre_epoch_sub_second_precision() {
+        let time = Time::parse_flexible("1969-12-31T23:59:59.500Z").unwrap();
+        assert_eq!(time.timestamp(), -1);
+    }
+
+    /// Two mentions in the same second used to merge into an entity whose history repeated its
+    /// own `created_at` on the wire while differing from it in memory, so `normalize` could not
+    /// see it and the `debug_assert!` in `Serialize` did not fire. A third mention made the
+    /// emitted `updatedAt` hold the same timestamp twice, which the schema forbids
+    /// (`uniqueItems`). Truncating at construction is what closes both.
+    #[test]
+    fn entities_in_one_second_merge_to_a_normal_entity() {
+        let url = Url::parse("https://example.com/").unwrap();
+        let at = |s: &str| {
+            Entity::new(
+                url.clone(),
+                Time::parse_flexible(s).unwrap(),
+                None,
+                BTreeSet::default(),
+            )
+        };
+
+        let mut a = at("2010-06-18T20:27:37.100Z");
+        a.names.insert(Name::from("a"));
+        let mut b = at("2010-06-18T20:27:37.500Z");
+        b.names.insert(Name::from("b"));
+        let mut c = at("2010-06-18T20:27:37.900Z");
+        c.names.insert(Name::from("c"));
+
+        a.merge(b);
+        a.merge(c);
+
+        assert!(a.updated_at.is_empty(), "{:?}", a.updated_at);
+        assert!(a.is_normal());
     }
 
     #[test]
