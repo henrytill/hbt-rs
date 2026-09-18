@@ -275,6 +275,10 @@ impl EntityView {
             created_at: entity.created_at().get().timestamp(),
             // The one set here whose end is the maximum: taking the minimum, as the
             // fields around it do, discarded every later update (henrytill/hbt-go#71).
+            //
+            // An anchor whose LAST_MODIFIED merely repeated its ADD_DATE does not round-trip:
+            // `Entity::normalize` drops that update at parse, so only ADD_DATE is written back.
+            // html/bookmarks_simple is that shape, and its .expected.html states the result.
             last_modified: entity.updated_at().last().map(|u| u.get().timestamp()),
             tags,
             shared: entity.shared().get(),
