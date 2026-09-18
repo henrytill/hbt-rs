@@ -1083,7 +1083,7 @@ mod tests {
     }
 
     /// The incoming entity's own history is kept, not discarded: a second mention of a URL can
-    /// state a LAST_MODIFIED of its own, and it is an update like any other. Was henrytill/hbt-rs#64,
+    /// state a `LAST_MODIFIED` of its own, and it is an update like any other. Was henrytill/hbt-rs#64,
     /// and `html/bookmarks_incoming_update` pins it.
     #[test]
     fn merge_keeps_the_incoming_history() {
@@ -1099,7 +1099,7 @@ mod tests {
 
     /// Merging is associative, which is what decides the rule: see henrytill/hbt-data#36. The
     /// shape that discriminates is a history holding an instant equal to its own `created_at`,
-    /// which a single anchor states by repeating ADD_DATE in LAST_MODIFIED. Removing the winning
+    /// which a single anchor states by repeating `ADD_DATE` in `LAST_MODIFIED`. Removing the winning
     /// creation time only when the two differ passes every other case and fails this one.
     #[test]
     fn merge_is_associative() {
