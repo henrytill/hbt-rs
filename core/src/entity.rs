@@ -502,6 +502,13 @@ pub struct Entity {
 // `decoding_normalizes_the_update_history` does. See `Entity::normalize`.
 impl Serialize for Entity {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        // The normal form is maintained by three call sites rather than by the type, so nothing
+        // stops a fourth construction site forgetting it -- and the two shapes that would expose
+        // that (a decoded entity, a hand-written one) are exactly the ones no fixture can reach.
+        // Serializing is the universal exit: every YAML output and every conformance comparison
+        // passes through here, so a debug build turns the convention into something checked.
+        // Closing the representation is the stronger form; see the note in AGENTS.md.
+        debug_assert!(self.is_normal(), "un-normalized entity: {self:?}");
         Entity::serialize(self, serializer)
     }
 }
@@ -553,6 +560,13 @@ impl Entity {
     fn normalize(&mut self) {
         self.updated_at
             .remove(&UpdatedAt::new(self.created_at.get()));
+    }
+
+    /// Whether the normal form holds. Only `debug_assert!` in `Serialize` asks.
+    fn is_normal(&self) -> bool {
+        !self
+            .updated_at
+            .contains(&UpdatedAt::new(self.created_at.get()))
     }
 
     /// The merged update history: both histories and both creation times.
