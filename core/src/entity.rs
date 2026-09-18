@@ -1005,10 +1005,13 @@ mod tests {
     }
 
     /// Absorbing an identical entity used to append a redundant `updated_at` equal to
-    /// `created_at` and repeat the extended description once per occurrence.
+    /// `created_at` and repeat the extended description once per occurrence. The update equal to
+    /// `created_at` is what keeps this test load-bearing: under the merge rule that is the one
+    /// element `merged_updates` would remove, so this is the only shape the guard still changes.
     #[test]
     fn merge_is_idempotent_for_identical_entities() {
         let mut a = entity_at("https://example.com/", 100);
+        a.updated_at.insert(update_at(100));
         a.extended.insert(Extended::from("desc"));
         let before = a.clone();
 
@@ -1016,7 +1019,7 @@ mod tests {
         a.merge(before.clone());
 
         assert_eq!(a, before);
-        assert!(a.updated_at.is_empty());
+        assert_eq!(updates_of(&a), vec![100]);
         assert_eq!(a.extended, BTreeSet::from([Extended::from("desc")]));
     }
 
