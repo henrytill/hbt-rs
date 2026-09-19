@@ -234,7 +234,7 @@ fn escape_text(s: &str) -> String {
 #[derive(Debug, Serialize)]
 struct EntityView {
     uri: String,
-    created_at: i64,
+    created_at: Option<i64>,
     last_modified: Option<i64>,
     tags: Option<String>,
     shared: Option<bool>,
@@ -272,7 +272,7 @@ impl EntityView {
 
         EntityView {
             uri: escape_attr(url),
-            created_at: entity.created_at().get().timestamp(),
+            created_at: entity.created_at().get().map(Time::timestamp),
             // The one set here whose end is the maximum: taking the minimum, as the
             // fields around it do, discarded every later update (henrytill/hbt-go#71).
             //
@@ -380,6 +380,26 @@ mod tests {
         let html = html_of(&coll);
 
         assert!(html.contains(r#"LAST_MODIFIED="300""#), "{html}");
+    }
+
+    /// An undated bookmark emits no `ADD_DATE`, so an anchor without one round-trips unchanged.
+    /// Checked by presence rather than truthiness, which is what keeps a real creation time of 0
+    /// emitting `ADD_DATE="0"` -- the distinction henrytill/hbt-data#37 buys, and the trap
+    /// `last_modified` above still falls into (henrytill/hbt-rs#63).
+    #[test]
+    fn add_date_is_omitted_only_when_the_creation_time_is_absent() {
+        let undated =
+            Collection::from_html(r#"<DT><A HREF="https://example.com/" TAGS="a">Example</A>"#)
+                .unwrap();
+        let html = html_of(&undated);
+        assert!(!html.contains("ADD_DATE"), "{html}");
+
+        let epoch = Collection::from_html(
+            r#"<DT><A HREF="https://example.com/" ADD_DATE="0" TAGS="a">Example</A>"#,
+        )
+        .unwrap();
+        let html = html_of(&epoch);
+        assert!(html.contains(r#"ADD_DATE="0""#), "{html}");
     }
 
     #[test]

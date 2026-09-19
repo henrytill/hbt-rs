@@ -218,17 +218,38 @@ impl Default for Time {
 )]
 #[serde(transparent)]
 #[schemars(transparent)]
-pub struct CreatedAt(Time);
+pub struct CreatedAt(Option<Time>);
 
 impl CreatedAt {
     #[must_use]
-    pub fn new(time: Time) -> CreatedAt {
-        CreatedAt(time)
+    pub const fn new(time: Time) -> CreatedAt {
+        CreatedAt(Some(time))
     }
 
     #[must_use]
-    pub fn get(self) -> Time {
+    pub const fn get(self) -> Option<Time> {
         self.0
+    }
+
+    #[must_use]
+    pub const fn is_none(&self) -> bool {
+        self.0.is_none()
+    }
+
+    /// Merges two creation times, keeping the earlier one.
+    ///
+    /// An absent creation time contributes nothing: an undated mention says nothing about when
+    /// the bookmark was created, so it neither claims the creation time nor pushes a real one
+    /// into the update history. `None` is therefore the identity, not a very old instant --
+    /// which is the whole of henrytill/hbt-data#37, and why this cannot be `min` over the
+    /// derived `Ord`, where `None` sorts below every `Some`.
+    #[must_use]
+    pub fn merge(self, other: CreatedAt) -> CreatedAt {
+        match (self.0, other.0) {
+            (None, None) => CreatedAt(None),
+            (Some(t), None) | (None, Some(t)) => CreatedAt(Some(t)),
+            (Some(a), Some(b)) => CreatedAt(Some(min(a, b))),
+        }
     }
 }
 
@@ -481,6 +502,11 @@ impl From<Time> for LastVisitedAt {
 pub struct Entity {
     #[serde(rename = "uri")]
     url: Url,
+    // An absent creation time is omitted rather than written as the epoch, the way `shared` and
+    // `last_visited_at` are: the wire had no way to say "undated", so an undated mention used to
+    // round-trip into one created on 1970-01-01 and merge differently afterwards.
+    // henrytill/hbt-data#37.
+    #[serde(default, skip_serializing_if = "CreatedAt::is_none")]
     created_at: CreatedAt,
     // Updates, never including `created_at`. HTML reads ADD_DATE and LAST_MODIFIED
     // independently, so one anchor may state the same instant in both; `normalize` is what makes
@@ -572,15 +598,16 @@ impl Entity {
     /// record no updates at all. One that learns to would have to normalize too, and nothing but
     /// this note says so.
     fn normalize(&mut self) {
-        self.updated_at
-            .remove(&UpdatedAt::new(self.created_at.get()));
+        if let Some(created_at) = self.created_at.get() {
+            self.updated_at.remove(&UpdatedAt::new(created_at));
+        }
     }
 
     /// Whether the normal form holds. Only `debug_assert!` in `Serialize` asks.
     fn is_normal(&self) -> bool {
-        !self
-            .updated_at
-            .contains(&UpdatedAt::new(self.created_at.get()))
+        self.created_at
+            .get()
+            .is_none_or(|created_at| !self.updated_at.contains(&UpdatedAt::new(created_at)))
     }
 
     /// The merged update history: both histories and both creation times.
@@ -598,11 +625,17 @@ impl Entity {
     /// (henrytill/hbt-go#57), while one strictly below it stays -- a shape HTML can state, since
     /// it reads `ADD_DATE` and `LAST_MODIFIED` independently.
     fn merged_updates(&self, other: &Entity) -> (CreatedAt, BTreeSet<UpdatedAt>) {
-        let created_at = min(self.created_at, other.created_at);
+        let created_at = self.created_at.merge(other.created_at);
         let mut updated_at: BTreeSet<UpdatedAt> =
             self.updated_at.union(&other.updated_at).copied().collect();
-        updated_at.insert(UpdatedAt::new(self.created_at.get()));
-        updated_at.insert(UpdatedAt::new(other.created_at.get()));
+        // Only a creation time that exists goes back into the history: an absent one has nothing
+        // to contribute and must not arrive as an epoch update. henrytill/hbt-data#37.
+        updated_at.extend(
+            [self.created_at, other.created_at]
+                .into_iter()
+                .filter_map(CreatedAt::get)
+                .map(UpdatedAt::new),
+        );
         (created_at, updated_at)
     }
 
@@ -858,6 +891,10 @@ mod tests {
 
     fn update_at(secs: i64) -> UpdatedAt {
         UpdatedAt::new(Time::parse_timestamp(&secs.to_string()).unwrap())
+    }
+
+    fn created_of(entity: &Entity) -> Option<i64> {
+        entity.created_at.get().map(Time::timestamp)
     }
 
     fn updates_of(entity: &Entity) -> Vec<i64> {
@@ -1120,7 +1157,7 @@ mod tests {
             ("last_visit", "300"),
         ]);
 
-        assert_eq!(entity.created_at().get().timestamp(), 100);
+        assert_eq!(created_of(&entity), Some(100));
         assert_eq!(updates_of(&entity), vec![200]);
         assert_eq!(
             entity.last_visited_at().get().map(Time::timestamp),
@@ -1132,7 +1169,7 @@ mod tests {
     #[test]
     fn attribute_names_are_matched_case_insensitively() {
         let entity = from_attrs(&[("HREF", "https://example.com/"), ("ADD_DATE", "100")]);
-        assert_eq!(entity.created_at().get().timestamp(), 100);
+        assert_eq!(created_of(&entity), Some(100));
     }
 
     #[test]
@@ -1182,7 +1219,7 @@ mod tests {
         a.merge(b);
 
         assert!(a.updated_at.is_empty(), "{:?}", a.updated_at);
-        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&a), Some(100));
         assert_eq!(
             a.names.iter().map(Name::as_str).collect::<Vec<_>>(),
             vec!["a", "b"]
@@ -1194,7 +1231,7 @@ mod tests {
         let mut a = entity_at("https://example.com/", 100);
         a.merge(entity_at("https://example.com/", 200));
 
-        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&a), Some(100));
         assert_eq!(updates_of(&a), vec![200]);
     }
 
@@ -1221,7 +1258,7 @@ mod tests {
         let mut a = entity_at("https://example.com/", 200);
         a.merge(entity_at("https://example.com/", 100));
 
-        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&a), Some(100));
         assert_eq!(updates_of(&a), vec![200]);
     }
 
@@ -1236,7 +1273,7 @@ mod tests {
 
         a.merge(b);
 
-        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&a), Some(100));
         assert_eq!(updates_of(&a), vec![200, 300]);
     }
 
@@ -1271,7 +1308,7 @@ mod tests {
         let mut a = from_attrs(&[HREF, ("add_date", "200"), ("last_modified", "100")]);
         a.merge(entity_at(HREF.1, 100));
 
-        assert_eq!(a.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&a), Some(100));
         assert_eq!(updates_of(&a), vec![200]);
     }
 
@@ -1300,7 +1337,7 @@ mod tests {
     fn parsing_drops_an_update_that_repeats_the_creation_time() {
         let repeat = from_attrs(&[HREF, ("add_date", "100"), ("last_modified", "100")]);
         assert!(repeat.updated_at.is_empty(), "{:?}", repeat.updated_at);
-        assert_eq!(repeat.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&repeat), Some(100));
 
         let below = from_attrs(&[HREF, ("add_date", "200"), ("last_modified", "100")]);
         assert_eq!(updates_of(&below), vec![100]);
@@ -1325,8 +1362,89 @@ mod tests {
 
         let entity: Entity = serde_norway::from_str(yaml).unwrap();
 
-        assert_eq!(entity.created_at.get().timestamp(), 100);
+        assert_eq!(created_of(&entity), Some(100));
         assert_eq!(updates_of(&entity), vec![50, 300]);
+    }
+
+    /// An undated mention says nothing about when the bookmark was created, so a dated one wins
+    /// outright: the dated instant stays `created_at` rather than being demoted to an update by
+    /// an absence standing in as the epoch. henrytill/hbt-data#37, and the shape HTML allows
+    /// because `ADD_DATE` is optional.
+    #[test]
+    fn merge_lets_a_dated_mention_win_over_an_undated_one() {
+        let undated = from_attrs(&[HREF, ("tags", "a")]);
+        let dated = from_attrs(&[HREF, ("add_date", "1609459200"), ("tags", "b")]);
+
+        let mut a = undated.clone();
+        a.merge(dated.clone());
+        assert_eq!(created_of(&a), Some(1_609_459_200));
+        assert!(a.updated_at.is_empty(), "{:?}", a.updated_at);
+
+        // The other order agrees, which is what makes absence an identity rather than a value.
+        let mut b = dated;
+        b.merge(undated);
+        assert_eq!(created_of(&b), Some(1_609_459_200));
+        assert!(b.updated_at.is_empty(), "{:?}", b.updated_at);
+    }
+
+    /// Merging two undated mentions cannot invent a creation time.
+    #[test]
+    fn merge_of_two_undated_mentions_stays_undated() {
+        let mut a = from_attrs(&[HREF, ("tags", "a")]);
+        a.merge(from_attrs(&[HREF, ("tags", "b")]));
+
+        assert_eq!(created_of(&a), None);
+        assert!(a.updated_at.is_empty(), "{:?}", a.updated_at);
+    }
+
+    /// Associativity has to survive an absent creation time too, since `CreatedAt::merge` is the
+    /// one place the rule stops being `min`.
+    #[test]
+    fn merge_is_associative_with_an_undated_mention() {
+        let a = from_attrs(&[HREF, ("tags", "a")]);
+        let b = from_attrs(&[HREF, ("add_date", "200"), ("tags", "b")]);
+        let c = from_attrs(&[HREF, ("add_date", "100"), ("tags", "c")]);
+
+        let mut left = a.clone();
+        left.merge(b.clone());
+        left.merge(c.clone());
+
+        let mut right_inner = b;
+        right_inner.merge(c);
+        let mut right = a;
+        right.merge(right_inner);
+
+        assert_eq!(left, right);
+        assert_eq!(created_of(&left), Some(100));
+        assert_eq!(updates_of(&left), vec![200]);
+    }
+
+    /// An anchor with no `ADD_DATE` parses to an absent creation time, not the epoch, and the
+    /// absence survives a round-trip: the wire omits the field rather than writing 0, so decoding
+    /// gives back an undated entity instead of one created on 1970-01-01. Before
+    /// henrytill/hbt-data#37 that round-trip changed what a later merge produced.
+    #[test]
+    fn an_undated_entity_round_trips_without_a_creation_time() {
+        let undated = from_attrs(&[HREF, ("tags", "a")]);
+        assert_eq!(created_of(&undated), None);
+
+        let yaml = serde_norway::to_string(&undated).unwrap();
+        assert!(!yaml.contains("createdAt"), "{yaml}");
+
+        let decoded: Entity = serde_norway::from_str(&yaml).unwrap();
+        assert_eq!(decoded, undated);
+        assert_eq!(created_of(&decoded), None);
+    }
+
+    /// A creation time of 0 is a real instant and stays on the wire -- only absence is omitted.
+    /// The two were indistinguishable before henrytill/hbt-data#37.
+    #[test]
+    fn an_epoch_creation_time_is_not_treated_as_absent() {
+        let epoch = from_attrs(&[HREF, ("add_date", "0"), ("tags", "a")]);
+        assert_eq!(created_of(&epoch), Some(0));
+
+        let yaml = serde_norway::to_string(&epoch).unwrap();
+        assert!(yaml.contains("createdAt: 0"), "{yaml}");
     }
 
     #[test]
