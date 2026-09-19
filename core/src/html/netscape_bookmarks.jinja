@@ -4,7 +4,8 @@
 <H1>Bookmarks</H1>
 <DL><p>
 {%- for entity in entities %}
-    <DT><A HREF="{{ entity.uri }}" ADD_DATE="{{ entity.created_at }}"
+    <DT><A HREF="{{ entity.uri }}"
+        {%- if entity.created_at is not none %} ADD_DATE="{{ entity.created_at }}"{% endif -%}
         {%- if entity.last_modified %} LAST_MODIFIED="{{ entity.last_modified }}"{% endif -%}
         {%- if entity.tags %} TAGS="{{ entity.tags }}"{% endif -%}
         {%- if entity.shared is not none %} PRIVATE="{{ "0" if entity.shared else "1" }}"{% endif -%}
