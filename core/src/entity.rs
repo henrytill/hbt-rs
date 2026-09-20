@@ -213,6 +213,10 @@ impl Default for Time {
     }
 }
 
+// The derived `Ord` sorts `None` below every `Some`, which is what `merge` must not do and
+// exactly the behaviour henrytill/hbt-data#37 removed. It is kept only so `CreatedAt` can be a
+// sort key for a set of entities that all have one (`Collection::from_posts`); to combine two
+// creation times, call `merge`, never `min`.
 #[derive(
     Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
 )]
@@ -610,12 +614,13 @@ impl Entity {
             .is_none_or(|created_at| !self.updated_at.contains(&UpdatedAt::new(created_at)))
     }
 
-    /// The merged update history: both histories and both creation times.
+    /// The merged update history: both histories and both creation times that exist.
     ///
     /// Adding both creation times before removing the winner is what makes merging associative.
     /// Each merge puts its operands' creation times back into the history, so however a sequence
     /// of mentions is bracketed the result is every history and every creation time in it, minus
-    /// the smallest creation time. Removing the winner only when the two creation times differ
+    /// the smallest creation time. An absent creation time is not one of them: it contributes
+    /// nothing to either half, which is henrytill/hbt-data#37. Removing the winner only when the two creation times differ
     /// is not associative, and neither is removing every update at or below `created_at`; both
     /// counterexamples are in henrytill/hbt-data#36, which pins this rule.
     ///
