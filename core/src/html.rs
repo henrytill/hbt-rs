@@ -384,8 +384,7 @@ mod tests {
 
     /// An undated bookmark emits no `ADD_DATE`, so an anchor without one round-trips unchanged.
     /// Checked by presence rather than truthiness, which is what keeps a real creation time of 0
-    /// emitting `ADD_DATE="0"` -- the distinction henrytill/hbt-data#37 buys, and the trap
-    /// `last_modified` above still falls into (henrytill/hbt-rs#63).
+    /// emitting `ADD_DATE="0"` -- the distinction henrytill/hbt-data#37 buys.
     #[test]
     fn add_date_is_omitted_only_when_the_creation_time_is_absent() {
         let undated =
@@ -400,6 +399,28 @@ mod tests {
         .unwrap();
         let html = html_of(&epoch);
         assert!(html.contains(r#"ADD_DATE="0""#), "{html}");
+    }
+
+    /// The same distinction for the other two timestamps, which the template used to test for
+    /// truth: an update or a visit at the epoch is a real instant and must survive the export
+    /// (henrytill/hbt-rs#63). Absence of a creation time made this reachable -- before
+    /// henrytill/hbt-data#37 an anchor stating only `LAST_MODIFIED="0"` parsed to a creation
+    /// time of 0 that absorbed the update, so the shape never reached the template.
+    #[test]
+    fn a_timestamp_of_zero_is_exported() {
+        let modified = Collection::from_html(
+            r#"<DT><A HREF="https://example.com/" LAST_MODIFIED="0">Example</A>"#,
+        )
+        .unwrap();
+        let html = html_of(&modified);
+        assert!(html.contains(r#"LAST_MODIFIED="0""#), "{html}");
+
+        let visited = Collection::from_html(
+            r#"<DT><A HREF="https://example.com/" LAST_VISIT="0">Example</A>"#,
+        )
+        .unwrap();
+        let html = html_of(&visited);
+        assert!(html.contains(r#"LAST_VISIT="0""#), "{html}");
     }
 
     #[test]
