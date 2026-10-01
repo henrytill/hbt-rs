@@ -113,20 +113,20 @@ pub mod xml {
 
     use super::{Error, Post};
 
-    const KEY_HREF: &[u8] = b"href";
-    const KEY_TIME: &[u8] = b"time";
-    const KEY_DESCRIPTION: &[u8] = b"description";
-    const KEY_EXTENDED: &[u8] = b"extended";
-    const KEY_TAG: &[u8] = b"tag";
-    const KEY_META: &[u8] = b"meta";
-    const KEY_HASH: &[u8] = b"hash";
-    const KEY_SHARED: &[u8] = b"shared";
-    const KEY_TOREAD: &[u8] = b"toread";
+    const KEY_HREF: &str = "href";
+    const KEY_TIME: &str = "time";
+    const KEY_DESCRIPTION: &str = "description";
+    const KEY_EXTENDED: &str = "extended";
+    const KEY_TAG: &str = "tag";
+    const KEY_META: &str = "meta";
+    const KEY_HASH: &str = "hash";
+    const KEY_SHARED: &str = "shared";
+    const KEY_TOREAD: &str = "toread";
 
     const YES: &str = "yes";
 
-    const EVENT_POSTS: &[u8] = b"posts";
-    const EVENT_POST: &[u8] = b"post";
+    const EVENT_POSTS: &str = "posts";
+    const EVENT_POST: &str = "post";
 
     impl Post {
         fn from_attrs(attrs: Attributes) -> Result<Post, Error> {
