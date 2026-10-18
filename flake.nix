@@ -74,6 +74,7 @@
             commonArgs
             // {
               inherit cargoArtifacts env;
+              meta.mainProgram = "hbt";
             }
           );
         };
@@ -100,6 +101,7 @@
                 inherit env;
                 cargoArtifacts = cargoArtifactsStatic;
                 pname = "hbt-static";
+                meta.mainProgram = "hbt";
               }
             );
           }
