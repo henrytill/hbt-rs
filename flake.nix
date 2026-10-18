@@ -108,7 +108,7 @@
         );
 
         conformance = hbt-data.lib.${system}.check {
-          binary = "${packages.hbt}/bin/hbt";
+          binary = lib.getExe packages.hbt;
         };
 
         checks =
