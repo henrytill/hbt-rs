@@ -3,7 +3,10 @@ use std::{
     io::{self, Write},
 };
 
-use minijinja::{Environment, context};
+use minijinja::{
+    Environment, context,
+    value::{self, Serde},
+};
 use scraper::{ElementRef, Html, Selector};
 use serde::Serialize;
 use thiserror::Error;
@@ -191,6 +194,7 @@ impl Collection {
         let mut env = Environment::new();
         env.add_template("netscape", TEMPLATE)?;
         let entities: Vec<EntityView> = self.entities().iter().map(EntityView::new).collect();
+        let entities: Serde<Vec<EntityView>> = value::Serde(entities);
         let template = env.get_template("netscape")?;
         template.render_captured_to(context! { entities }, &mut writer)?;
         writer.write_all(b"\n")?;
